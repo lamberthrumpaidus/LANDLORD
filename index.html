@@ -365,6 +365,34 @@ body.landlord-fpp:has(#overlay.off) #firstPersonBlade{opacity:1}
 body.landlord-fpp #target{opacity:.91;transform:scale(1.5)}
 @media(max-height:480px){#mobileControls .touch-view-mode{top:58px;width:39px;height:39px;font-size:16px}#firstPersonBlade{transform-origin:60% 96%;right:11%;bottom:-13%;scale:.70}}
 @media(max-width:480px) and (orientation:portrait){#mobileControls .touch-view-mode{top:71px;right:12px;width:43px;height:43px}#firstPersonBlade{right:3%;scale:.65}}
+
+/* LANDLORD: authoritative mobile layout override. Must remain LAST in CSS.
+   Reserve the bottom 138px for Safari/embedded-host overlays such as Netlify badges. */
+#mobileControls .touch-map,[data-mobile-action="map"]{display:none!important}
+@media (pointer:coarse){
+  #mobileControls.running .ghost-actions{
+    right:max(12px,env(safe-area-inset-right))!important;
+    bottom:max(134px,calc(env(safe-area-inset-bottom) + 118px))!important;
+    transform:scale(.86)!important;
+    transform-origin:right bottom!important;
+  }
+  #mobileControls.running #joyVisual{opacity:.85}
+}
+@media (pointer:coarse) and (orientation:portrait){
+  #mobileControls.running .ghost-actions{
+    right:max(10px,env(safe-area-inset-right))!important;
+    bottom:max(142px,calc(env(safe-area-inset-bottom) + 126px))!important;
+    transform:scale(.80)!important;
+    transform-origin:right bottom!important;
+  }
+}
+@media (pointer:coarse) and (orientation:landscape){
+  #mobileControls.running .ghost-actions{
+    right:max(8px,env(safe-area-inset-right))!important;
+    bottom:max(22px,calc(env(safe-area-inset-bottom) + 12px))!important;
+    transform:scale(.76)!important;
+  }
+}
 </style></head><body>
 <div id="sky"></div><canvas id="world" aria-label="Dunia petualangan LANDLORD 3D"></canvas><canvas id="atmosphere" aria-hidden="true"></canvas><div id="grain"></div><div id="portalVeil" aria-hidden="true"></div><div id="vignette"></div>
 <div id="hud" class="hidden"><div id="brand">LANDLORD</div><div id="status"><div class="measure health"><span class="glyph">♥</span><div class="track"><div class="fill" id="hpFill"></div></div><span id="hpText" class="amount">100/100</span></div><div class="measure energy"><span class="glyph">✦</span><div class="track"><div class="fill" id="mpFill"></div></div><span id="mpText" class="amount">100/100</span></div><div id="weaponTag">⚔ BLADE</div></div><div id="zoneInfo"><div class="overline">CHAPTER <span id="chapNum">01</span> / 07</div><div id="zoneName">THE STYX</div><div id="bones">✧ <span id="essence">0</span> ESSENCE · LV <span id="level">1</span> · <span id="seals">0</span>/7 SEALS · <span id="relics">0</span>/7 RELICS</div></div><div id="objective"><div class="overline">THE JOURNEY</div><div id="questText">Temukan jalan ke gerbang terakhir</div></div></div>
@@ -2550,7 +2578,7 @@ function placeJoystick(){
  // Fixed-position, thumb-friendly left joystick, independent of camera direction.
  const size=joyVisual.getBoundingClientRect().width||124;
  const portrait=innerHeight>innerWidth;
- const edgeX=Math.max(18,innerWidth*.023),edgeBottom=portrait?Math.max(118,innerHeight*.135):Math.max(18,innerHeight*.05);
+ const edgeX=Math.max(18,innerWidth*.023),edgeBottom=portrait?Math.max(146,innerHeight*.16):Math.max(18,innerHeight*.05);
  joystickCenter={x:edgeX+size*.5,y:innerHeight-edgeBottom-size*.5};
  joyVisual.style.left=joystickCenter.x+'px';joyVisual.style.top=joystickCenter.y+'px';
  return joystickCenter;

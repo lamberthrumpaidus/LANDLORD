@@ -27,7 +27,3 @@ python -m http.server 8000
 ```
 
 Kemudian buka `http://localhost:8000` di browser.
-
----
-
-<p align="center"><sub>Game by <a href="https://github.com/lamberthrumpaidus/lamberthrumpaidus">Lamberth Rumpaidus</a></sub></p>

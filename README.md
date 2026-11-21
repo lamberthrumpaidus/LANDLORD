@@ -1,29 +1,24 @@
 <div align="center">
-  <img src="./app-logo.svg" alt="Logo game LANDLORD" width="92" />
+  <img src="./app-logo.svg" alt="Logo LANDLORD" width="92" />
   <h1>LANDLORD</h1>
-  <p>Eksperimen game petualangan 3D berbasis browser.</p>
-  <p><a href="./index.html">Buka kode game</a> · <a href="https://github.com/lamberthrumpaidus/lamberthrumpaidus">Profil L/R</a></p>
+  <p>Proyek pengembangan permainan petualangan 3D berbasis browser.</p>
+  <p><a href="./index.html">Kode permainan</a> · <a href="https://github.com/lamberthrumpaidus/lamberthrumpaidus">Profil utama</a></p>
 </div>
 
 ---
 
-### Tentang proyek
+## Tentang proyek
 
-LANDLORD berfokus pada eksplorasi dunia, pergerakan karakter, dan tantangan dalam lingkungan 3D. Antarmuka dan kontrol disiapkan untuk permainan melalui komputer maupun perangkat mobile.
+LANDLORD merupakan eksperimen pengembangan permainan yang berfokus pada eksplorasi lingkungan, pergerakan karakter, serta penerapan mekanik interaksi. Proyek ini dikembangkan menggunakan teknologi web dan mencakup antarmuka untuk permainan pada komputer maupun perangkat seluler.
 
-**Yang tersedia**
-- Navigasi dunia dengan peta dan area eksplorasi.
-- Mekanik karakter, kemampuan, serta interaksi dengan lingkungan.
-- Menu permainan dan pengaturan kontrol.
+**Teknologi:** HTML, CSS, dan JavaScript.
 
-**Teknologi:** HTML · CSS · JavaScript
+## Menjalankan secara lokal
 
-### Jalankan secara lokal
-
-Jalankan `index.html` menggunakan server lokal, misalnya:
+Jalankan server HTTP pada direktori repository:
 
 ```bash
 python -m http.server 8000
 ```
 
-Kemudian buka `http://localhost:8000` di browser.
+Kemudian akses `http://localhost:8000` melalui browser. Untuk mengetahui fitur yang tersedia, gunakan versi kode terbaru pada branch utama repository.

@@ -1,0 +1,111 @@
+/* Create by LamberthRumpaidus | Final menu, settings logo and mobile control safety */
+:root{--landlord-viewport-occlusion:0px}
+/* EXACT requested title screen: dark bordered panel and only two visible buttons */
+#overlay:not(.off){background:radial-gradient(ellipse at 50% 40%,#06221d8a,#00120fd9 45%,#000b0bf5 100%)!important;backdrop-filter:blur(13px)!important}
+#overlay::before,#overlay::after{display:none!important}
+#overlay:has(#menuScene:not([hidden])) #menuScene{
+ width:min(1020px,calc(100vw - 48px))!important;
+ max-width:none!important;
+ min-height:285px!important;
+ margin:0!important;
+ padding:50px 52px!important;
+ display:flex!important;flex-direction:column!important;
+ justify-content:center!important;align-items:flex-start!important;text-align:left!important;
+ background:linear-gradient(145deg,#051518f7,#030f13f4);
+ border:1px solid #e6cb8f36;border-radius:42px!important;
+ box-shadow:0 28px 80px #0008;overflow:visible!important;
+ animation:none!important
+}
+#menuScene h1{
+ font-family:Georgia,'Times New Roman',serif!important;
+ font-size:clamp(58px,7vw,88px)!important;
+ font-weight:700!important;line-height:1!important;
+ letter-spacing:0!important;color:#fff6d4!important;
+ margin:0 0 22px!important;text-shadow:none!important;
+ animation:none!important;transform:none!important
+}
+#menuScene .buttons{
+ display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;
+ align-items:center!important;justify-content:flex-start!important;
+ width:100%!important;max-width:none!important;margin:0!important;gap:10px!important
+}
+#menuScene .buttons button{
+ width:auto!important;min-width:155px!important;min-height:66px!important;
+ padding:16px 29px!important;font-size:18px!important;font-weight:760!important;
+ letter-spacing:0!important;line-height:1.1!important;
+ color:#f0f0e7!important;border:1px solid #d7c28a30!important;border-radius:23px!important;
+ background:#142023!important;box-shadow:none!important;
+ transition:background .14s,transform .14s!important
+}
+#menuScene .buttons button.primary,#menuScene .buttons #play{
+ background:linear-gradient(140deg,#e8ca84,#d5b26c)!important;
+ color:#142320!important;border-color:transparent!important
+}
+#menuScene .buttons button:hover{transform:translateY(-1px)!important}
+/* Keep the play button/hidden resume layout stable. */
+#menuScene .buttons button[hidden]{display:none!important}
+/* Only the exact LR logo in Settings, never in the landing page/game HUD. */
+#creatorSignature,#menuScene .creator-credit,#menuScene .menuSigil,#brand{display:none!important}
+#creatorSignatureSettings.final-credit{
+ display:flex!important;flex-direction:row!important;align-items:center!important;
+ justify-content:flex-start!important;gap:16px!important;
+ max-width:none!important;width:100%!important;margin:0!important;
+ padding:14px 16px!important;border:1px solid #78aab333!important;
+ border-radius:15px!important;background:linear-gradient(120deg,#12252be8,#06131be8)!important
+}
+#creatorSignatureSettings.final-credit img{
+ display:block!important;width:clamp(90px,15vw,135px)!important;max-height:90px!important;
+ height:auto!important;object-fit:contain!important;flex-shrink:0
+}
+.final-credit-copy{display:grid;gap:5px;min-width:0}
+.final-credit-copy span{font-size:10px;color:#c5cfca;letter-spacing:.2em}
+.final-credit-copy strong{font:700 clamp(18px,2.6vw,30px) Georgia,serif;color:#f2f4f0;overflow-wrap:anywhere}
+.settings-credit-wrap{margin-top:18px!important}
+/* Mobile Netlify overlays the lower-right edge. Raise all combat controls away from it. */
+@media (pointer:coarse){
+ #mobileControls.running .ghost-actions{
+  right:max(14px,env(safe-area-inset-right,0px))!important;
+  bottom:max(146px,calc(132px + env(safe-area-inset-bottom,0px) + var(--landlord-viewport-occlusion)))!important;
+  transform:scale(.79)!important;transform-origin:right bottom!important;
+ }
+ #mobileControls .ghost-btn{touch-action:none!important;-webkit-tap-highlight-color:transparent!important}
+ #mobileControls #joyVisual{touch-action:none!important}
+ #mobileControls .btn-descend[hidden]{display:none!important}
+}
+@media (pointer:coarse) and (orientation:portrait){
+ #mobileControls.running .ghost-actions{
+  right:max(12px,env(safe-area-inset-right,0px))!important;
+  bottom:max(172px,calc(155px + env(safe-area-inset-bottom,0px) + var(--landlord-viewport-occlusion)))!important;
+  transform:scale(.78)!important
+ }
+}
+@media (pointer:coarse) and (orientation:landscape){
+ #mobileControls.running .ghost-actions{
+  bottom:max(58px,calc(43px + env(safe-area-inset-bottom,0px) + var(--landlord-viewport-occlusion)))!important;
+  transform:scale(.63)!important
+ }
+ #mobileControls .touch-menu{right:max(10px,env(safe-area-inset-right,0px))!important}
+}
+@media(max-width:660px){
+ #overlay:has(#menuScene:not([hidden])) #menuScene{
+  width:calc(100vw - 24px)!important;min-height:240px!important;
+  padding:26px 22px!important;border-radius:27px!important;
+  align-items:flex-start!important;text-align:left!important
+ }
+ #menuScene h1{font-size:clamp(44px,12vw,66px)!important;margin:0 0 22px!important}
+ #menuScene .buttons{width:100%!important;gap:8px!important;justify-content:flex-start!important}
+ #menuScene .buttons button{min-width:0!important;min-height:54px!important;font-size:16px!important;padding:12px 22px!important;border-radius:17px!important}
+}
+@media(max-height:430px) and (orientation:landscape){
+ #overlay:has(#menuScene:not([hidden])) #menuScene{min-height:155px!important;padding:16px 26px!important}
+ #menuScene h1{font-size:48px!important;margin:0 0 12px!important}
+ #menuScene .buttons button{min-height:42px!important;padding:9px 16px!important;font-size:13px!important}
+}
+
+/* Real texture usage: lightly patterned Settings panel; no GPU texture upload on launch. */
+#settingsPanel{background-image:linear-gradient(#0b1624f4,#0a1623f2),url("../../assets/textures/stone_path_1p5k.png")!important;background-size:cover,460px 460px!important}
+
+/* Center the final start panel on all desktop and mobile widths. */
+#overlay:has(#menuScene:not([hidden])){align-items:center!important;justify-content:center!important}
+#overlay:has(#menuScene:not([hidden])) #menuScene{margin-left:auto!important;margin-right:auto!important}
+@media(max-width:660px){#overlay:has(#menuScene:not([hidden])) #menuScene{margin-left:auto!important;margin-right:auto!important}}

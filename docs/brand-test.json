@@ -1,0 +1,120 @@
+[
+  {
+    "kind": "desktop",
+    "menu": {
+      "gameLogo": {
+        "loaded": true,
+        "width": 1774
+      },
+      "creditLogo": {
+        "loaded": true,
+        "width": 1536
+      },
+      "label": "Tujuh dunia yang saling terhubung. Jelajahi gerbang kuno, hadapi makhluk penjaga, dan temukan jalan terakhir.",
+      "buttons": [
+        {
+          "id": "play",
+          "text": "Mulai Game",
+          "visible": true
+        },
+        {
+          "id": "resume",
+          "text": "LANJUTKAN",
+          "visible": false
+        },
+        {
+          "id": "settings",
+          "text": "Settings",
+          "visible": true
+        }
+      ],
+      "menuVisible": true,
+      "gameReady": true,
+      "logoBox": {
+        "top": 160.40882873535156,
+        "height": 275,
+        "width": 550,
+        "bottom": 435.40882873535156
+      },
+      "playBox": {
+        "top": 515.03125,
+        "bottom": 574.421875,
+        "height": 59.390625
+      },
+      "creditBox": {
+        "top": 666.3125,
+        "bottom": 741.703125
+      }
+    },
+    "settings": {
+      "visible": true,
+      "logo": true
+    },
+    "status": {
+      "state": "playing",
+      "renderer": "cpu",
+      "worldLength": 1750,
+      "fps": 46
+    },
+    "errors": []
+  },
+  {
+    "kind": "mobile",
+    "menu": {
+      "gameLogo": {
+        "loaded": true,
+        "width": 1774
+      },
+      "creditLogo": {
+        "loaded": true,
+        "width": 1536
+      },
+      "label": "Tujuh dunia yang saling terhubung. Jelajahi gerbang kuno, hadapi makhluk penjaga, dan temukan jalan terakhir.",
+      "buttons": [
+        {
+          "id": "play",
+          "text": "Mulai Game",
+          "visible": true
+        },
+        {
+          "id": "resume",
+          "text": "LANJUTKAN",
+          "visible": false
+        },
+        {
+          "id": "settings",
+          "text": "Settings",
+          "visible": true
+        }
+      ],
+      "menuVisible": true,
+      "gameReady": true,
+      "logoBox": {
+        "top": 218.48196411132812,
+        "height": 169,
+        "width": 338,
+        "bottom": 387.4819641113281
+      },
+      "playBox": {
+        "top": 442.734375,
+        "bottom": 493.734375,
+        "height": 51
+      },
+      "creditBox": {
+        "top": 569.734375,
+        "bottom": 623.734375
+      }
+    },
+    "settings": {
+      "visible": true,
+      "logo": true
+    },
+    "status": {
+      "state": "playing",
+      "renderer": "cpu",
+      "worldLength": 1750,
+      "fps": 45
+    },
+    "errors": []
+  }
+]

@@ -1,0 +1,98 @@
+/* Create by LamberthRumpaidus — LANDLORD original 7-realms brand menu */
+/* This page is intentionally not a copy of any other game art direction. */
+#overlay:has(#menuScene:not([hidden])){
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ overflow:hidden!important;
+ background:
+   radial-gradient(ellipse at 50% 10%,rgba(19,93,76,.42),transparent 53%),
+   radial-gradient(ellipse at 88% 85%,rgba(13,99,103,.22),transparent 45%),
+   linear-gradient(160deg,#05120f 0%,#061a1b 55%,#020c12 100%)!important;
+ backdrop-filter:none!important;
+}
+#overlay:has(#menuScene:not([hidden])):before,
+#overlay:has(#menuScene:not([hidden])):after{display:none!important}
+#overlay:has(#menuScene:not([hidden])) #menuScene.landlord-brand-menu{
+ position:relative!important;z-index:2!important;
+ box-sizing:border-box!important;
+ display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;
+ width:min(690px,calc(100vw - 28px))!important;max-width:690px!important;
+ max-height:min(96dvh,1050px)!important;min-height:unset!important;
+ padding:clamp(12px,2.8vh,28px) clamp(22px,4.5vw,48px) clamp(16px,2.5vh,24px)!important;
+ margin:0 auto!important;
+ overflow-y:auto!important;overflow-x:hidden!important;
+ background:linear-gradient(180deg,rgba(6,27,28,.94),rgba(4,21,22,.89) 60%,rgba(3,14,18,.94))!important;
+ border:1px solid rgba(86,183,167,.25)!important;
+ border-radius:28px!important;
+ box-shadow:0 28px 95px #0009,inset 0 1px 0 #d2fff011!important;
+ text-align:center!important;
+ animation:none!important;
+ scrollbar-width:thin!important;scrollbar-color:#327568 #091d1d!important;
+}
+#menuScene .landlord-menu-hero{width:100%;display:flex;flex-direction:column;align-items:center;gap:0;margin:0 auto}
+#menuScene .landlord-game-logo{
+ display:block;width:min(100%,550px);height:auto;max-height:min(37dvh,360px);
+ object-fit:contain;object-position:center;filter:drop-shadow(0 12px 19px #0009) drop-shadow(0 0 23px #00dfb01e);
+ animation:landlordLogoFloat 5s ease-in-out infinite;
+ user-select:none;-webkit-user-drag:none;
+}
+@keyframes landlordLogoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#menuScene .landlord-menu-intro{
+ width:min(100%,520px);margin:clamp(2px,.8vh,10px) auto clamp(14px,2.3vh,28px);
+ font:400 clamp(12px,1.35vw,16px)/1.6 system-ui,-apple-system,Segoe UI,sans-serif;
+ color:#c6d8cf;letter-spacing:.006em;text-wrap:balance;
+}
+#menuScene.landlord-brand-menu .landlord-menu-buttons{
+ display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:stretch!important;
+ max-width:520px!important;width:100%!important;gap:10px!important;margin:0 auto!important;
+}
+#menuScene.landlord-brand-menu .landlord-menu-buttons button{
+ display:block!important;position:relative!important;width:100%!important;
+ min-height:clamp(45px,6.6vh,65px)!important;margin:0!important;
+ padding:10px 20px!important;
+ border-radius:16px!important;
+ border:1px solid rgba(77,172,143,.55)!important;
+ background:linear-gradient(180deg,#0f3b36,#092b2d)!important;
+ color:#e2f5e9!important;
+ font:800 clamp(13px,1.35vw,17px)/1.2 system-ui,-apple-system,Segoe UI,sans-serif!important;
+ letter-spacing:.07em!important;
+ box-shadow:inset 0 1px 0 #ffffff12,0 6px 16px #0003!important;
+ transition:background .2s,transform .18s,filter .2s!important;
+}
+#menuScene.landlord-brand-menu .landlord-menu-buttons button.primary,
+#menuScene.landlord-brand-menu .landlord-menu-buttons #play{
+ background:linear-gradient(135deg,#eed18f,#d2aa66)!important;
+ border-color:#fff2be88!important;color:#09251e!important;
+ box-shadow:inset 0 1px 0 #ffffffa5,0 8px 24px #b27d2338!important;
+}
+#menuScene.landlord-brand-menu .landlord-menu-buttons button[hidden]{display:none!important}
+#menuScene.landlord-brand-menu .landlord-menu-buttons button:hover{transform:translateY(-2px)!important;filter:brightness(1.06)!important}
+#menuScene.landlord-brand-menu .landlord-menu-buttons button:before{display:none!important}
+#menuScene .landlord-menu-credit{
+ width:min(100%,520px);margin:clamp(14px,2.5vh,27px) auto 0;
+ padding:clamp(10px,1.6vh,16px) 8px 0;
+ border-top:1px solid #c7f1d42c;
+ display:flex;align-items:center;justify-content:center;gap:clamp(9px,2vw,19px);
+}
+#menuScene .landlord-menu-credit img{display:block!important;width:clamp(70px,12vw,104px);height:clamp(40px,5vw,60px);object-fit:contain;flex:none}
+#menuScene .landlord-menu-credit-copy{text-align:left;display:grid;gap:2px}
+#menuScene .landlord-menu-credit-copy span{font:700 10px/1.3 system-ui,sans-serif;letter-spacing:.2em;color:#a6c4b6}
+#menuScene .landlord-menu-credit-copy strong{font:700 clamp(13px,1.7vw,18px)/1.25 system-ui,sans-serif;color:#efd6a1;white-space:normal}
+@media(max-width:660px){
+ #overlay:has(#menuScene:not([hidden])) #menuScene.landlord-brand-menu{width:calc(100vw - 18px)!important;max-height:96dvh!important;padding:15px 16px 16px!important;border-radius:21px!important}
+ #menuScene .landlord-game-logo{width:min(100%,460px);max-height:32dvh}
+ #menuScene .landlord-menu-intro{font-size:clamp(11px,3.1vw,13px);line-height:1.55;margin:0 auto 17px}
+ #menuScene.landlord-brand-menu .landlord-menu-buttons{gap:8px!important}
+ #menuScene.landlord-brand-menu .landlord-menu-buttons button{min-height:51px!important;font-size:14px!important;border-radius:14px!important}
+ #menuScene .landlord-menu-credit{margin-top:17px;padding-top:10px}
+ #menuScene .landlord-menu-credit img{width:80px;height:43px}
+}
+@media(max-height:510px) and (orientation:landscape){
+ #overlay:has(#menuScene:not([hidden])) #menuScene.landlord-brand-menu{max-width:760px!important;max-height:96dvh!important;padding:8px 18px!important}
+ #menuScene .landlord-game-logo{max-height:34dvh!important;width:min(390px,56vw)!important}
+ #menuScene .landlord-menu-intro{font-size:11px;line-height:1.35;margin:0 auto 8px}
+ #menuScene.landlord-brand-menu .landlord-menu-buttons{flex-direction:row!important;max-width:660px!important;gap:9px!important}
+ #menuScene.landlord-brand-menu .landlord-menu-buttons button{min-height:40px!important;padding:8px 10px!important;font-size:11px!important;flex:1}
+ #menuScene .landlord-menu-credit{margin:8px auto 0;padding-top:5px}
+ #menuScene .landlord-menu-credit img{width:60px;height:30px}
+}
+@media(prefers-reduced-motion:reduce){#menuScene .landlord-game-logo{animation:none!important}}

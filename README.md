@@ -1,24 +1,21 @@
 <div align="center">
-  <img src="./app-logo.svg" alt="Logo LANDLORD" width="92" />
-  <h1>LANDLORD</h1>
-  <p>Proyek pengembangan permainan petualangan 3D berbasis browser.</p>
-  <p><a href="./index.html">Kode permainan</a> · <a href="https://github.com/lamberthrumpaidus/lamberthrumpaidus">Profil utama</a></p>
+  <img src="./app-logo.svg" alt="Logo LANDLORD" width="160" />
+
+  # LANDLORD
+
+  **Petualangan fantasi 3D di tujuh dunia.**
 </div>
 
----
+## Tentang LANDLORD
 
-## Tentang proyek
+**LANDLORD** adalah permainan petualangan 3D berbasis browser yang mengajak pemain menjelajahi tujuh dunia fantasi dengan lingkungan, makhluk, dan tantangan yang beragam. Pemain dapat bertarung, memanfaatkan kemampuan karakter, menemukan jalur tersembunyi, serta melewati gerbang untuk melanjutkan perjalanan ke dunia berikutnya.
 
-LANDLORD merupakan eksperimen pengembangan permainan yang berfokus pada eksplorasi lingkungan, pergerakan karakter, serta penerapan mekanik interaksi. Proyek ini dikembangkan menggunakan teknologi web dan mencakup antarmuka untuk permainan pada komputer maupun perangkat seluler.
+Permainan dirancang dengan pendekatan eksplorasi bebas. Checkpoint membantu perkembangan kemampuan dan perjalanan karakter, tetapi pemain tetap memiliki kebebasan untuk menentukan cara mencapai tujuan akhir.
 
-**Teknologi:** HTML, CSS, dan JavaScript.
+LANDLORD dikembangkan menggunakan **JavaScript, HTML, dan CSS** untuk pengalaman bermain melalui browser pada komputer maupun perangkat seluler.
 
-## Menjalankan secara lokal
+## Pengembang
 
-Jalankan server HTTP pada direktori repository:
+Dikembangkan oleh **Lamberth Rumpaidus**.
 
-```bash
-python -m http.server 8000
-```
-
-Kemudian akses `http://localhost:8000` melalui browser. Untuk mengetahui fitur yang tersedia, gunakan versi kode terbaru pada branch utama repository.
+**[GitHub — lamberthrumpaidus](https://github.com/lamberthrumpaidus)**

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./app-logo.svg" alt="Logo LANDLORD" width="160" />
+  <img src="./logo.png" alt="Logo LANDLORD" width="160" />
 
   # LANDLORD
 

@@ -18,4 +18,4 @@ LANDLORD dikembangkan menggunakan **JavaScript, HTML, dan CSS** untuk pengalaman
 
 Dikembangkan oleh **Lamberth Rumpaidus**.
 
-**[GitHub — lamberthrumpaidus](https://github.com/lamberthrumpaidus)**
+**[Profil utama LamberthRumpaidus](https://github.com/lamberthrumpaidus/lamberthrumpaidus)**

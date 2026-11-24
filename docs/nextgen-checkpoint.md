@@ -59,3 +59,6 @@ The verified screenshot showed cartoon-like skeletons with oversized glowing eye
 
 ## Checkpoint 09 — explicit environment materials
 Used the original repository's bamboo bark, leaf and water texture maps in the WebGL2 renderer, in addition to moss and stone. Static mesh vertices encode a material identifier in the existing emission attribute without increasing stride. Bamboo stems and leaf fans use distinct sampling; wetland water uses animated dual flow sampling, roughness and grazing-angle highlights. Software rendering decodes emission separately and WebGL1 retains the two-texture fallback. Five-texture loading is required by the WebGL2 regression suite. Pending CI.
+
+## Checkpoint 10 — durable offline save mirror
+Added IndexedDB progress snapshots with serialized writes, startup recovery when localStorage is absent, and ordered reset/tombstone handling. Existing saves are compatible and localStorage remains a synchronous copy. The browser regression removes localStorage before offline reload and requires IndexedDB to restore the destroyed crate flag. PWA settings report a waiting update without forcing a mid-game version change. Pending CI.

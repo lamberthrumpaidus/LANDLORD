@@ -263,11 +263,11 @@ document.querySelectorAll('[data-mobile-action]').forEach(button=>{
  });
  for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>{if(actionPointers.get(e.pointerId)!==button)return;actionPointers.delete(e.pointerId);if([...actionPointers.values()].includes(button))return;button.classList.remove('pressed');if(button.dataset.mobileAction==='jump')flightTouchRise=false;if(button.dataset.mobileAction==='descend')flightTouchDrop=false;});
 });
-$('play').addEventListener('click',()=>{audioContext()?.resume?.();let hasSave=false;try{hasSave=!!localStorage.getItem('landlord-openrealms-save-v1')}catch{}if(hasSave)fromSave();else newGame()});
+$('play').addEventListener('click',async()=>{audioContext()?.resume?.();if($('play').disabled)return;$('play').disabled=true;try{let hasSave=false;if(window.LandlordSaveStore){await LandlordSaveStore.ready;hasSave=LandlordSaveStore.has();}else try{hasSave=!!localStorage.getItem('landlord-openrealms-save-v1')}catch{}if(hasSave)fromSave();else newGame()}finally{$('play').disabled=false;}});
 $('victoryRestart').addEventListener('click',()=>{$('victoryOverlay').hidden=true;newGame()});
-$('victoryMenu').addEventListener('click',()=>{game.missionEnd=false;try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}$('victoryOverlay').hidden=true;openMenu(true);});
+$('victoryMenu').addEventListener('click',()=>{game.missionEnd=false;if(window.LandlordSaveStore)LandlordSaveStore.clear();else try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}$('victoryOverlay').hidden=true;openMenu(true);});
 $('resume').addEventListener('click',resume);
-$('restart').addEventListener('click',()=>{if(confirm(T('resetConfirm'))){try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}showMenuPanel();newGame()}});
+$('restart').addEventListener('click',()=>{if(confirm(T('resetConfirm'))){if(window.LandlordSaveStore)LandlordSaveStore.clear();else try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}showMenuPanel();newGame()}});
 $('closeMap').addEventListener('click',e=>{e.stopPropagation();if(game.state==='map')toggleMap()});
 mini.addEventListener('click',e=>{if(game.state==='playing'){e.preventDefault();e.stopPropagation();toggleMap()}});
 ui.map.addEventListener('click',e=>{if(e.target===$('mapOverlay'))toggleMap()});

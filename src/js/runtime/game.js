@@ -1077,8 +1077,8 @@ function discoveryMesh(mesh){
   m.sphere(xx,y,zz,.27,[.48,.9,1],3,6,1.7);appendVertices(mesh.d,m.d);
  }
 }
-function save(){try{localStorage.setItem('landlord-openrealms-save-v1',JSON.stringify({seals:game.seals,bosses:game.bosses,essence:game.essence,kills:game.kills,z:player.z,x:player.x,checkpoint:game.checkpoint,checkpointX:game.checkpointX,missionEnd:game.missionEnd,finishedGate:game.missionEnd,mapLength:LEN,relics:game.relics,visited:game.visited,explored:game.explored,chests:chestTaken,shards:shardTaken,brokenCrates:breakables.map(b=>b.dead)}))}catch{}}
-function load(){let x;try{x=JSON.parse(localStorage.getItem('landlord-openrealms-save-v1')||'null')}catch{}if(!x||!Array.isArray(x.seals)||x.seals.length!==7)return false;
+function save(){try{const raw=JSON.stringify({seals:game.seals,bosses:game.bosses,essence:game.essence,kills:game.kills,z:player.z,x:player.x,checkpoint:game.checkpoint,checkpointX:game.checkpointX,missionEnd:game.missionEnd,finishedGate:game.missionEnd,mapLength:LEN,relics:game.relics,visited:game.visited,explored:game.explored,chests:chestTaken,shards:shardTaken,brokenCrates:breakables.map(b=>b.dead)});if(window.LandlordSaveStore)LandlordSaveStore.write(raw);else localStorage.setItem('landlord-openrealms-save-v1',raw)}catch{}}
+function load(){let x;try{x=JSON.parse((window.LandlordSaveStore?LandlordSaveStore.getRaw():localStorage.getItem('landlord-openrealms-save-v1'))||'null')}catch{}if(!x||!Array.isArray(x.seals)||x.seals.length!==7)return false;
  game.seals=x.seals.map(Boolean);game.bosses=(x.bosses?.length===7?x.bosses:new Array(7).fill(false)).map(Boolean);game.essence=Number(x.essence)||0;game.kills=Number(x.kills)||0;game.checkpoint=Number(x.checkpoint)||6;game.checkpointX=Number(x.checkpointX)||0;game.missionEnd=x.finishedGate===true;game.relics=(Array.isArray(x.relics)&&x.relics.length===7?x.relics:new Array(7).fill(false)).map(Boolean);
  chestTaken=(Array.isArray(x.chests)&&x.chests.length===21?x.chests:new Array(21).fill(false)).map(Boolean);
  shardTaken=(Array.isArray(x.shards)&&x.shards.length===28?x.shards:new Array(28).fill(false)).map(Boolean);
@@ -2691,11 +2691,11 @@ document.querySelectorAll('[data-mobile-action]').forEach(button=>{
  });
  for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>{if(actionPointers.get(e.pointerId)!==button)return;actionPointers.delete(e.pointerId);if([...actionPointers.values()].includes(button))return;button.classList.remove('pressed');if(button.dataset.mobileAction==='jump')flightTouchRise=false;if(button.dataset.mobileAction==='descend')flightTouchDrop=false;});
 });
-$('play').addEventListener('click',()=>{audioContext()?.resume?.();let hasSave=false;try{hasSave=!!localStorage.getItem('landlord-openrealms-save-v1')}catch{}if(hasSave)fromSave();else newGame()});
+$('play').addEventListener('click',async()=>{audioContext()?.resume?.();if($('play').disabled)return;$('play').disabled=true;try{let hasSave=false;if(window.LandlordSaveStore){await LandlordSaveStore.ready;hasSave=LandlordSaveStore.has();}else try{hasSave=!!localStorage.getItem('landlord-openrealms-save-v1')}catch{}if(hasSave)fromSave();else newGame()}finally{$('play').disabled=false;}});
 $('victoryRestart').addEventListener('click',()=>{$('victoryOverlay').hidden=true;newGame()});
-$('victoryMenu').addEventListener('click',()=>{game.missionEnd=false;try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}$('victoryOverlay').hidden=true;openMenu(true);});
+$('victoryMenu').addEventListener('click',()=>{game.missionEnd=false;if(window.LandlordSaveStore)LandlordSaveStore.clear();else try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}$('victoryOverlay').hidden=true;openMenu(true);});
 $('resume').addEventListener('click',resume);
-$('restart').addEventListener('click',()=>{if(confirm(T('resetConfirm'))){try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}showMenuPanel();newGame()}});
+$('restart').addEventListener('click',()=>{if(confirm(T('resetConfirm'))){if(window.LandlordSaveStore)LandlordSaveStore.clear();else try{localStorage.removeItem('landlord-openrealms-save-v1')}catch{}showMenuPanel();newGame()}});
 $('closeMap').addEventListener('click',e=>{e.stopPropagation();if(game.state==='map')toggleMap()});
 mini.addEventListener('click',e=>{if(game.state==='playing'){e.preventDefault();e.stopPropagation();toggleMap()}});
 ui.map.addEventListener('click',e=>{if(e.target===$('mapOverlay'))toggleMap()});

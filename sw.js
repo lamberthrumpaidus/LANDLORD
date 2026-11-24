@@ -1,9 +1,10 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-nextgen-20261124-10';
+const CACHE='landlord-nextgen-20261124-11';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
   "src/js/platform/offline.js",
+  "src/js/platform/SaveStore.js",
   "src/js/engine/GeometryChunks.js",
   "src/js/engine/MaterialLibrary.js",
   "src/js/engine/CinematicPipeline.js",

@@ -331,8 +331,8 @@ function discoveryMesh(mesh){
   m.sphere(xx,y,zz,.27,[.48,.9,1],3,6,1.7);appendVertices(mesh.d,m.d);
  }
 }
-function save(){try{localStorage.setItem('landlord-openrealms-save-v1',JSON.stringify({seals:game.seals,bosses:game.bosses,essence:game.essence,kills:game.kills,z:player.z,x:player.x,checkpoint:game.checkpoint,checkpointX:game.checkpointX,missionEnd:game.missionEnd,finishedGate:game.missionEnd,mapLength:LEN,relics:game.relics,visited:game.visited,explored:game.explored,chests:chestTaken,shards:shardTaken,brokenCrates:breakables.map(b=>b.dead)}))}catch{}}
-function load(){let x;try{x=JSON.parse(localStorage.getItem('landlord-openrealms-save-v1')||'null')}catch{}if(!x||!Array.isArray(x.seals)||x.seals.length!==7)return false;
+function save(){try{const raw=JSON.stringify({seals:game.seals,bosses:game.bosses,essence:game.essence,kills:game.kills,z:player.z,x:player.x,checkpoint:game.checkpoint,checkpointX:game.checkpointX,missionEnd:game.missionEnd,finishedGate:game.missionEnd,mapLength:LEN,relics:game.relics,visited:game.visited,explored:game.explored,chests:chestTaken,shards:shardTaken,brokenCrates:breakables.map(b=>b.dead)});if(window.LandlordSaveStore)LandlordSaveStore.write(raw);else localStorage.setItem('landlord-openrealms-save-v1',raw)}catch{}}
+function load(){let x;try{x=JSON.parse((window.LandlordSaveStore?LandlordSaveStore.getRaw():localStorage.getItem('landlord-openrealms-save-v1'))||'null')}catch{}if(!x||!Array.isArray(x.seals)||x.seals.length!==7)return false;
  game.seals=x.seals.map(Boolean);game.bosses=(x.bosses?.length===7?x.bosses:new Array(7).fill(false)).map(Boolean);game.essence=Number(x.essence)||0;game.kills=Number(x.kills)||0;game.checkpoint=Number(x.checkpoint)||6;game.checkpointX=Number(x.checkpointX)||0;game.missionEnd=x.finishedGate===true;game.relics=(Array.isArray(x.relics)&&x.relics.length===7?x.relics:new Array(7).fill(false)).map(Boolean);
  chestTaken=(Array.isArray(x.chests)&&x.chests.length===21?x.chests:new Array(21).fill(false)).map(Boolean);
  shardTaken=(Array.isArray(x.shards)&&x.shards.length===28?x.shards:new Array(28).fill(false)).map(Boolean);

@@ -157,12 +157,17 @@ def run(mobile):
         wait(lambda:js("return Landlord3D.getStatus().state==='playing'"))
         wait(lambda:js("return document.documentElement.dataset.offline==='ready'&&!!navigator.serviceWorker.controller"),120)
         assert not js('return window.__landlordErrors'),js('return window.__landlordErrors')
+        wait(lambda:js("return LandlordSaveStore.status().mirror==='ready'&&LandlordSaveStore.status().writes>0"))
+        request('POST',sid+'/execute/async',{'script':'const done=arguments[arguments.length-1];LandlordSaveStore.flush().then(()=>done(true));','args':[]})
+        js("localStorage.removeItem('landlord-openrealms-save-v1')")
         cdp('Network.enable')
         cdp('Network.emulateNetworkConditions',{'offline':True,'latency':0,'downloadThroughput':0,'uploadThroughput':0})
         request('POST',sid+'/refresh',{})
         wait(lambda:js('return !!window.Landlord3D'))
+        wait(lambda:js('return LandlordSaveStore.status().initialized&&LandlordSaveStore.has()'))
+        assert js("return JSON.parse(LandlordSaveStore.getRaw()).brokenCrates[0]")
         assert not js('return window.__landlordErrors'),js('return window.__landlordErrors')
-        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'postFX':status['postFX'],'textures':status['materialTextures'],'qualitySwitches':4,'visitedRealms':visited,'ambientEmitter':True,'combatInput':True,'multiTouch':mobile,'offlineReload':True,'errors':[]}),flush=True)
+        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'postFX':status['postFX'],'textures':status['materialTextures'],'qualitySwitches':4,'visitedRealms':visited,'ambientEmitter':True,'combatInput':True,'multiTouch':mobile,'offlineReload':True,'indexedDBRecovery':True,'errors':[]}),flush=True)
 
 if __name__=='__main__':
     driver=shutil.which('chromedriver') or str(pathlib.Path(os.environ['CHROMEWEBDRIVER'])/'chromedriver')

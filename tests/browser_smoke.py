@@ -61,6 +61,7 @@ def run(mobile):
         title=js('return Landlord3D.getStatus()')
         assert title['renderer']=='gpu',title
         assert len(title['seals'])==7,title
+        assert len(title['landmarks'])==7 and all(p['triangles']>100 for p in title['landmarks']),title['landmarks']
         # Actual click dispatch through WebDriver so WebAudio receives a user gesture.
         el=request('POST',sid+'/element',{'using':'css selector','value':'#play'})
         key=el['element-6066-11e4-a52e-4f735466cecf']
@@ -175,6 +176,8 @@ def run(mobile):
                 assert js('return Landlord3D.getStatus().visited[arguments[0]]',realm)
                 assert not js('return Landlord3D.gpuErrors()')
                 visited.append(realm)
+                assert js("return document.getElementById('sky').dataset.realm")==str(realm)
+                wait(lambda:js('return Landlord3D.getStatus().splashTime<=0'),60)
                 (out/f'realm-{realm+1:02d}.png').write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
             # Return to the first realm; ensure travel remains reversible.
             js('Landlord3D.openMap();Landlord3D.travelRealm(0)')

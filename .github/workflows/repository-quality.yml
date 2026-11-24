@@ -80,6 +80,7 @@ jobs:
           node --check src/js/engine/EnemyModels.js
           node --check src/js/ui/WorldAtlas.js
           node --check src/js/engine/CombatRules.js
+          node --check src/js/engine/RealmArt.js
           node --test tests/geometry.test.cjs tests/atlas.test.cjs tests/combat.test.cjs
       - name: Exercise actual game in preinstalled Chrome
         run: python3 tests/browser_smoke.py

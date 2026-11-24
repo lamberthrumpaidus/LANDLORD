@@ -68,3 +68,6 @@ Checkpoint 10 passed both browser profiles, all seven desktop world transitions 
 
 ## Checkpoint 12 — fair melee and telegraph
 Enemy attack direction is locked at wind-up. Shared combat geometry rules reject strikes outside vertical reach, cone or unobstructed line. Directional ground telegraphs follow the locked attack heading. Wildlife contact is also checked; loot cannot magnetize to a player far above ground. Main and side portals reset camera anchor and vertical velocity. Three pure rules tests plus browser checks for altitude, direction and actual gateway obstruction. Pending CI.
+
+## Checkpoint 13 — realm identity art pass
+Added seven actual world-space landmarks: ferryman watchtower, heartroot tree, colossal rib remains, funeral bell towers, Cinder Citadel, suspended islands, and eclipse crown. Added distinct sky treatments for every realm and preserve the original road and portals. New geometry is counted and checked during real Chrome startup. Realm screenshots now wait for the intro title to clear. These are handcrafted procedural models, not imported AAA assets. Pending CI.

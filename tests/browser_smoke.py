@@ -1,5 +1,6 @@
 # ALL Create by LamberthRumpaidus
 """Dependency-free Chrome WebDriver smoke test on GitHub's Ubuntu runner."""
+import base64
 import contextlib
 import json
 import os
@@ -71,6 +72,14 @@ def run(mobile):
         status=js('return Landlord3D.getStatus()')
         assert status['player']['hp']>0,status
         assert status['submittedTriangles']>0,status
+        wait(lambda:js('return Landlord3D.getStatus().materialTextures===2'),60)
+        wait(lambda:js('return Landlord3D.getStatus().postFX.frames>0'),60)
+        assert not js('return Landlord3D.gpuErrors()'),'WebGL error after post-processing'
+        # Capture the actual rendered game, not a design mockup.
+        out=ROOT/'test-results'
+        out.mkdir(exist_ok=True)
+        (out/('mobile.png' if mobile else 'desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
+        status=js('return Landlord3D.getStatus()')
         js('Landlord3D.openMap()')
         wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
         js('Landlord3D.openMap()')
@@ -82,7 +91,7 @@ def run(mobile):
         request('POST',sid+'/refresh',{})
         wait(lambda:js('return !!window.Landlord3D'))
         assert not js('return window.__landlordErrors'),js('return window.__landlordErrors')
-        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'offlineReload':True,'errors':[]}),flush=True)
+        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'postFX':status['postFX'],'textures':status['materialTextures'],'offlineReload':True,'errors':[]}),flush=True)
 
 if __name__=='__main__':
     driver=shutil.which('chromedriver') or str(pathlib.Path(os.environ['CHROMEWEBDRIVER'])/'chromedriver')

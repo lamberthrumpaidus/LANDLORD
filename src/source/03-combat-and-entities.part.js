@@ -673,7 +673,7 @@ function computeCamera(dt){
  cameraBasis={forward,right,up,focal:canvas.height/(2*Math.tan(Math.PI/(player.dashTime>0?5.9:6.26)))};
 }
 let submittedTriangles=0,visibleChunks=0;
-function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=0;if(shadowState&&quality!=='low'&&shadowTick++%2===0)paintShadowMap(dynamicData);let c=regions[game.zone],a=indexLocations;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(glP);
+function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=0;if(shadowState&&quality!=='low'&&shadowTick++%2===0)paintShadowMap(dynamicData);let c=regions[game.zone],a=indexLocations;cinematicPipeline?.begin(canvas.width,canvas.height,quality);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(glP);if(materialLibrary)materialLibrary.bind(a,quality);else gl.uniform1f(a.materialDetail,0);
  gl.uniformMatrix4fv(a.vp,false,viewProj);gl.uniform3f(a.cam,...camEye);gl.uniform3f(a.fog,...c.fog);gl.uniform3f(a.light,-.42,.86,.34);gl.uniform1f(a.time,clock);
  const torchStep=(LEN-12)/28;
  const z0=game.zone*LEN+3+Math.max(0,Math.min(28,Math.round((player.z-game.zone*LEN-3)/torchStep)))*torchStep;
@@ -689,6 +689,7 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);for(const chunk of r.chunks){if(!LandlordGeometry.visible(chunk,frustum))continue;gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;visibleChunks++;submittedTriangles+=chunk.count/3;}
  }
  gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
+ drawCalls+=cinematicPipeline?.end()||0;
 }
 function paintCPU(dynamicData){const W=canvas.width,H=canvas.height,c=regions[game.zone],dpr=W/innerWidth;
  ctx.clearRect(0,0,W,H);

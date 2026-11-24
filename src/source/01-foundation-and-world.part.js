@@ -653,7 +653,7 @@ function groundMesh(index){let m=new Mesh();m.solidWorld=true;let c=regions[inde
  let fleck=.86+rand2(i+index*29,j)*.24;
  let road=Math.max(0,1-Math.abs((x0+x1)*.5)/15);
  let col=tint(c.ground,fleck*(1-road*.12));
- m.tri(a,b,cc,col);m.tri(a,cc,d,tint(col,.94));
+ m.tri(a,cc,b,col);m.tri(a,d,cc,tint(col,.94));
  // geological strata on terrain outer limits, real vertical sides.
  if(i===0||i===cols-1){let v0=i===0?a:b,v1=i===0?d:cc;let bot0=[v0[0],v0[1]-18,v0[2]],bot1=[v1[0],v1[1]-18,v1[2]];m.quad(v0,bot0,bot1,v1,tint(c.stone,.6))}
  }

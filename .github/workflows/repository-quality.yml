@@ -72,6 +72,15 @@ jobs:
           node --check sw.js
           node --check src/js/platform/offline.js
           node --check src/js/audio/soundscape.js
+          node --check src/js/engine/CinematicPipeline.js
+          node --check src/js/engine/MaterialLibrary.js
           node --test tests/geometry.test.cjs
       - name: Exercise actual game in preinstalled Chrome
         run: python3 tests/browser_smoke.py
+      - name: Publish real browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: landlord-browser-screenshots
+          path: test-results/*.png
+          if-no-files-found: ignore

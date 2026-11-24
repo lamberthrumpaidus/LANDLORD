@@ -79,7 +79,8 @@ jobs:
           node --check src/js/engine/ParticleBatch.js
           node --check src/js/engine/EnemyModels.js
           node --check src/js/ui/WorldAtlas.js
-          node --test tests/geometry.test.cjs tests/atlas.test.cjs
+          node --check src/js/engine/CombatRules.js
+          node --test tests/geometry.test.cjs tests/atlas.test.cjs tests/combat.test.cjs
       - name: Exercise actual game in preinstalled Chrome
         run: python3 tests/browser_smoke.py
       - name: Publish real browser screenshots

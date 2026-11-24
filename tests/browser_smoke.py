@@ -68,6 +68,9 @@ def run(mobile):
         wait(lambda:js("return Landlord3D.getStatus().state==='playing'"))
         checks=js('return Landlord3D.runRealmChecks()')
         assert len(checks)==7 and all(c['middlePassable'] for c in checks),checks
+        assert js("return !Landlord3D.combatContact({x:0,y:0,z:10,angle:0},{x:0,y:12,z:11},5)")
+        assert js("return !Landlord3D.combatContact({x:0,y:0,z:10,angle:0},{x:3,y:0,z:10},5)")
+        assert js("const g=Landlord3D.portalPoint(0);return !Landlord3D.combatContact({x:g.x-12,y:1,z:g.z-4,angle:0},{x:g.x-12,y:1,z:g.z+4},10)")
         def rendered_frame():
             errors=js('return window.__landlordErrors')
             if errors:

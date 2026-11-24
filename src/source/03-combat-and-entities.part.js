@@ -29,6 +29,7 @@ function activateSeal(z){if(game.seals[z])return;game.seals[z]=true;altarHold=0;
 function interact(){if(game.state!=='playing')return;let z=game.zone;const rx=relicPos(z),rd=Math.hypot(player.x-rx[0],player.z-rx[1]);
  if(rd<5&&!game.relics[z]){game.relics[z]=true;game.essence+=85;player.hp=Math.min(player.maxHp,player.hp+36);player.mp=100;burst(rx[0],height(rx[0],rx[1])+1,rx[1],regions[z].accent,95,1.6);showToast(T('relic'),1.65);save();}}
 
+function enemyStrikeClear(source,target,reach){return LandlordCombatRules.canStrike(source,target,{reach,vertical:source.boss?4.5:2.4,arc:source.boss?1.20:.90,yaw:source.strikeYaw??source.angle,blocked:(x,y,z,r)=>!!blocking(x,z,r,y-.14,.3)});}
 function takeHit(hp,src){if(src&&ldx.tryParry(src))return;if(player.invuln>0){if(player.dashTime>0&&dodgeRewardTimer<=0){
   dodgeRewardTimer=1.15;player.counterReady=2.8;gameplayStats.perfectDodges++;
   player.mp=Math.min(100,player.mp+18);burst(player.x,player.y+1.2,player.z,[.48,1,.85],23,.65);
@@ -111,7 +112,7 @@ function update(dt){
   const clearance=player.y-height(gate.x,gate.z);
   if(Math.abs(player.x-gate.x)<9&&clearance<9.3){
    const destination=previousZone+1;portalFlash();player.z=destination*LEN+10;player.x=roadCenter(player.z);
-   player.vx=player.vz=0;player.invuln=2;burst(player.x,height(player.x,player.z)+3,player.z,regions[destination].accent,38,1.3);
+   player.vx=player.vz=player.vy=0;player.y=height(player.x,player.z);cameraReady=false;player.invuln=2;burst(player.x,height(player.x,player.z)+3,player.z,regions[destination].accent,38,1.3);
   }else{player.z=gate.z-2.2;if(warnTimer<=0){showToast(language==='id'?'CARI GERBANG':'FIND GATE',1.1);warnTimer=3;}}
  }
  warnTimer=Math.max(0,warnTimer-dt);
@@ -121,7 +122,7 @@ function update(dt){
    sidePortalHold+=dt;
    if(sidePortalHold>=1.15){portalFlash();const destination=side.destination;
      player.z=destination*LEN+13;player.x=roadCenter(player.z);
-     player.vx=player.vz=0;sidePortalHold=0;sidePortalCooldown=2;player.invuln=2;
+     player.vx=player.vz=player.vy=0;player.y=height(player.x,player.z);cameraReady=false;sidePortalHold=0;sidePortalCooldown=2;player.invuln=2;
      showToast('✦ PORTAL '+String(destination+1).padStart(2,'0'),1.4);save();}
   }else sidePortalHold=0;
  }
@@ -148,13 +149,12 @@ function update(dt){
    e.projectileCD=Math.max(0,e.projectileCD-dt);
    let dd=distance(e,player),active=(ldx.perceive(e,dd,dt)&&(!game.flying||player.y-e.y<(e.boss?9:4)||e.mem>0))||e.windup>0;
    if(active){
-      e.angle=(e.seen||e.windup>0)?Math.atan2(player.x-e.x,player.z-e.z):Math.atan2(e.lkx-e.x,e.lkz-e.z);
+      e.angle=e.windup>0?(e.strikeYaw??e.angle):(e.seen?Math.atan2(player.x-e.x,player.z-e.z):Math.atan2(e.lkx-e.x,e.lkz-e.z));
       if(e.windup>0){
         e.windup-=dt;
         if(e.windup<=0){
           const reach=e.boss?5.4:3.4;
-          if(dd<reach&&Math.abs(shortestTurn(e.angle,Math.atan2(player.x-e.x,player.z-e.z)))<1.25)
-            takeHit(e.boss?19:7+e.zone*2,e);
+          if(enemyStrikeClear(e,player,reach))takeHit(e.boss?19:7+e.zone*2,e);
           burst(e.x,e.y+1.1,e.z,regions[e.zone].accent,e.boss?25:9,.42);
           shake=Math.max(shake,.09);
         }
@@ -180,7 +180,7 @@ function update(dt){
           const heading=steerAround(e,gx+flankX+repelX*2.2,gz+flankZ+repelZ*2.2,retreat?sp*1.28:sp,dt,e.radius*.60);
           if(heading!==null)e.angle+=shortestTurn(e.angle,heading)*Math.min(1,dt*4);
           e.animation+=dt*sp*1.9;
-        } else if(e.attack<=0){e.windup=e.boss?(e.p2?.78:.96):.57;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'enemy',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));e.attack=e.boss?(e.p2?1.5:2.3):1.75;}
+        } else if(e.attack<=0){e.strikeYaw=e.angle;e.windup=e.boss?(e.p2?.78:.96):.57;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'enemy',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));e.attack=e.boss?(e.p2?1.5:2.3):1.75;}
       }
       // Ranged bosses wind up recognizable projectiles instead of random instantaneous hits.
       if(e.boss&&e.zone>=3&&dd>7&&dd<23&&e.projectileCD<=0&&e.windup<=0){
@@ -217,7 +217,7 @@ function update(dt){
     if(heading!==null)beast.angle+=shortestTurn(beast.angle,heading)*Math.min(1,dt*5);
   }
   else if(aggressive&&beast.cooldown<=0){beast.cooldown=1.85;beast.attackAnim=.52;
-    takeHit(beast.kind==='wolf'?9:13);shake=Math.max(shake,.14);
+    if(enemyStrikeClear(beast,player,2.5))takeHit(beast.kind==='wolf'?9:13);shake=Math.max(shake,.14);
     burst(beast.x,height(beast.x,beast.z)+.8,beast.z,[.77,.15,.29],10,.22);
   }
   beast.y=height(beast.x,beast.z);
@@ -267,7 +267,7 @@ function update(dt){
  }attacks=attacks.filter(a=>a.life>0);
  for(const d of debris){d.life-=dt;d.x+=d.vx*dt;d.z+=d.vz*dt;d.y+=d.vy*dt;d.vy-=15*dt;d.vx*=Math.exp(-dt*2.5);d.vz*=Math.exp(-dt*2.5);d.y=Math.max(d.y,height(d.x,d.z)+.08);d.rot+=dt*5;}debris=debris.filter(d=>d.life>0);
  for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.z+=p.vz*dt;p.y+=p.vy*dt;p.vy-=7*dt}particles=particles.filter(p=>p.life>0);
- for(const p of pickups){p.life-=dt;let d=Math.hypot(p.x-player.x,p.z-player.z);if(d<3.5){p.life=0;game.essence+=p.value;player.hp=Math.min(player.maxHp,player.hp+.6);}else if(d<14){const pull=Math.min(1,dt*(3+Math.max(0,14-d)*.48));p.x+=(player.x-p.x)*pull;p.z+=(player.z-p.z)*pull}}
+ for(const p of pickups){p.life-=dt;let d=Math.hypot(p.x-player.x,p.z-player.z);if(LandlordCombatRules.inRange3D(p,player,3.5,3)){p.life=0;game.essence+=p.value;player.hp=Math.min(player.maxHp,player.hp+.6);}else if(d<14&&Math.abs(player.y-p.y)<6){const pull=Math.min(1,dt*(3+Math.max(0,14-d)*.48));p.x+=(player.x-p.x)*pull;p.z+=(player.z-p.z)*pull}}
  pickups=pickups.filter(p=>p.life>0);
  let desiredHp=100+(powerLevel()-1)*14;if(desiredHp>player.maxHp){player.hp+=desiredHp-player.maxHp;player.maxHp=desiredHp;showToast('✦ '+T('level')+' '+powerLevel(),1.8);save()}
  game.autosave+=dt;if(game.autosave>18){game.autosave=0;save()}
@@ -579,6 +579,11 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
   if(e.hit>0)aura.ring(e.x,e.y+.2,e.z,e.boss?4.1:1.6,.13,[1,.18,.14],.7);
   if(e.windup>0){let k=e.boss?4.8:3.05,ratio=1-e.windup/(e.boss?.96:.57);
     aura.ring(e.x,e.y+.1,e.z,k,.065+ratio*.19,[1,.12,.09],.8+ratio*.9);
+    const yaw=e.strikeYaw??e.angle,arc=e.boss?1.2:.9;
+    for(let segment=0;segment<12;segment++){const a=yaw-arc+segment*arc/6,b=a+arc/6;
+     const pt=(angle,r)=>{const x=e.x+Math.sin(angle)*r,z=e.z+Math.cos(angle)*r;return [x,height(x,z)+.14,z];};
+     aura.quad(pt(a,k-.24),pt(b,k-.24),pt(b,k+.12),pt(a,k+.12),[.86,.16,.10],.38+ratio*.65);
+    }
   }appendVertices(mesh.d,aura.d);
  }
  // Crates from V3: wood frame, metal straps, glowing relic core, no static dead geometry.

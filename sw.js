@@ -1,11 +1,12 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-nextgen-20261124-12';
+const CACHE='landlord-nextgen-20261124-13';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
   "src/js/platform/offline.js",
   "src/js/platform/SaveStore.js",
   "src/js/ui/WorldAtlas.js",
+  "src/js/engine/CombatRules.js",
   "src/css/atlas.css",
   "src/js/engine/GeometryChunks.js",
   "src/js/engine/MaterialLibrary.js",

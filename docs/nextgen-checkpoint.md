@@ -65,3 +65,6 @@ Added IndexedDB progress snapshots with serialized writes, startup recovery when
 
 ## Checkpoint 11 — interactive world atlas
 Checkpoint 10 passed both browser profiles, all seven desktop world transitions and IndexedDB recovery (run 45330096984). Added independent atlas viewport, cursor-anchored scroll zoom, drag, pinch, keyboard navigation, recenter, discovered enemy markers and a reusable fog buffer. Fixed stale index in fallback map rendering. Added two viewport unit tests and actual Chrome mouse/touch gesture regressions. Awaiting CI.
+
+## Checkpoint 12 — fair melee and telegraph
+Enemy attack direction is locked at wind-up. Shared combat geometry rules reject strikes outside vertical reach, cone or unobstructed line. Directional ground telegraphs follow the locked attack heading. Wildlife contact is also checked; loot cannot magnetize to a player far above ground. Main and side portals reset camera anchor and vertical velocity. Three pure rules tests plus browser checks for altitude, direction and actual gateway obstruction. Pending CI.

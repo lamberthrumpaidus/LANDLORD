@@ -145,6 +145,12 @@ def run(mobile):
         # Compare map projection with the actual game movement at four camera headings.
         for yaw in [0,1.5707963267948966,3.141592653589793,4.71238898038469]:
             js('Landlord3D.controls.setOrbit(arguments[0])',yaw)
+            wait(lambda:js('const d=Landlord3D.getMapOrientation().drawn;return d&&Math.abs(d.yaw-arguments[0])<1e-6',yaw))
+            drawn=js('return Landlord3D.getMapOrientation().drawn')
+            assert abs(drawn['forward']['x'])<1e-6 and abs(drawn['forward']['y']+1)<1e-6,drawn
+            assert abs(drawn['right']['x']-1)<1e-6 and abs(drawn['right']['y'])<1e-6,drawn
+            if not mobile:
+                (out/f'map-direction-{round(yaw*180/3.141592653589793):03d}.png').write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
             for x,z,expected in [(0,1,(0,-1)),(1,0,(1,0)),(0,-1,(0,1)),(-1,0,(-1,0))]:
                 result=js('const d=Landlord3D.controls.cameraMove({x:arguments[0],z:arguments[1]});return Landlord3D.mapProject(d.x,d.z)',x,z)
                 assert abs(result['x']-expected[0])<1e-6 and abs(result['y']-expected[1])<1e-6,result

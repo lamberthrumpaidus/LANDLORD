@@ -63,6 +63,7 @@ function drawAtlas(target){
  // The realm jump panel is available only in the discovered secret flight mode.
 }
 /* Local tactical minimap: trails, biome, live enemy markers and current player heading. */
+let minimapDrawState=null;
 function drawArenaMinimap(target){
  const c=target.getContext('2d');if(!c)return;
  const w=target.width,h=target.height,sc=w/135,reg=regions[game.zone];
@@ -70,6 +71,10 @@ function drawArenaMinimap(target){
  const yaw=orbit,pad=Math.hypot(w,h),within=(x,y,margin=0)=>{const dx=x-w*.5,dy=y-h*.58,sx=w*.5+Math.cos(yaw)*dx-Math.sin(yaw)*dy,sy=h*.58+Math.sin(yaw)*dx+Math.cos(yaw)*dy;return sx>=-margin&&sx<=w+margin&&sy>=-margin&&sy<=h+margin;};
  c.clearRect(0,0,w,h);
  c.save();c.translate(w*.5,h*.58);c.rotate(yaw);c.translate(-w*.5,-h*.58);
+ // Record the actual canvas transform for orientation regression, not a duplicate formula.
+ const transform=c.getTransform(),center=transform.transformPoint({x:u(player.x),y:v(player.z)});
+ const drawn=(dx,dz)=>{const p=transform.transformPoint({x:u(player.x+dx),y:v(player.z+dz)});return {x:(p.x-center.x)/sc,y:(p.y-center.y)/sc};};
+ minimapDrawState={yaw,forward:drawn(Math.sin(yaw),Math.cos(yaw)),right:drawn(-Math.cos(yaw),Math.sin(yaw)),heading:drawn(Math.sin(player.angle),Math.cos(player.angle))};
  const base=reg.ground.map(q=>Math.round(q*130+13));
  c.fillStyle=`rgb(${base.join(',')})`;c.fillRect(-pad,-pad,w+pad*2,h+pad*2);
  let aura=c.createRadialGradient(w*.55,h*.35,5,w*.5,h*.5,w*.72);
@@ -113,14 +118,14 @@ function drawArenaMinimap(target){
   const r=relicPos(i);if(!game.relics[i]){let x=u(r[0]),y=v(r[1]);if(within(x,y,8)){c.fillStyle='#dab5fc';c.beginPath();c.arc(x,y,5,0,TAU);c.fill()}}
  }
  for(const q of cacheSpots){if(chestTaken[q.id]||q.zone!==game.zone||Math.hypot(q.x-player.x,q.z-player.z)>38)continue;
-  let x=u(q.x),y=v(q.z);if(x>0&&y>0&&x<w&&y<h){c.fillStyle='#edc66f';c.fillRect(x-3.5,y-3.5,7,7);}}
+  let x=u(q.x),y=v(q.z);if(within(x,y,8)){c.fillStyle='#edc66f';c.fillRect(x-3.5,y-3.5,7,7);}}
  for(const q of healingWells){if(q.zone!==game.zone||Math.hypot(q.x-player.x,q.z-player.z)>42)continue;
   let x=u(q.x),y=v(q.z);c.strokeStyle='#83e6c4';c.lineWidth=3;c.beginPath();c.arc(x,y,7,0,TAU);c.stroke();}
  for(const b of wildlife){if(b.dead||Math.abs(b.x-player.x)>65||Math.abs(b.z-player.z)>65)continue;
   const xx=u(b.x),yy=v(b.z);if(within(xx,yy,6)){
   if(b.kind==='bat'&&!ldx.batsOut())continue;c.fillStyle=b.kind==='bat'?'#a182e9':'#e3649e';c.beginPath();c.arc(xx,yy,b.kind==='bat'?2.5:4.2,0,TAU);c.fill();}
  }
- if(ldx.night>.05){c.fillStyle='rgba(4,8,30,'+(.38*ldx.night)+')';c.fillRect(0,0,w,h)}
+ if(ldx.night>.05){c.fillStyle='rgba(4,8,30,'+(.38*ldx.night)+')';c.fillRect(-pad,-pad,w+pad*2,h+pad*2)}
  for(const e of enemies){if(e.dead||Math.abs(e.x-player.x)>65||Math.abs(e.z-player.z)>65)continue;
    const x=u(e.x),y=v(e.z);if(!within(x,y,12))continue;
    c.fillStyle=e.boss?'#ff834f':'#ff6871';c.beginPath();c.arc(x,y,e.boss?6:4.4,0,TAU);c.fill();
@@ -128,11 +133,21 @@ function drawArenaMinimap(target){
    if(e.boss){c.strokeStyle='#ffc5a1';c.lineWidth=1.3;c.beginPath();c.arc(x,y,9,0,TAU);c.stroke()}
  }
  for(const m of ldx.meteors){const x=u(m.x),y=v(m.z);if(!within(x,y,12))continue;c.strokeStyle='rgba(255,90,60,'+(.6+.35*Math.sin(clock*14))+')';c.lineWidth=2;c.beginPath();c.arc(x,y,Math.max(5,3.8*sc),0,TAU);c.stroke();c.fillStyle='rgba(255,120,70,.35)';c.fill()}
+ const gate=portalPoint(game.zone),gx=u(gate.x),gy=v(gate.z);
+ if(within(gx,gy,9)){c.fillStyle='#8beed8';c.strokeStyle='#0b2830';c.lineWidth=2;c.beginPath();c.roundRect(gx-7,gy-8,14,16,3);c.fill();c.stroke();}
  const px=u(player.x),py=v(player.z);c.save();c.translate(px,py);c.rotate(-player.angle);
  c.shadowColor='#ffdd95';c.shadowBlur=11;c.beginPath();c.moveTo(0,-12);c.lineTo(-8,8);c.lineTo(0,4);c.lineTo(8,8);c.closePath();c.fillStyle='#ffda85';c.fill();c.shadowBlur=0;c.strokeStyle='#102234';c.lineWidth=2;c.stroke();c.restore();
  c.restore();
- // The heading marker points up on the camera-relative tactical minimap.
- c.fillStyle='#f4dcaa';c.font='bold 12px system-ui';c.textAlign='center';c.fillText(language==='id'?'↑ KAMERA':'↑ CAMERA',w*.5,15);
+ // Fixed screen-space compass and next-gate pointer. This is a bearing, not an automatic route.
+ const north=LandlordMapProjection.project(0,1,yaw),nx=w*.5+north.x*(w*.5-23),ny=h*.5+north.y*(h*.5-23);
+ c.fillStyle='#d5d9d9';c.font='bold 11px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillText('N',nx,ny);
+ if(!within(gx,gy,9)){
+  const delta=LandlordMapProjection.project(gate.x-player.x,gate.z-player.z,yaw),mag=Math.hypot(delta.x,delta.y);
+  if(mag>.01){const ux=delta.x/mag,uy=delta.y/mag,limit=Math.min((w*.5-18)/Math.max(.001,Math.abs(ux)),(h*.42-18)/Math.max(.001,Math.abs(uy))),x=w*.5+ux*limit,y=h*.58+uy*limit;
+   c.save();c.translate(x,y);c.rotate(Math.atan2(ux,-uy));c.fillStyle='#85e8cf';c.strokeStyle='#0b2830';c.lineWidth=2;c.beginPath();c.moveTo(0,-8);c.lineTo(-6,5);c.lineTo(0,2);c.lineTo(6,5);c.closePath();c.fill();c.stroke();c.restore();
+  }
+ }
+ c.textBaseline='alphabetic';c.fillStyle='#f4dcaa';c.font='bold 12px system-ui';c.textAlign='center';c.fillText(language==='id'?'↑ KAMERA':'↑ CAMERA',w*.5,15);
  c.strokeStyle='#efdaa43d';c.lineWidth=1;c.strokeRect(4,4,w-8,h-8);
 }
 function mapDraw(target,large=false){if(large)return drawAtlas(target);if(target===mini)return drawArenaMinimap(target);const c=target.getContext('2d');if(!c)return;let W=target.width,H=target.height;c.clearRect(0,0,W,H);

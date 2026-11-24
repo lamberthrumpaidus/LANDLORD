@@ -2512,6 +2512,7 @@ function drawAtlas(target){
  // The realm jump panel is available only in the discovered secret flight mode.
 }
 /* Local tactical minimap: trails, biome, live enemy markers and current player heading. */
+let minimapDrawState=null;
 function drawArenaMinimap(target){
  const c=target.getContext('2d');if(!c)return;
  const w=target.width,h=target.height,sc=w/135,reg=regions[game.zone];
@@ -2519,6 +2520,10 @@ function drawArenaMinimap(target){
  const yaw=orbit,pad=Math.hypot(w,h),within=(x,y,margin=0)=>{const dx=x-w*.5,dy=y-h*.58,sx=w*.5+Math.cos(yaw)*dx-Math.sin(yaw)*dy,sy=h*.58+Math.sin(yaw)*dx+Math.cos(yaw)*dy;return sx>=-margin&&sx<=w+margin&&sy>=-margin&&sy<=h+margin;};
  c.clearRect(0,0,w,h);
  c.save();c.translate(w*.5,h*.58);c.rotate(yaw);c.translate(-w*.5,-h*.58);
+ // Record the actual canvas transform for orientation regression, not a duplicate formula.
+ const transform=c.getTransform(),center=transform.transformPoint({x:u(player.x),y:v(player.z)});
+ const drawn=(dx,dz)=>{const p=transform.transformPoint({x:u(player.x+dx),y:v(player.z+dz)});return {x:(p.x-center.x)/sc,y:(p.y-center.y)/sc};};
+ minimapDrawState={yaw,forward:drawn(Math.sin(yaw),Math.cos(yaw)),right:drawn(-Math.cos(yaw),Math.sin(yaw)),heading:drawn(Math.sin(player.angle),Math.cos(player.angle))};
  const base=reg.ground.map(q=>Math.round(q*130+13));
  c.fillStyle=`rgb(${base.join(',')})`;c.fillRect(-pad,-pad,w+pad*2,h+pad*2);
  let aura=c.createRadialGradient(w*.55,h*.35,5,w*.5,h*.5,w*.72);
@@ -2562,14 +2567,14 @@ function drawArenaMinimap(target){
   const r=relicPos(i);if(!game.relics[i]){let x=u(r[0]),y=v(r[1]);if(within(x,y,8)){c.fillStyle='#dab5fc';c.beginPath();c.arc(x,y,5,0,TAU);c.fill()}}
  }
  for(const q of cacheSpots){if(chestTaken[q.id]||q.zone!==game.zone||Math.hypot(q.x-player.x,q.z-player.z)>38)continue;
-  let x=u(q.x),y=v(q.z);if(x>0&&y>0&&x<w&&y<h){c.fillStyle='#edc66f';c.fillRect(x-3.5,y-3.5,7,7);}}
+  let x=u(q.x),y=v(q.z);if(within(x,y,8)){c.fillStyle='#edc66f';c.fillRect(x-3.5,y-3.5,7,7);}}
  for(const q of healingWells){if(q.zone!==game.zone||Math.hypot(q.x-player.x,q.z-player.z)>42)continue;
   let x=u(q.x),y=v(q.z);c.strokeStyle='#83e6c4';c.lineWidth=3;c.beginPath();c.arc(x,y,7,0,TAU);c.stroke();}
  for(const b of wildlife){if(b.dead||Math.abs(b.x-player.x)>65||Math.abs(b.z-player.z)>65)continue;
   const xx=u(b.x),yy=v(b.z);if(within(xx,yy,6)){
   if(b.kind==='bat'&&!ldx.batsOut())continue;c.fillStyle=b.kind==='bat'?'#a182e9':'#e3649e';c.beginPath();c.arc(xx,yy,b.kind==='bat'?2.5:4.2,0,TAU);c.fill();}
  }
- if(ldx.night>.05){c.fillStyle='rgba(4,8,30,'+(.38*ldx.night)+')';c.fillRect(0,0,w,h)}
+ if(ldx.night>.05){c.fillStyle='rgba(4,8,30,'+(.38*ldx.night)+')';c.fillRect(-pad,-pad,w+pad*2,h+pad*2)}
  for(const e of enemies){if(e.dead||Math.abs(e.x-player.x)>65||Math.abs(e.z-player.z)>65)continue;
    const x=u(e.x),y=v(e.z);if(!within(x,y,12))continue;
    c.fillStyle=e.boss?'#ff834f':'#ff6871';c.beginPath();c.arc(x,y,e.boss?6:4.4,0,TAU);c.fill();
@@ -2577,11 +2582,21 @@ function drawArenaMinimap(target){
    if(e.boss){c.strokeStyle='#ffc5a1';c.lineWidth=1.3;c.beginPath();c.arc(x,y,9,0,TAU);c.stroke()}
  }
  for(const m of ldx.meteors){const x=u(m.x),y=v(m.z);if(!within(x,y,12))continue;c.strokeStyle='rgba(255,90,60,'+(.6+.35*Math.sin(clock*14))+')';c.lineWidth=2;c.beginPath();c.arc(x,y,Math.max(5,3.8*sc),0,TAU);c.stroke();c.fillStyle='rgba(255,120,70,.35)';c.fill()}
+ const gate=portalPoint(game.zone),gx=u(gate.x),gy=v(gate.z);
+ if(within(gx,gy,9)){c.fillStyle='#8beed8';c.strokeStyle='#0b2830';c.lineWidth=2;c.beginPath();c.roundRect(gx-7,gy-8,14,16,3);c.fill();c.stroke();}
  const px=u(player.x),py=v(player.z);c.save();c.translate(px,py);c.rotate(-player.angle);
  c.shadowColor='#ffdd95';c.shadowBlur=11;c.beginPath();c.moveTo(0,-12);c.lineTo(-8,8);c.lineTo(0,4);c.lineTo(8,8);c.closePath();c.fillStyle='#ffda85';c.fill();c.shadowBlur=0;c.strokeStyle='#102234';c.lineWidth=2;c.stroke();c.restore();
  c.restore();
- // The heading marker points up on the camera-relative tactical minimap.
- c.fillStyle='#f4dcaa';c.font='bold 12px system-ui';c.textAlign='center';c.fillText(language==='id'?'↑ KAMERA':'↑ CAMERA',w*.5,15);
+ // Fixed screen-space compass and next-gate pointer. This is a bearing, not an automatic route.
+ const north=LandlordMapProjection.project(0,1,yaw),nx=w*.5+north.x*(w*.5-23),ny=h*.5+north.y*(h*.5-23);
+ c.fillStyle='#d5d9d9';c.font='bold 11px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillText('N',nx,ny);
+ if(!within(gx,gy,9)){
+  const delta=LandlordMapProjection.project(gate.x-player.x,gate.z-player.z,yaw),mag=Math.hypot(delta.x,delta.y);
+  if(mag>.01){const ux=delta.x/mag,uy=delta.y/mag,limit=Math.min((w*.5-18)/Math.max(.001,Math.abs(ux)),(h*.42-18)/Math.max(.001,Math.abs(uy))),x=w*.5+ux*limit,y=h*.58+uy*limit;
+   c.save();c.translate(x,y);c.rotate(Math.atan2(ux,-uy));c.fillStyle='#85e8cf';c.strokeStyle='#0b2830';c.lineWidth=2;c.beginPath();c.moveTo(0,-8);c.lineTo(-6,5);c.lineTo(0,2);c.lineTo(6,5);c.closePath();c.fill();c.stroke();c.restore();
+  }
+ }
+ c.textBaseline='alphabetic';c.fillStyle='#f4dcaa';c.font='bold 12px system-ui';c.textAlign='center';c.fillText(language==='id'?'↑ KAMERA':'↑ CAMERA',w*.5,15);
  c.strokeStyle='#efdaa43d';c.lineWidth=1;c.strokeRect(4,4,w-8,h-8);
 }
 function mapDraw(target,large=false){if(large)return drawAtlas(target);if(target===mini)return drawArenaMinimap(target);const c=target.getContext('2d');if(!c)return;let W=target.width,H=target.height;c.clearRect(0,0,W,H);
@@ -2788,7 +2803,7 @@ try{
  window.Landlord3D={getPerformanceReport:()=>frameProfiler.report(),getFrameState:()=>({state:game.state,zone:game.zone,quality,ambientPoints:game.zone<2?Array.from({length:4},(_,j)=>{const z=game.zone*LEN+68+j*9,x=roadCenter(z)+33*(j%2?1:-1);return {x,y:height(x,z)+.3,z};}):[],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',landmarks:landmarkStats.map(p=>({...p})),won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,dynamicMesh:{...dynamicStats,uploads:dynamicUploads},renderedFrames,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,particleInstancing:!!particleBatch,particleInstances:particleBatch?.count||0,particleFrames:particleBatch?.frames||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
  combatContact:(source,target,reach)=>enemyStrikeClear(source,target,reach),collisionAt:(x,z,y,r=.72)=>{const a=blocking(x,z,r,y,2.65);return a?{kind:a.kind,minY:a.minY,maxY:a.maxY,x:a.x,z:a.z}:null},
  setPlayerAltitude:(y)=>{player.y=y;player.grounded=false;return player.y},
- getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:!worldAtlas?.cameraUp,x:player.x,z:player.z,heading:LandlordMapProjection.heading(player.angle,orbit),viewport:worldAtlas?.state()}),mapProject:(dx,dz,atlas=false)=>LandlordMapProjection.project(dx,dz,atlas?worldAtlas?.view.yaw||0:orbit),
+ getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:!worldAtlas?.cameraUp,x:player.x,z:player.z,heading:LandlordMapProjection.heading(player.angle,orbit),drawn:minimapDrawState,viewport:worldAtlas?.state()}),mapProject:(dx,dz,atlas=false)=>LandlordMapProjection.project(dx,dz,atlas?worldAtlas?.view.yaw||0:orbit),
  setCameraPitch:v=>{orbitPitch=clamp(v,-1.10,1.10)},
  runRealmChecks:()=>regions.map((r,j)=>{const p=portalPoint(j),s=shrinePoint(j);return {world:j+1,name:r.name,gate:p,altar:s,gatePostLeft:!!blocking(p.x-12,p.z,.1,height(p.x-12,p.z),2.8),gatePostRight:!!blocking(p.x+12,p.z,.1,height(p.x+12,p.z),2.8),middlePassable:!blocking(p.x,p.z,.2,height(p.x,p.z),2.8),roofSolid:!!blocking(p.x,p.z,.2,height(p.x,p.z)+12.6,1),roadWidth:17}}),treasureSpots:()=>cacheSpots.map(q=>({...q,taken:chestTaken[q.id]})),wellSpots:()=>healingWells.map(q=>({...q})),hazardSpots:()=>riftTraps.map(q=>({...q})),inspect:()=>({wildlife:wildlife.map(b=>({kind:b.kind,x:b.x,z:b.z,dead:b.dead})),player:{...player},camera:{eye:[...camEye],focus:[...camFocus]},enemies:enemies.map(e=>({x:e.x,y:e.y,z:e.z,zone:e.zone,boss:e.boss,dead:e.dead,hp:e.hp,windup:e.windup,attack:e.attack}))})};
  window.Rubaka3D=window.Landlord3D;console.info(`LANDLORD — ${mode==='gpu'?'WebGL':'3D software renderer'} / 7 biomes / Blade Dance combat / offline`);

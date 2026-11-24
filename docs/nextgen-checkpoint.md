@@ -89,3 +89,6 @@ Release held keys, action captures and joystick when entering menus, atlas, port
 
 ## Checkpoint 18 — shared camera/map coordinate convention
 Checkpoint 15–17 passed all CI. Actual camera right is (-cos yaw,+sin yaw), while the prior minimap projected positive world X right and rotated by -yaw. This caused left/right mirror mismatch. New shared projection uses right and forward dot products; player arrow uses yaw-heading. Minimap immediately refreshes on yaw changes and fills rotated corners. Full atlas defaults to camera-up, freezes orientation on open, offers CAM/N toggle and preserves rotated pan/pinch/zoom behavior. Unit and browser cardinal movement checks added. Pending browser CI.
+
+## Checkpoint 19 — rendered orientation verification and compass
+Instrumented the actual Canvas2D transform to validate camera forward/up and right/right at four yaw angles on both profiles. Desktop screenshots at each cardinal direction. Added north compass, visible gateway marker and offscreen gate bearing; does not imply a traversable route or bypass obstacles. Fixed rotated clipping for treasure and night tint. Pending CI.

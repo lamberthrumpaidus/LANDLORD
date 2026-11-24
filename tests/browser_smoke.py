@@ -115,7 +115,9 @@ def run(mobile):
         wait(lambda:js('return Landlord3D.getStatus().particleFrames>0'))
         graphics_reports={}
         for preset,shadow in [('low',0),('balanced',512),('high',1024),('cinematic',3072)]:
-            js('return Landlord3D.setGraphicsQuality(arguments[0])',preset)
+            js("document.querySelector('[data-graphics='+arguments[0]+']').click()",preset)
+            assert js("return document.querySelector('[data-graphics='+arguments[0]+']').classList.contains('selected')",preset)
+            assert js("return localStorage.getItem('rubaka3d-quality')")==preset
             wait(lambda:js('return Landlord3D.getStatus().shadowResolution')==shadow)
             if preset=='low':
                 wait(lambda:js('return !Landlord3D.getStatus().postFX.active'))

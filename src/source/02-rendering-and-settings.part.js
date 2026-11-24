@@ -192,7 +192,7 @@ function paintShadowMap(dynamicData){
 let lastViewportW=0,lastViewportH=0,adaptiveFactor=1;
 let graphicsLimit=0;
 function resize(){syncShadowQuality();if(!graphicsLimit&&gl)graphicsLimit=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...gl.getParameter(gl.MAX_VIEWPORT_DIMS));const size=LandlordGraphicsProfiles.size(quality,innerWidth,innerHeight,devicePixelRatio||1,adaptiveFactor,graphicsLimit||4096);res=size.scale;
- let w=size.width,h=size.height;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}}
+ let w=size.width,h=size.height;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}if(settingsOpen)updateGraphicsInfo();}
 let cpuMeshes=[];
 function rebuild(){solidCells.clear();solidCount=0;if(gl)uploadStatics();else cpuMeshes=regions.map((_,i)=>groundMesh(i));resolveDiscoveries();initializeBreakables();}
 let game={state:'title',time:0,played:0,zone:0,prevZone:-1,seals:new Array(7).fill(false),bosses:new Array(7).fill(false),essence:0,kills:0,checkpoint:18,checkpointX:0,missionEnd:false,autosave:0,quality,relics:new Array(7).fill(false),visited:[true,false,false,false,false,false,false],explored:Array.from({length:7},()=>[]),flying:false,secretFlight:false};

@@ -39,7 +39,7 @@ class Vegetation{
  initialize(len,road,height,hash){this.fields=Array.from({length:7},(_,i)=>field(i,len,road,height,hash));}
  draw(zone,player,quality,vp,eye,fog,time,budget){
   this.count=0;if(!budget||!this.fields[zone])return 0;
-  const g=this.gl,range=quality==='cinematic'?84:quality==='high'?58:27,rows=this.fields[zone].filter(c=>Math.abs(c.z-player.z)<range).sort((a,b)=>Math.abs(a.z-player.z)-Math.abs(b.z-player.z)),step=quality==='cinematic'?1:quality==='high'?2:5;
+  const g=this.gl,range=quality==='cinematic'?84:quality==='high'?58:27,rows=this.fields[zone].filter(c=>Math.abs(c.z-player.z)<range).sort((a,b)=>Math.abs(a.z-player.z)-Math.abs(b.z-player.z)),step=quality==='cinematic'?1:quality==='high'?3:5;
   for(const cell of rows){for(let i=0;i<cell.data.length&&this.count<budget;i+=8*step){const x=cell.data[i],z=cell.data[i+2];if(Math.hypot(x-player.x,z-player.z)>range)continue;this.data.set(cell.data.subarray(i,i+8),this.count++*8);}if(this.count>=budget)break;}
   if(!this.count)return 0;
   g.bindVertexArray(this.vao);g.bindBuffer(g.ARRAY_BUFFER,this.instances);g.bufferSubData(g.ARRAY_BUFFER,0,this.data.subarray(0,this.count*8));g.useProgram(this.program);g.uniformMatrix4fv(this.u.vp,false,vp);g.uniform3f(this.u.player,player.x,player.y,player.z);g.uniform3fv(this.u.camera,eye);g.uniform1f(this.u.time,time);g.uniform3fv(this.u.palette,palettes[zone]);g.uniform3fv(this.u.fog,fog);g.drawArraysInstanced(g.TRIANGLES,0,this.vertices,this.count);g.bindVertexArray(null);this.frames++;return 1;

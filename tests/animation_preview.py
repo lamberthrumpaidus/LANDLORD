@@ -23,7 +23,7 @@ def capture():
         report=[]
         quality_report={}
         for preset in ['low','balanced','high','cinematic']:
-            js('Landlord3D.setGraphicsQuality(arguments[0])',preset)
+            js("document.querySelector('[data-graphics='+arguments[0]+']').click()",preset)
             js('Landlord3D.visualCapture.step(0)')
             quality_report[preset]=js('return Landlord3D.getGraphicsReport()')
             assert not js('return Landlord3D.gpuErrors()')
@@ -51,6 +51,16 @@ def capture():
         assert any(x['state']['mode'] in ('rise','fall','dash') for x in report), 'No actual air/dash pose captured'
         js('Landlord3D.visualCapture.end()')
     if shutil.which('ffmpeg'):
+        def pixels(preset):
+            return subprocess.check_output(['ffmpeg','-loglevel','error','-i',str(out/f'quality-{preset}.png'),'-vf','scale=160:100:flags=area','-f','rawvideo','-pix_fmt','rgb24','-'])
+        images={q:pixels(q) for q in ['low','balanced','high','cinematic']}
+        def difference(a,b):
+            # Mean absolute RGB-channel difference in the real browser screenshots (0–255 scale).
+            assert len(a)==len(b)==160*100*3
+            return sum(abs(x-y) for x,y in zip(a,b))/len(a)
+        diffs={'LOW_vs_ULTRA':difference(images['low'],images['cinematic']),'HIGH_vs_ULTRA':difference(images['high'],images['cinematic'])}
+        (out/'quality-pixel-difference.json').write_text(json.dumps(diffs,indent=2))
+        assert diffs['LOW_vs_ULTRA']>1 and diffs['HIGH_vs_ULTRA']>.25,diffs
         subprocess.run(['ffmpeg','-y','-loglevel','error','-framerate','12','-i',str(out/'frame-%03d.png'),'-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',str(out/'LANDLORD-animation-preview.mp4')],check=True)
     (out/'README.txt').write_text('Actual Chrome-rendered frames, fixed simulation steps at 12 frames/s. This is a controlled animation replay, NOT a measured real-time performance recording.\n')
 

@@ -712,6 +712,14 @@ const translation={
 const T=(k)=>translation[language][k]||k;
 const ACTION_IDS=Object.keys(DEFAULT_KEYS);
 function keyName(code){return ({Space:'SPACE',ShiftLeft:'SHIFT',ShiftRight:'SHIFT',Escape:'ESC',Enter:'ENTER',ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',ControlLeft:'CTRL',ControlRight:'CTRL',AltLeft:'ALT',AltRight:'ALT'}[code] || code.replace(/^Key/,'').replace(/^Digit/,'').replace(/^Numpad/,'NUM '));}
+function updateGraphicsInfo(){
+ const target=$('graphicsInfo');if(!target)return;
+ const id=language==='id',gpu=typeof window.Landlord3D!=='undefined'&&!!gl,webgl2=gpu&&typeof WebGL2RenderingContext!=='undefined'&&gl instanceof WebGL2RenderingContext;
+ const details=quality==='cinematic'?(id?'Resolusi tetap · efek maksimum':'Fixed resolution · maximum effects'):quality==='low'?(id?'Efek minimum':'Minimum effects'):(id?'Resolusi adaptif':'Adaptive resolution');
+ const fallback=!webgl2?(id?' · fitur GPU terbatas':' · limited GPU features'):'';
+ const line=qualityLabel[quality]+' | '+canvas.width+' × '+canvas.height+' px · '+(gpu?(webgl2?'WebGL2':'WebGL1'):(id?'CPU fallback':'CPU fallback'))+' | '+details+fallback+' | '+(id?'Bayangan ':'Shadow ')+(gpu?(shadowState?.sz||0):0)+' px';
+ if(target.textContent!==line)target.textContent=line;
+}
 function updateSettingsUI(){
  $('play').textContent=T('start');$('resume').textContent=T('resume');$('settings').textContent=T('settings');$('settingsTitle').textContent=T('settingsTitle');
  $('languageLabel').textContent=T('lang');$('graphicsLabel').textContent=T('graphics');$('controlsLabel').textContent=T('controls');
@@ -720,7 +728,7 @@ function updateSettingsUI(){
  $('creditTitle').textContent=language==='id'?'PEMBUAT GAME':'GAME CREATED BY';$('resetKeys').textContent=T('resetKeys');$('touchLabel').textContent=T('touch');$('touchMoveGuide').textContent=T('touchMove');$('touchCamGuide').textContent=T('touchCamera');$('touchTapGuide').textContent=T('touchAct');$('closeSettings').textContent=T('done');$('restart').textContent=T('resetProgress');$('mapTitle').textContent=T('mapTitle');
  for(const b of document.querySelectorAll('[data-lang]'))b.classList.toggle('selected',b.dataset.lang===language);
  for(const b of document.querySelectorAll('[data-graphics]'))b.classList.toggle('selected',b.dataset.graphics===quality);
- const graphicsInfo=$('graphicsInfo');if(graphicsInfo){const info=LandlordGraphicsProfiles.profiles[quality];graphicsInfo.textContent=(quality==='cinematic'?(language==='id'?'ULTRA · resolusi tetap · vegetasi maksimal · bayangan 3072':'ULTRA · fixed resolution · dense foliage · 3072 shadows'):qualityLabel[quality]+' · '+(language==='id'?'resolusi adaptif':'adaptive resolution'))+' | '+canvas.width+' × '+canvas.height+' px';}
+ updateGraphicsInfo();
  const grid=$('keyGrid');grid.textContent='';
  ACTION_IDS.forEach((act,i)=>{const cell=document.createElement('div');cell.className='key-row';let text=document.createElement('span');text.className='action-name';text.textContent=T('names')[i];let btn=document.createElement('button');btn.type='button';btn.className='bind-button'+(bindingPending===act?' capturing':'');btn.dataset.bind=act;btn.textContent=bindingPending===act?'…':keyName(keybinds[act]);btn.setAttribute('aria-label',text.textContent+' '+btn.textContent);btn.addEventListener('click',()=>{bindingPending=act;$('bindingNotice').textContent=T('choose');$('bindingNotice').className='binding-notice';updateSettingsUI()});cell.append(text,btn);grid.appendChild(cell)});
 }

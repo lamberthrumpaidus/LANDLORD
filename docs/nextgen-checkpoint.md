@@ -92,3 +92,6 @@ Checkpoint 15–17 passed all CI. Actual camera right is (-cos yaw,+sin yaw), wh
 
 ## Checkpoint 19 — rendered orientation verification and compass
 Instrumented the actual Canvas2D transform to validate camera forward/up and right/right at four yaw angles on both profiles. Desktop screenshots at each cardinal direction. Added north compass, visible gateway marker and offscreen gate bearing; does not imply a traversable route or bypass obstacles. Fixed rotated clipping for treasure and night tint. Pending CI.
+
+## Checkpoint 20 — procedural articulated hero animation
+Independent animation implementation: two-bone IK with fixed segment lengths for legs and arms, terrain-aware feet with stance/swing anchors and reach limits, damped blend weights for run/air/dash/flight/hurt, and an eight-node damped cape chain driven by velocity and acceleration. Teleport reset avoids stretching; combat hit timing and all gameplay mechanics remain unchanged. Three new pure animation tests plus browser bone-length assertions and attack screenshots. Procedural rig, not imported motion-capture or GPU skinning; pending CI.

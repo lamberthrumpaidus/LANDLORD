@@ -98,6 +98,9 @@ def run(mobile):
         perf=js('return Landlord3D.getPerformanceReport()')
         assert perf['samples']>0 and perf['frame']['p95']>0 and perf['mesh']['mean']>=0,perf
         print(json.dumps({'profileTiming':'mobile' if mobile else 'desktop','measurement':perf,'dynamicMesh':status['dynamicMesh']}),flush=True)
+        rig=js('return Landlord3D.getAnimationReport()')
+        assert rig['frames']>0 and len(rig['legs'])==2,rig
+        assert all(abs(v['upper']-.69)<1e-5 and abs(v['lower']-.64)<1e-5 for v in rig['legs']),rig
         # Quality changes must not reset destructible objects or the current journey.
         js('Landlord3D.damageCrate(0,100)')
         assert js('return Landlord3D.breakableSpots()[0].dead')
@@ -139,6 +142,7 @@ def run(mobile):
         assert js('return Landlord3D.instantState().dashSerial')==serial+1
         js('Landlord3D.attack()')
         assert js('return Landlord3D.attackInfo().attackTime')>0
+        (out/('attack-mobile.png' if mobile else 'attack-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
         assert js('return Landlord3D.instantState().flying')
         assert js('return Landlord3D.dash()')

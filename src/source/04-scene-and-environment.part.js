@@ -1,5 +1,5 @@
 // Create by LamberthRumpaidus
-function drawWorld(dt){resize();computeCamera(dt);let dynamic=buildDynamic();if(gl)paintWebGL(dynamic);else paintCPU(dynamic);drawAtmosphere()}
+function drawWorld(dt){const start=performance.now();resize();computeCamera(dt);let dynamic=buildDynamic();const mesh=performance.now();if(gl)paintWebGL(dynamic);else paintCPU(dynamic);const render=performance.now();drawAtmosphere();return {mesh:mesh-start,render:render-mesh,overlay:performance.now()-render};}
 function drawAtlas(target){
  const c=target.getContext('2d');if(!c)return;
  const W=target.width,H=target.height,view=worldAtlas?.view||{x:player.x,z:player.z,zoom:1},scale=H/330*view.zoom;

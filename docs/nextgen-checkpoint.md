@@ -74,3 +74,6 @@ Added seven actual world-space landmarks: ferryman watchtower, heartroot tree, c
 
 ## Atlas visual polish
 Reviewed actual desktop and mobile screenshots from successful run 45330774866. Replaced the unsupported recenter glyph with a native inline SVG crosshair. Keep fog-of-war intact.
+
+## Checkpoint 14 — frame-time instrumentation and UI optimization
+Checkpoint 12 passed CI run 45330899309. Corrected the FPS and adaptive-resolution input to use observed wall-clock frame intervals rather than the simulation's clamped delta. Added bounded CPU frame-stage profiling (mean, p50, p95, maximum) and tab visibility reset. HUD writes run once per frame rather than once per simulation substep. Added two unit tests and CI timing output; these headless software-GL timings are not real phone or GPU benchmarks. Pending CI.

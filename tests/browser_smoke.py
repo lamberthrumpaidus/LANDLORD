@@ -93,6 +93,9 @@ def run(mobile):
         out.mkdir(exist_ok=True)
         (out/('mobile.png' if mobile else 'desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         status=js('return Landlord3D.getStatus()')
+        perf=js('return Landlord3D.getPerformanceReport()')
+        assert perf['samples']>0 and perf['frame']['p95']>0 and perf['mesh']['mean']>=0,perf
+        print(json.dumps({'profileTiming':'mobile' if mobile else 'desktop','measurement':perf}),flush=True)
         # Quality changes must not reset destructible objects or the current journey.
         js('Landlord3D.damageCrate(0,100)')
         assert js('return Landlord3D.breakableSpots()[0].dead')

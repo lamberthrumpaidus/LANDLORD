@@ -288,7 +288,7 @@ function update(dt){
 
  if(toaster>0){toaster-=dt;if(toaster<=0)ui.toast.classList.remove('show')}
  if(splashTime>0){splashTime-=dt;if(splashTime<=0)ui.splash.classList.remove('visible')}
- zoneChanged();updateUI();refreshSkills();
+ zoneChanged();
 }
 function markExplored(){const j=zoneOf(player.z),cells=game.explored[j];game.visited[j]=true;
  const x=Math.round(player.x/11)*11,z=Math.round(player.z/11)*11;

@@ -81,7 +81,8 @@ jobs:
           node --check src/js/ui/WorldAtlas.js
           node --check src/js/engine/CombatRules.js
           node --check src/js/engine/RealmArt.js
-          node --test tests/geometry.test.cjs tests/atlas.test.cjs tests/combat.test.cjs
+          node --check src/js/engine/FrameProfiler.js
+          node --test tests/geometry.test.cjs tests/atlas.test.cjs tests/combat.test.cjs tests/perf.test.cjs
       - name: Exercise actual game in preinstalled Chrome
         run: python3 tests/browser_smoke.py
       - name: Publish real browser screenshots

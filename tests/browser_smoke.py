@@ -68,7 +68,12 @@ def run(mobile):
         wait(lambda:js("return Landlord3D.getStatus().state==='playing'"))
         checks=js('return Landlord3D.runRealmChecks()')
         assert len(checks)==7 and all(c['middlePassable'] for c in checks),checks
-        wait(lambda:js('return Landlord3D.getStatus().visibleChunks>0'))
+        def rendered_frame():
+            errors=js('return window.__landlordErrors')
+            if errors:
+                raise AssertionError('Frame failure: '+json.dumps(errors[:4]))
+            return js('return Landlord3D.getStatus().visibleChunks>0')
+        wait(rendered_frame)
         status=js('return Landlord3D.getStatus()')
         assert status['player']['hp']>0,status
         assert status['submittedTriangles']>0,status

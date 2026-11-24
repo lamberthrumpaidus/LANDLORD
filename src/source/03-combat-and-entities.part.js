@@ -295,7 +295,7 @@ function markExplored(){const j=zoneOf(player.z),cells=game.explored[j];game.vis
  if(!cells.some(p=>p[0]===x&&p[1]===z)){cells.push([x,z]);if(cells.length>320)cells.shift();}
 }
 function travelRealm(index){if(!game.flying||game.state!=='map'||index<0||index>6)return;portalFlash();
- player.z=index*LEN+15;player.x=roadCenter(player.z);sidePortalCooldown=2;sidePortalHold=0;player.y=height(player.x,player.z)+16;player.vx=player.vz=player.vy=0;
+ player.z=index*LEN+15;player.x=roadCenter(player.z);sidePortalCooldown=2;sidePortalHold=0;player.y=height(player.x,player.z)+16;player.vx=player.vz=player.vy=0;cameraReady=false;
  game.visited[index]=true;markExplored();game.prevZone=-1;game.state='playing';ui.map.classList.remove('visible');
  if(isTouchDevice())revealTouchControls();zoneChanged(true);refreshSkills();lastFrame=0;save();}
 let warnTimer=0,sidePortalHold=0,sidePortalCooldown=0;
@@ -545,9 +545,9 @@ function wildlifeModel(mesh,b){
  m.ring(0,.05,0,1.27*f,.10,[.08,.045,.1],0);
 }
 function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead&&Math.abs(e.z-player.z)<65&&Math.abs(e.x-player.x)<65);
- if(viewMode!=='fpp'){let pm=new Mesh(player.x,player.y,player.z,player.angle);playerModel(pm);mesh.d.push(...pm.d);}
+ if(viewMode!=='fpp'){let pm=new Mesh(player.x,player.y,player.z,player.angle);playerModel(pm);appendVertices(mesh.d,pm.d);}
  // Contact shadow stays on the actual terrain during jumps.
- let shadow=new Mesh();shadow.ring(player.x,height(player.x,player.z)+.025,player.z,1.03+Math.abs(player.y-height(player.x,player.z))*.10,.24,[.045,.055,.075],0);mesh.d.push(...shadow.d);
+ let shadow=new Mesh();shadow.ring(player.x,height(player.x,player.z)+.025,player.z,1.03+Math.abs(player.y-height(player.x,player.z))*.10,.24,[.045,.055,.075],0);appendVertices(mesh.d,shadow.d);
  // Sword ribbon: geometry follows the REAL sword tip from the articulated arm.
  if(player.swordTrail.length>1){
    let fx=new Mesh();const trail=player.swordTrail;
@@ -563,22 +563,22 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
          limb(fx,b.base,b.tip,.042+blend*.045,.009,COMBOS[b.combo].color,.38+blend*1.2,5);
       }
    }
-   mesh.d.push(...fx.d);
+   appendVertices(mesh.d,fx.d);
  }
 
  for(const b of wildlife){
   if(b.dead||Math.abs(b.z-player.z)>68||Math.abs(b.x-player.x)>68||(b.kind==='bat'&&!ldx.batsOut()))continue;
   const model=new Mesh(b.x,b.y,b.z,b.angle);
-  wildlifeModel(model,b);mesh.d.push(...model.d);
+  wildlifeModel(model,b);appendVertices(mesh.d,model.d);
  }
  for(let e of near){
-  let em=new Mesh(e.x,e.y+(e.type==='specter'?.6+Math.sin(clock*2+e.phase)*.24:0),e.z,e.angle);enemyModel(em,e);mesh.d.push(...em.d);
+  let em=new Mesh(e.x,e.y+(e.type==='specter'?.6+Math.sin(clock*2+e.phase)*.24:0),e.z,e.angle);enemyModel(em,e);appendVertices(mesh.d,em.d);
   let aura=new Mesh();
   aura.ring(e.x,e.y+.05,e.z,e.boss?2.7:1,.18,[.045,.05,.065],0);
   if(e.hit>0)aura.ring(e.x,e.y+.2,e.z,e.boss?4.1:1.6,.13,[1,.18,.14],.7);
   if(e.windup>0){let k=e.boss?4.8:3.05,ratio=1-e.windup/(e.boss?.96:.57);
     aura.ring(e.x,e.y+.1,e.z,k,.065+ratio*.19,[1,.12,.09],.8+ratio*.9);
-  }mesh.d.push(...aura.d);
+  }appendVertices(mesh.d,aura.d);
  }
  // Crates from V3: wood frame, metal straps, glowing relic core, no static dead geometry.
  for(const b of breakables){
@@ -589,13 +589,13 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
    m.box(b.x,base+1.15,b.z,2.43,.24,2.43,[.58,.48,.32]);
    for(const side of [-1,1]){m.box(b.x+side*.95,base+1.1,b.z,.18,2.15,2.36,[.58,.46,.30]);m.box(b.x,base+1.1,b.z+side*.95,2.36,2.15,.18,[.59,.46,.30]);}
    if(b.kind==='relic'){m.spike(b.x,base+1.35,b.z,.47,1.1,[.28,.87,1],1.65);m.ring(b.x,base+2.4,b.z,1.0,.09,[.3,.92,1],1.2);}
-   mesh.d.push(...m.d);
+   appendVertices(mesh.d,m.d);
  }
- for(const d of debris){if(Math.abs(d.z-player.z)>65)continue;const m=new Mesh();m.box(d.x,d.y,d.z,.2,.24,.18,d.col,.26,d.rot);mesh.d.push(...m.d)}
+ for(const d of debris){if(Math.abs(d.z-player.z)>65)continue;const m=new Mesh();m.box(d.x,d.y,d.z,.2,.24,.18,d.col,.26,d.rot);appendVertices(mesh.d,m.d)}
  const z=game.zone,reg=regions[z];
  for(let j=Math.max(0,z-1);j<=Math.min(6,z+1);j++){
  let point=shrinePoint(j),zz=point.z,xx=point.x,yy=height(xx,zz);
- if(Math.abs(zz-player.z)<65){let crystal=new Mesh();crystal.spike(xx,yy+3.4+Math.sin(clock*1.9+j)*.35,zz,1.05,4.6,game.seals[j]?[.24,.2,.27]:regions[j].accent,game.seals[j]?.17:1.2);crystal.ring(xx,yy+5,zz,2.25,.09,regions[j].accent,game.seals[j]?.1:.8);mesh.d.push(...crystal.d)}
+ if(Math.abs(zz-player.z)<65){let crystal=new Mesh();crystal.spike(xx,yy+3.4+Math.sin(clock*1.9+j)*.35,zz,1.05,4.6,game.seals[j]?[.24,.2,.27]:regions[j].accent,game.seals[j]?.17:1.2);crystal.ring(xx,yy+5,zz,2.25,.09,regions[j].accent,game.seals[j]?.1:.8);appendVertices(mesh.d,crystal.d)}
  }
  // Every gateway is traversable. The last gateway glows as the actual win trigger.
  for(let j=Math.max(0,game.zone-1);j<=Math.min(6,game.zone);j++){
@@ -609,11 +609,11 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
      portalFX.spike(x,y,z,.13+(j===6?.10:0),.7+(j===6?.4:0),col,.7*mag);
    }
    if(j===6){portalFX.ring(g.x,base+.14,g.z,7.5,.16,col,1.1);portalFX.spike(g.x,base+9+Math.sin(clock*1.7)*.2,g.z,1.0,3.8,col,1.4);}
-   mesh.d.push(...portalFX.d);
+   appendVertices(mesh.d,portalFX.d);
  }
- for(let j=Math.max(0,game.zone-1);j<=Math.min(6,game.zone+1);j++){let p=relicPos(j);if(Math.abs(player.z-p[1])<74){let rm=new Mesh();relicModel(rm,j);mesh.d.push(...rm.d)}}
+ for(let j=Math.max(0,game.zone-1);j<=Math.min(6,game.zone+1);j++){let p=relicPos(j);if(Math.abs(player.z-p[1])<74){let rm=new Mesh();relicModel(rm,j);appendVertices(mesh.d,rm.d)}}
  discoveryMesh(mesh);
- if(game.flying){let skyAura=new Mesh();skyAura.ring(player.x,player.y-.45,player.z,3.6,.28,[.32,.96,.86],.9);skyAura.ring(player.x,player.y-.55,player.z,4.3,.09,[.55,.88,1],.65);skyAura.spike(player.x,player.y-1.2+Math.sin(clock*4)*.2,player.z,.7,1.6,[.45,1,1],.42);mesh.d.push(...skyAura.d)}
+ if(game.flying){let skyAura=new Mesh();skyAura.ring(player.x,player.y-.45,player.z,3.6,.28,[.32,.96,.86],.9);skyAura.ring(player.x,player.y-.55,player.z,4.3,.09,[.55,.88,1],.65);skyAura.spike(player.x,player.y-1.2+Math.sin(clock*4)*.2,player.z,.7,1.6,[.45,1,1],.42);appendVertices(mesh.d,skyAura.d)}
  for(const a of attacks){
   const am=new Mesh();
   if(a.kind==='fire'){
@@ -629,17 +629,17 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
       am.sphere(px,py,pz,a.size*(.46-k*.08),k%2?[1,.27,.08]:[1,.85,.31],3,6,.9);
    }
   }else am.sphere(a.x,a.y,a.z,a.size,[.94,.26,.65],4,8,1.2);
-  mesh.d.push(...am.d);
+  appendVertices(mesh.d,am.d);
  }
  if(player.fireCast>0){
   const u=player.fireCast/.39,ang=player.fireAimYaw??orbit,pitch=orbitPitch,fx=player.x+Math.sin(ang)*1.05,fy=player.y+1.65+(1-u)*.32,fz=player.z+Math.cos(ang)*1.05;
-  const pm=new Mesh();pm.sphere(fx,fy,fz,.25+u*.3,[1,.56,.19],5,9,1.7);pm.ring(fx,fy,fz,.52+(1-u)*.8,.06,[1,.77,.29],1.2);pm.spike(fx,fy-.15,fz,.25,.35,[1,.92,.48],2.2);mesh.d.push(...pm.d);
+  const pm=new Mesh();pm.sphere(fx,fy,fz,.25+u*.3,[1,.56,.19],5,9,1.7);pm.ring(fx,fy,fz,.52+(1-u)*.8,.06,[1,.77,.29],1.2);pm.spike(fx,fy-.15,fz,.25,.35,[1,.92,.48],2.2);appendVertices(mesh.d,pm.d);
  }
- for(let p of pickups){if(Math.abs(p.z-player.z)>55)continue;let pm=new Mesh();pm.spike(p.x,p.y+.15+Math.sin(clock*3+p.phase)*.3,p.z,.19,.57,[.99,.78,.39],1.4);mesh.d.push(...pm.d)}
- let maxPart=quality==='low'?22:quality==='balanced'?55:100;for(let p of particles.slice(-maxPart)){if(Math.abs(p.z-player.z)>62)continue;let pm=new Mesh();pm.box(p.x,p.y,p.z,p.size,p.size,p.size,p.col,1.6);mesh.d.push(...pm.d)}
+ for(let p of pickups){if(Math.abs(p.z-player.z)>55)continue;let pm=new Mesh();pm.spike(p.x,p.y+.15+Math.sin(clock*3+p.phase)*.3,p.z,.19,.57,[.99,.78,.39],1.4);appendVertices(mesh.d,pm.d)}
+ let maxPart=quality==='low'?22:quality==='balanced'?55:100;for(let p of particles.slice(-maxPart)){if(Math.abs(p.z-player.z)>62)continue;let pm=new Mesh();pm.box(p.x,p.y,p.z,p.size,p.size,p.size,p.col,1.6);appendVertices(mesh.d,pm.d)}
  // Procedural drifting embers and floating fireflies.
  let n=quality==='low'?8:quality==='balanced'?20:45;for(let j=0;j<n;j++){let phase=hash(j*23)*TAU,x=player.x+Math.sin(j*11.5+clock*.11)*38,z=player.z+Math.cos(j*19.25-clock*.13)*31,y=1.5+hash(j*79)*13+Math.sin(clock*.8+phase)*1.5;
- let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);mesh.d.push(...pm.d)}
+ let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);appendVertices(mesh.d,pm.d)}
  return mesh.get();
 }
 function computeCamera(dt){

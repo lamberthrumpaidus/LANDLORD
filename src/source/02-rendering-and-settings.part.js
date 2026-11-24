@@ -277,22 +277,22 @@ function discoveryMesh(mesh){
   let y=height(q.x,q.z),m=new Mesh(q.x,y,q.z),c=regions[q.zone];
   m.box(0,.45,0,2.3,.88,1.45,tint(c.stone,.54));m.box(0,.99,0,2.45,.28,1.55,tint(c.accent,.62),.13);
   m.box(0,.59,.76,.34,.55,.11,tint(c.accent,1.2),.9);m.spike(0,1.2+Math.sin(clock*2.4+q.seed)*.15,0,.4,.88,c.accent,.85);
-  m.ring(0,.07,0,2.45,.09,c.accent,.4);mesh.d.push(...m.d);
+  m.ring(0,.07,0,2.45,.09,c.accent,.4);appendVertices(mesh.d,m.d);
  }
  for(const q of energyShards){if(q.zone!==game.zone||shardTaken[q.id]||Math.abs(q.z-player.z)>66)continue;
   let y=height(q.x,q.z),m=new Mesh(q.x,y,q.z);m.spike(0,1+Math.sin(clock*2.5+q.id)*.24,0,.48,1.65,[.4,.93,1],1.6);
-  m.ring(0,.12,0,1.25,.08,[.4,.86,1],.5);mesh.d.push(...m.d);
+  m.ring(0,.12,0,1.25,.08,[.4,.86,1],.5);appendVertices(mesh.d,m.d);
  }
  for(const q of healingWells){if(q.zone!==game.zone||Math.abs(q.z-player.z)>69)continue;
   let y=height(q.x,q.z),m=new Mesh(q.x,y,q.z);
   for(let k=0;k<3;k++)m.ring(0,.13+k*.16,0,4.4-k*.55,.14,[.25,.75,.56],.32);
-  m.spike(0,.38+Math.sin(clock*1.7)*.15,0,.9,3.3,[.37,.99,.72],.85);mesh.d.push(...m.d);
+  m.spike(0,.38+Math.sin(clock*1.7)*.15,0,.9,3.3,[.37,.99,.72],.85);appendVertices(mesh.d,m.d);
  }
  for(const q of riftTraps){if(q.zone!==game.zone||Math.abs(q.z-player.z)>66)continue;
   let y=height(q.x,q.z),m=new Mesh(q.x,y,q.z),active=Math.sin(clock*2.4+q.phase)>.44;
   m.ring(0,.10,0,3.6,.37,active?[1,.19,.37]:[.36,.18,.26],active?1.7:.18);
   for(let i=0;i<5;i++){let a=i*TAU/5+clock*.1;m.spike(Math.cos(a)*2.2,.11,Math.sin(a)*2.2,.17,active?.86:.35,[.66,.23,.42],active?.8:.18)}
-  mesh.d.push(...m.d);
+  appendVertices(mesh.d,m.d);
  }
  // Lost souls drift around side paths. They illuminate, rather than reveal, nearby caches.
  for(let i=0;i<15;i++){
@@ -300,7 +300,7 @@ function discoveryMesh(mesh){
   if(Math.abs(z-player.z)>58)continue;
   let x=roadCenter(z)+(i%2?-1:1)*(29+hash(i*27+game.zone)*20);
   let m=new Mesh(),y=height(x,z)+3+Math.sin(clock*1.4+i)*1.2,xx=x+Math.sin(clock*.9+i*2)*2.7,zz=z+Math.cos(clock*.7+i*3)*2.0;
-  m.sphere(xx,y,zz,.27,[.48,.9,1],3,6,1.7);mesh.d.push(...m.d);
+  m.sphere(xx,y,zz,.27,[.48,.9,1],3,6,1.7);appendVertices(mesh.d,m.d);
  }
 }
 function save(){try{localStorage.setItem('landlord-openrealms-save-v1',JSON.stringify({seals:game.seals,bosses:game.bosses,essence:game.essence,kills:game.kills,z:player.z,x:player.x,checkpoint:game.checkpoint,checkpointX:game.checkpointX,missionEnd:game.missionEnd,finishedGate:game.missionEnd,mapLength:LEN,relics:game.relics,visited:game.visited,explored:game.explored,chests:chestTaken,shards:shardTaken,brokenCrates:breakables.map(b=>b.dead)}))}catch{}}

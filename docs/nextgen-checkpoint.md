@@ -43,3 +43,6 @@ Previous verified baseline: 5c111222, run 45328001276 passed desktop/mobile WebG
 - Distinct regular humanoid silhouettes and distance-dependent mesh detail; no authored GLB assets yet.
 - HRTF looping water ambience anchored to the actual wetland positions; fades when paused or leaving the biome.
 - Regression suite visits all seven worlds using actual map/flight travel, checks renderer errors after transitions and confirms spatial emitter initialization.
+
+## Regression repair — geometry merge
+Checkpoint 05 run 45328984390 failed waiting for visible geometry. Detailed mesh arrays can exceed JavaScript's function-argument limit when spread into Array.push; replaced 22 bulk spreads with bounded per-element appends. Added immediate frame-error diagnostics to the browser suite and camera reset on realm teleport. The repair is subject to the next CI run, not yet verified.

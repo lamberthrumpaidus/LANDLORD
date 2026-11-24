@@ -99,6 +99,8 @@ function steerAround(e,goalX,goalZ,speed,dt,r=.7){
  if(best){moveWithCollision(e,best.nx-e.x,best.nz-e.z,r,e.y??height(e.x,e.z),3.1);return best.a;}
  return null;
 }
+// Avoid JavaScript's maximum argument count when combining detailed geometry.
+function appendVertices(target,source){for(let i=0;i<source.length;i++)target.push(source[i]);}
 class Mesh{
  constructor(x=0,y=0,z=0,rot=0){this.d=[];this.ox=x;this.oy=y;this.oz=z;this.c=Math.cos(rot);this.s=Math.sin(rot)}
  pt(p){return [this.ox+p[0]*this.c+p[2]*this.s,this.oy+p[1],this.oz-p[0]*this.s+p[2]*this.c]}

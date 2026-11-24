@@ -77,6 +77,7 @@ def run(mobile):
         status=js('return Landlord3D.getStatus()')
         assert status['player']['hp']>0,status
         assert status['submittedTriangles']>0,status
+        assert status['particleInstancing'],status
         wait(lambda:js('return Landlord3D.getStatus().materialTextures===2'),60)
         wait(lambda:js('return Landlord3D.getStatus().postFX.frames>0'),60)
         assert not js('return Landlord3D.gpuErrors()'),'WebGL error after post-processing'
@@ -90,6 +91,7 @@ def run(mobile):
         # Quality changes must not reset destructible objects or the current journey.
         js('Landlord3D.damageCrate(0,100)')
         assert js('return Landlord3D.breakableSpots()[0].dead')
+        wait(lambda:js('return Landlord3D.getStatus().particleFrames>0'))
         for preset,shadow in [('low',0),('balanced',512),('high',1024),('cinematic',2048)]:
             js('return Landlord3D.setGraphicsQuality(arguments[0])',preset)
             wait(lambda:js('return Landlord3D.getStatus().shadowResolution')==shadow)
@@ -97,6 +99,7 @@ def run(mobile):
                 wait(lambda:js('return !Landlord3D.getStatus().postFX.active'))
             else:
                 wait(lambda:js('return Landlord3D.getStatus().postFX.active'))
+            assert js('return Landlord3D.getStatus().postFX.ambientOcclusion')==(preset in ('high','cinematic'))
             assert js('return Landlord3D.breakableSpots()[0].dead')
         js("Landlord3D.setGraphicsQuality('balanced')")
         assert not js('return Landlord3D.gpuErrors()'),'WebGL error after quality switching'

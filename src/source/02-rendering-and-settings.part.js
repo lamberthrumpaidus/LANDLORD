@@ -1,5 +1,5 @@
 // Create by LamberthRumpaidus
-let cinematicPipeline=null,materialLibrary=null;
+let cinematicPipeline=null,materialLibrary=null,particleBatch=null;
 function initRenderer(){
  try{gl=canvas.getContext('webgl2',{alpha:true,antialias:true,powerPreference:'high-performance'})||canvas.getContext('webgl',{alpha:true,antialias:true,powerPreference:'high-performance'});}catch{}
  if(!gl){mode='cpu';ctx=canvas.getContext('2d',{alpha:true});if(!ctx)throw Error('Canvas 2D unavailable');return;}
@@ -20,17 +20,27 @@ function initRenderer(){
   vec3 base=vColor*(.83+rough)*grunge;
   base=mix(base,base*vec3(.72,.79,.68),ground*max(0.,moss-.63)*.9);
   // World-space texture projections, blended by surface orientation.
+  float textureTone=.5;
   if(uMaterialDetail>.5&&uWorldSurface>.5){
    vec3 weights=pow(abs(N),vec3(4.));weights/=max(.001,weights.x+weights.y+weights.z);
    vec3 stone=texture2D(uStoneMap,vWorld.zy*.24).rgb*weights.x+texture2D(uStoneMap,vWorld.xz*.24).rgb*weights.y+texture2D(uStoneMap,vWorld.xy*.24).rgb*weights.z;
    vec3 mossTex=texture2D(uMossMap,vWorld.xz*.20).rgb;
-   float textureTone=mix(dot(stone,vec3(.299,.587,.114)),dot(mossTex,vec3(.299,.587,.114)),ground*.75);
+   textureTone=mix(dot(stone,vec3(.299,.587,.114)),dot(mossTex,vec3(.299,.587,.114)),ground*.75);
    base*=mix(.68,1.38,textureTone);
   }
+  #if __VERSION__ >= 300
+  vec3 px=dFdx(vWorld),py=dFdy(vWorld);
+  vec3 rx=cross(py,N),ry=cross(N,px);
+  float determinant=dot(px,rx);
+  if(uMaterialDetail>.5&&uWorldSurface>.5&&abs(determinant)>.00001){
+   vec3 gradient=sign(determinant)*(dFdx(textureTone)*rx+dFdy(textureTone)*ry);
+   N=normalize(abs(determinant)*N-.075*gradient);
+  }
+  #endif
   float diffuse=max(0.,dot(N,L)),lambert=.15+.82*diffuse;
   float hemi=.17+.17*max(N.y,0.);
   // GGX microfacet specular with procedural roughness. No claim of authored PBR maps.
-  float roughness=mix(.83,.33,wetness)*(ground*.18+.82),alpha=roughness*roughness,a2=alpha*alpha;
+  float roughness=clamp(mix(.83,.33,wetness)*(ground*.18+.82)+(textureTone-.5)*.18,.22,.94),alpha=roughness*roughness,a2=alpha*alpha;
   float nh=max(.001,dot(N,H)),nv=max(.03,dot(N,V)),nl=max(.001,dot(N,L));
   float denom=nh*nh*(a2-1.)+1.;float distribution=a2/(3.14159*denom*denom);
   float k=pow(roughness+1.,2.)*.125;
@@ -85,6 +95,7 @@ function initRenderer(){
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{materialLibrary=new LandlordMaterialLibrary(gl);}catch(ex){console.warn('Material fallback',ex);}
+ try{particleBatch=new LandlordParticleBatch(gl);}catch(ex){console.warn('Particle instancing fallback',ex);}
  try{cinematicPipeline=new LandlordCinematicPipeline(gl);}catch(ex){console.warn('Postprocessing fallback',ex);}
  try{initShadows()}catch(ex){console.warn('Shadow mapping unsupported',ex);shadowState=null;}
  }catch(e){console.warn('WebGL shader failed; falling back to software-3D',e);mode='cpu';gl=null;const replacement=canvas.cloneNode(false);canvas.replaceWith(replacement);canvas=replacement;ctx=canvas.getContext('2d',{alpha:true});if(!ctx){throw e}}

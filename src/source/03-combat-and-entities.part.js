@@ -636,7 +636,7 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
   const pm=new Mesh();pm.sphere(fx,fy,fz,.25+u*.3,[1,.56,.19],5,9,1.7);pm.ring(fx,fy,fz,.52+(1-u)*.8,.06,[1,.77,.29],1.2);pm.spike(fx,fy-.15,fz,.25,.35,[1,.92,.48],2.2);appendVertices(mesh.d,pm.d);
  }
  for(let p of pickups){if(Math.abs(p.z-player.z)>55)continue;let pm=new Mesh();pm.spike(p.x,p.y+.15+Math.sin(clock*3+p.phase)*.3,p.z,.19,.57,[.99,.78,.39],1.4);appendVertices(mesh.d,pm.d)}
- let maxPart=quality==='low'?22:quality==='balanced'?55:100;for(let p of particles.slice(-maxPart)){if(Math.abs(p.z-player.z)>62)continue;let pm=new Mesh();pm.box(p.x,p.y,p.z,p.size,p.size,p.size,p.col,1.6);appendVertices(mesh.d,pm.d)}
+ let maxPart=quality==='low'?22:quality==='balanced'?55:100;for(let p of (particleBatch?[]:particles.slice(-maxPart))){if(Math.abs(p.z-player.z)>62)continue;let pm=new Mesh();pm.box(p.x,p.y,p.z,p.size,p.size,p.size,p.col,1.6);appendVertices(mesh.d,pm.d)}
  // Procedural drifting embers and floating fireflies.
  let n=quality==='low'?8:quality==='balanced'?20:45;for(let j=0;j<n;j++){let phase=hash(j*23)*TAU,x=player.x+Math.sin(j*11.5+clock*.11)*38,z=player.z+Math.cos(j*19.25-clock*.13)*31,y=1.5+hash(j*79)*13+Math.sin(clock*.8+phase)*1.5;
  let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);appendVertices(mesh.d,pm.d)}
@@ -701,6 +701,9 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);for(const chunk of r.chunks){if(!LandlordGeometry.visible(chunk,frustum))continue;gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;visibleChunks++;submittedTriangles+=chunk.count/3;}
  }
  gl.uniform1f(a.worldSurface,0);gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
+ if(particleBatch&&cameraBasis)drawCalls+=particleBatch.draw(particles,player,quality,viewProj,cameraBasis);
+ const gatePoint=portalPoint(game.zone);
+ if(Math.hypot(gatePoint.x-player.x,gatePoint.z-player.z)<100)cinematicPipeline?.setPortal([gatePoint.x,height(gatePoint.x,gatePoint.z)+5,gatePoint.z],viewProj);
  drawCalls+=cinematicPipeline?.end()||0;
 }
 function paintCPU(dynamicData){const W=canvas.width,H=canvas.height,c=regions[game.zone],dpr=W/innerWidth;

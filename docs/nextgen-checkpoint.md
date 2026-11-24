@@ -46,3 +46,10 @@ Previous verified baseline: 5c111222, run 45328001276 passed desktop/mobile WebG
 
 ## Regression repair — geometry merge
 Checkpoint 05 run 45328984390 failed waiting for visible geometry. Detailed mesh arrays can exceed JavaScript's function-argument limit when spread into Array.push; replaced 22 bulk spreads with bounded per-element appends. Added immediate frame-error diagnostics to the browser suite and camera reset on realm teleport. The repair is subject to the next CI run, not yet verified.
+
+## Checkpoint 07 — depth-aware cinematic effects and instanced combat particles
+- Previous geometry-merge repair passed the full Chrome regression step in run 45329308307.
+- Depth texture-backed screen-space contact occlusion on High/Ultra; portal bloom shafts on High/Ultra with approximate depth gating. This is a screen-space approximation, not ray-traced volumetric lighting.
+- Procedural derivative-based bump detail and roughness modulation from existing textures.
+- WebGL2 billboard particle batching in a single instanced draw, with CPU mesh fallback. Regression checks for particle frames and AO preset switching.
+- This new revision requires CI verification. No real-device FPS or authored AAA asset claims.

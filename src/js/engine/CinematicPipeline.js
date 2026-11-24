@@ -21,7 +21,7 @@ frag=v;}`;
 const composite=header+`uniform sampler2D glow;uniform float strength;uniform float grade;
 uniform sampler2D sceneDepth;
 uniform vec2 texel;
-uniform float ao;
+uniform float ao;uniform float ultra;
 uniform vec4 portal;
 float linearDepth(float z){return .3*270./(270.-z*(270.-.3));}
 float contactAO(vec2 p,float center){
@@ -34,9 +34,12 @@ float contactAO(vec2 p,float center){
  return sum*.125;
 }
 void main(){vec4 s=texture(source,uv);vec3 b=texture(glow,uv).rgb*strength;
-vec3 color=s.rgb;float luminance=dot(color,vec3(.2126,.7152,.0722));
+vec3 color=s.rgb;
+if(ultra>.5&&s.a>.99){vec3 n=texture(source,uv+vec2(0.,texel.y)).rgb+texture(source,uv-vec2(0.,texel.y)).rgb+texture(source,uv+vec2(texel.x,0.)).rgb+texture(source,uv-vec2(texel.x,0.)).rgb;color=clamp(s.rgb+(s.rgb-n*.25)*.22,0.,1.);}
+float luminance=dot(color,vec3(.2126,.7152,.0722));
 color=mix(color,vec3(luminance),.09*grade);
 color=mix(color,color*vec3(.91,1.02,1.08),.42*grade);
+if(ultra>.5){color=mix(color,vec3(.5)+(color-vec3(.5))*1.13,.7);color=mix(vec3(luminance),color,1.12);}
 color=mix(color,color*vec3(1.06,1.015,.94),smoothstep(.4,.85,luminance)*.35*grade);
 float vignette=1.-.12*grade*smoothstep(.23,.72,length(uv-.5));color*=vignette;
 float depth=texture(sceneDepth,uv).r;
@@ -64,7 +67,7 @@ class CinematicPipeline{
   const v=shader(g.VERTEX_SHADER,vertex),f=shader(g.FRAGMENT_SHADER,fragment),p=g.createProgram();
   g.attachShader(p,v);g.attachShader(p,f);g.linkProgram(p);g.deleteShader(v);g.deleteShader(f);
   if(!g.getProgramParameter(p,g.LINK_STATUS)){const error=g.getProgramInfoLog(p);g.deleteProgram(p);throw Error(error);}
-  return {p,source:g.getUniformLocation(p,'source'),axis:g.getUniformLocation(p,'axis'),glow:g.getUniformLocation(p,'glow'),strength:g.getUniformLocation(p,'strength'),grade:g.getUniformLocation(p,'grade'),depth:g.getUniformLocation(p,'sceneDepth'),texel:g.getUniformLocation(p,'texel'),ao:g.getUniformLocation(p,'ao'),portal:g.getUniformLocation(p,'portal')};
+  return {p,source:g.getUniformLocation(p,'source'),axis:g.getUniformLocation(p,'axis'),glow:g.getUniformLocation(p,'glow'),strength:g.getUniformLocation(p,'strength'),grade:g.getUniformLocation(p,'grade'),depth:g.getUniformLocation(p,'sceneDepth'),texel:g.getUniformLocation(p,'texel'),ao:g.getUniformLocation(p,'ao'),ultra:g.getUniformLocation(p,'ultra'),portal:g.getUniformLocation(p,'portal')};
  }
  target(w,h,depth=false){
   const g=this.gl,tex=g.createTexture(),fb=g.createFramebuffer();
@@ -94,7 +97,7 @@ class CinematicPipeline{
   g.viewport(0,0,target?.w||this.targets[0].w,target?.h||this.targets[0].h);
   g.useProgram(p.p);g.activeTexture(g.TEXTURE2);g.bindTexture(g.TEXTURE_2D,source.tex);g.uniform1i(p.source,2);
   if(axis)g.uniform2f(p.axis,...axis);
-  if(glow){g.activeTexture(g.TEXTURE3);g.bindTexture(g.TEXTURE_2D,glow.tex);g.uniform1i(p.glow,3);g.uniform1f(p.strength,this.quality==='cinematic'?.36:this.quality==='high'?.28:.20);g.uniform1f(p.grade,this.quality==='cinematic'?1:.7);g.activeTexture(g.TEXTURE6);g.bindTexture(g.TEXTURE_2D,this.targets[0].depthTex);g.uniform1i(p.depth,6);g.uniform2f(p.texel,1/source.w,1/source.h);g.uniform1f(p.ao,this.quality==='cinematic'?.32:this.quality==='high'?.22:0);g.uniform4fv(p.portal,this.portal);}
+  if(glow){g.activeTexture(g.TEXTURE3);g.bindTexture(g.TEXTURE_2D,glow.tex);g.uniform1i(p.glow,3);g.uniform1f(p.strength,this.quality==='cinematic'?.36:this.quality==='high'?.28:.20);g.uniform1f(p.grade,this.quality==='cinematic'?1:.7);g.activeTexture(g.TEXTURE6);g.bindTexture(g.TEXTURE_2D,this.targets[0].depthTex);g.uniform1i(p.depth,6);g.uniform2f(p.texel,1/source.w,1/source.h);g.uniform1f(p.ao,this.quality==='cinematic'?.47:this.quality==='high'?.22:0);g.uniform1f(p.ultra,this.quality==='cinematic'?1:0);g.uniform4fv(p.portal,this.portal);}
   g.drawArrays(g.TRIANGLES,0,3);
  }
  end(){

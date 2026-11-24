@@ -703,6 +703,7 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);for(const chunk of r.chunks){if(!LandlordGeometry.visible(chunk,frustum))continue;gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;visibleChunks++;submittedTriangles+=chunk.count/3;}
  }
  gl.uniform1f(a.worldSurface,0);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
+ if(vegetation)drawCalls+=vegetation.draw(game.zone,player,quality,viewProj,camEye,c.fog,clock,LandlordGraphicsProfiles.profiles[quality].grass);
  if(particleBatch&&cameraBasis)drawCalls+=particleBatch.draw(particles,player,quality,viewProj,cameraBasis);
  const gatePoint=portalPoint(game.zone);
  if(Math.hypot(gatePoint.x-player.x,gatePoint.z-player.z)<100)cinematicPipeline?.setPortal([gatePoint.x,height(gatePoint.x,gatePoint.z)+5,gatePoint.z],viewProj);

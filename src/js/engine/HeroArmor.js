@@ -55,5 +55,6 @@ function pauldron(m,s,chest,detail){
  for(let k=0;k<3;k++){let x=s*(.86+k*.075),y=chest+.21-k*.13;shell(m,[[x,y-.105,-.045,.26-k*.025,.31-k*.015],[x,y+.02,-.045,.32-k*.025,.35-k*.018],[x,y+.075,-.045,.28-k*.025,.31-k*.018]],tint(metal,.91-k*.07),n);}
  const p=[s*1.23,chest+.38,-.045];m.tri([s*1.10,chest+.48,.18],p,[s*1.10,chest+.18,.15],bronze);
 }
-root.LandlordHeroArmor={breastplate,helmet,pauldron};
+const metalize=fn=>(m,...args)=>{const old=m.material;m.material=5;try{return fn(m,...args);}finally{m.material=old;}};
+root.LandlordHeroArmor={breastplate:metalize(breastplate),helmet:metalize(helmet),pauldron:metalize(pauldron)};
 })(globalThis);

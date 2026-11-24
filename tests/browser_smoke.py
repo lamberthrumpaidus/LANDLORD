@@ -113,7 +113,8 @@ def run(mobile):
         js('Landlord3D.damageCrate(0,100)')
         assert js('return Landlord3D.breakableSpots()[0].dead')
         wait(lambda:js('return Landlord3D.getStatus().particleFrames>0'))
-        for preset,shadow in [('low',0),('balanced',512),('high',1024),('cinematic',2048)]:
+        graphics_reports={}
+        for preset,shadow in [('low',0),('balanced',512),('high',1024),('cinematic',3072)]:
             js('return Landlord3D.setGraphicsQuality(arguments[0])',preset)
             wait(lambda:js('return Landlord3D.getStatus().shadowResolution')==shadow)
             if preset=='low':
@@ -122,6 +123,15 @@ def run(mobile):
                 wait(lambda:js('return Landlord3D.getStatus().postFX.active'))
             assert js('return Landlord3D.getStatus().postFX.ambientOcclusion')==(preset in ('high','cinematic'))
             assert js('return Landlord3D.breakableSpots()[0].dead')
+            if preset=='low':
+                wait(lambda:js('return Landlord3D.getGraphicsReport().grassInstances===0'))
+            else:
+                wait(lambda:js('return Landlord3D.getGraphicsReport().grassInstances>0'))
+            graphics_reports[preset]=js('return Landlord3D.getGraphicsReport()')
+        assert graphics_reports['cinematic']['locked'] and graphics_reports['cinematic']['adaptiveFactor']==1,graphics_reports
+        assert graphics_reports['cinematic']['grassInstances']>graphics_reports['high']['grassInstances'],graphics_reports
+        assert graphics_reports['cinematic']['resolution'][0]>graphics_reports['low']['resolution'][0]*1.5,graphics_reports
+        print(json.dumps({'graphicsProfiles':'mobile' if mobile else 'desktop','reports':graphics_reports}),flush=True)
         js("Landlord3D.setGraphicsQuality('balanced')")
         assert not js('return Landlord3D.gpuErrors()'),'WebGL error after quality switching'
         if mobile:

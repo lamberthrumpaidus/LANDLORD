@@ -306,7 +306,7 @@ ui.map.addEventListener('click',e=>{if(e.target===$('mapOverlay'))toggleMap()});
 function fpsTick(dt){fps=mix(fps,1/Math.max(dt,.001),.06)}
 let miniRefresh=0,perfClock=0,slowFrames=0,perfFrames=0;
 function adaptPerformance(dt){
- if(!isTouchDevice()||!gl||quality==='low')return;
+ if(!isTouchDevice()||!gl||quality==='low'||quality==='cinematic')return;
  perfClock+=dt;perfFrames++;if(dt>.036)slowFrames++;
  if(perfClock>=4){const slowRatio=slowFrames/Math.max(1,perfFrames),mean=perfClock/Math.max(1,perfFrames);
   const next=slowRatio>.45?Math.max(.62,adaptiveFactor-.12):mean<.022?Math.min(1,adaptiveFactor+.06):adaptiveFactor;

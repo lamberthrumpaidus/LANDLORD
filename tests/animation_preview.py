@@ -21,6 +21,15 @@ def capture():
         js("Landlord3D.setGraphicsQuality('balanced');Landlord3D.controls.setOrbit(0.35);Landlord3D.setCameraPitch(0.18);Landlord3D.visualCapture.begin()")
         key=lambda type,code:js("window.dispatchEvent(new KeyboardEvent(arguments[0],{code:arguments[1]}))",type,code)
         report=[]
+        quality_report={}
+        for preset in ['low','balanced','high','cinematic']:
+            js('Landlord3D.setGraphicsQuality(arguments[0])',preset)
+            js('Landlord3D.visualCapture.step(0)')
+            quality_report[preset]=js('return Landlord3D.getGraphicsReport()')
+            assert not js('return Landlord3D.gpuErrors()')
+            (out/f'quality-{preset}.png').write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
+        (out/'quality-report.json').write_text(json.dumps(quality_report,indent=2))
+        js("Landlord3D.setGraphicsQuality('balanced')")
         # Each image is an actual rendered frame from the same game and same camera.
         # Fixed 1/12 simulation second per frame avoids confusing slow headless software GL with animation timing.
         for i in range(36):

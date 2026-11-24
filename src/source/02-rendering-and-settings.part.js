@@ -1,5 +1,5 @@
 // Create by LamberthRumpaidus
-let cinematicPipeline=null,materialLibrary=null,particleBatch=null;
+let cinematicPipeline=null,materialLibrary=null,particleBatch=null,vegetation=null;
 function initRenderer(){
  try{gl=canvas.getContext('webgl2',{alpha:true,antialias:true,powerPreference:'high-performance'})||canvas.getContext('webgl',{alpha:true,antialias:true,powerPreference:'high-performance'});}catch{}
  if(!gl){mode='cpu';ctx=canvas.getContext('2d',{alpha:true});if(!ctx)throw Error('Canvas 2D unavailable');return;}
@@ -9,6 +9,7 @@ function initRenderer(){
  const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform vec4 uPortalCenter;uniform vec3 uPortalColor;uniform vec4 uImpactLight;uniform vec3 uImpactColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;uniform float uQualityTier;uniform sampler2D uBarkMap;uniform sampler2D uLeafMap;uniform sampler2D uWaterMap;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
+ float qualityMetalExponent(){return uQualityTier>=3.?24.:12.;}
  void main(){
   if(vMaterial>3.5&&vMaterial<4.5){vec2 p=(vWorld.xy-uPortalCenter.xy)/vec2(7.6,4.30);float r=length(p),a=atan(p.y,p.x);float waves=.5+.5*sin(19.*r-3.8*uTime+3.*sin(a*5.+uTime));float threads=pow(.5+.5*sin(a*9.+r*18.-uTime*2.3),12.);float rim=pow(clamp(r,0.,1.),9.);float core=exp(-r*r*6.);vec3 light=uPortalColor*(.15+.44*waves+.56*threads+.92*rim)+vec3(.55,.73,.88)*core*.43;gl_FragColor=vec4(clamp(light,0.,1.),1.);return;}
   vec3 N=normalize(vNormal),V=normalize(uCam-vWorld),L=normalize(uLight),H=normalize(L+V);
@@ -98,7 +99,8 @@ function initRenderer(){
   // Glossy highlights on wet exposed stone; kept subtle to avoid plastic appearance.
   float facing=pow(1.-max(0.,dot(N,V)),3.);
   color+=vec3(.24,.34,.35)*wetness*ground*facing*.19;
-  if(vMaterial>2.5)color+=mix(uFogColor,vec3(.26,.43,.49),.52)*facing*.48;
+  if(vMaterial>2.5&&vMaterial<3.5)color+=mix(uFogColor,vec3(.26,.43,.49),.52)*facing*.48;
+  if(vMaterial>4.5&&uQualityTier>=2.){vec3 reflection=reflect(-V,N);float sky=clamp(reflection.y*.5+.5,0.,1.);float band=pow(max(0.,dot(reflection,normalize(vec3(-.55,.68,-.30)))),qualityMetalExponent());vec3 env=mix(vec3(.12,.16,.23),vec3(.67,.83,1.),sky);color=mix(color,base*env*1.5+env*(.12+.32*facing)+vec3(1.,.83,.56)*band*.58,uQualityTier>=3.?.63:.38);}
   // Subtle directional mineral sheen, biome materials stay differentiated.
   float mineral=0.;if(uQualityTier>=2.&&detailFade>.05)mineral=smoothstep(.77,.96,noise3(vWorld*4.1+vec3(17.)))*detailFade;
   color+=base*mineral*.065*(.45+.55*visibility);
@@ -117,6 +119,7 @@ function initRenderer(){
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{materialLibrary=new LandlordMaterialLibrary(gl);}catch(ex){console.warn('Material fallback',ex);}
+ try{vegetation=new LandlordVegetation.Vegetation(gl);vegetation.initialize(LEN,roadCenter,height,hash);}catch(ex){console.warn('Vegetation fallback',ex);}
  try{particleBatch=new LandlordParticleBatch(gl);}catch(ex){console.warn('Particle instancing fallback',ex);}
  try{cinematicPipeline=new LandlordCinematicPipeline(gl);}catch(ex){console.warn('Postprocessing fallback',ex);}
  try{initShadows()}catch(ex){console.warn('Shadow mapping unsupported',ex);shadowState=null;}
@@ -147,7 +150,7 @@ function ortho(l,r,b,t,n,f){return new Float32Array([2/(r-l),0,0,0,0,2/(t-b),0,0
 function initShadows(){
  if(!gl||!(gl instanceof WebGL2RenderingContext))return;
  if(quality==='low')return;
- const sz=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),quality==='cinematic'?2048:quality==='high'?1024:512);
+ const sz=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),LandlordGraphicsProfiles.profiles[quality].shadow);
  const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);
  gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,sz,sz,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
@@ -187,9 +190,9 @@ function paintShadowMap(dynamicData){
 }
 
 let lastViewportW=0,lastViewportH=0,adaptiveFactor=1;
-function resize(){syncShadowQuality();res=quality==='cinematic'?Math.max(1.1,Math.min(1.75,(devicePixelRatio||1)*1.16)):quality==='high'?Math.min(devicePixelRatio||1,1.45):quality==='balanced'?Math.min(devicePixelRatio||1,1.0):.65;
- res=Math.min(res,(innerWidth*innerHeight>1250000?1.05:2))*adaptiveFactor;
- let w=Math.max(2,Math.round(innerWidth*res)),h=Math.max(2,Math.round(innerHeight*res));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}}
+let graphicsLimit=0;
+function resize(){syncShadowQuality();if(!graphicsLimit&&gl)graphicsLimit=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...gl.getParameter(gl.MAX_VIEWPORT_DIMS));const size=LandlordGraphicsProfiles.size(quality,innerWidth,innerHeight,devicePixelRatio||1,adaptiveFactor,graphicsLimit||4096);res=size.scale;
+ let w=size.width,h=size.height;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}}
 let cpuMeshes=[];
 function rebuild(){solidCells.clear();solidCount=0;if(gl)uploadStatics();else cpuMeshes=regions.map((_,i)=>groundMesh(i));resolveDiscoveries();initializeBreakables();}
 let game={state:'title',time:0,played:0,zone:0,prevZone:-1,seals:new Array(7).fill(false),bosses:new Array(7).fill(false),essence:0,kills:0,checkpoint:18,checkpointX:0,missionEnd:false,autosave:0,quality,relics:new Array(7).fill(false),visited:[true,false,false,false,false,false,false],explored:Array.from({length:7},()=>[]),flying:false,secretFlight:false};

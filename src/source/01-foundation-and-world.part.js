@@ -669,7 +669,7 @@ function realmSurfaceRelief(m,idx){
  }
  m.solidWorld=original;
 }
-const landmarkStats=[];
+const landmarkStats=[],entryArtStats=[];
 function groundMesh(index){let m=new Mesh();m.solidWorld=true;let c=regions[index],st=index*LEN,rows=gl?74:37,cols=gl?65:32;
  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
  let x0=-84+i*168/cols,x1=-84+(i+1)*168/cols;
@@ -685,6 +685,7 @@ function groundMesh(index){let m=new Mesh();m.solidWorld=true;let c=regions[inde
  decoration(m,index);
  if(window.LandlordRealmArt)landmarkStats[index]=LandlordRealmArt.build(m,index,c,{height,roadCenter,hash,tint,limb,LEN,quality});
  realmSurfaceRelief(m,index);
+ entryArtStats[index]=LandlordSpectacle.entry(m,index,c,{height,roadCenter,LEN,limb});
  return m.get();
 }
 const ui={hud:$('hud'),overlay:$('overlay'),play:$('play'),resume:$('resume'),restart:$('restart'),settings:$('settings'),title:$('zoneName'),chapter:$('chapNum'),hp:$('hpFill'),mp:$('mpFill'),hpText:$('hpText'),mpText:$('mpText'),essence:$('essence'),seals:$('seals'),quest:$('questText'),toast:$('toast'),splash:$('regionSplash'),minimap:mini,map:$('mapOverlay'),boss:$('boss'),bossName:$('bossName'),bossFill:$('bossFill'),damage:$('damage'),interaction:$('interact')};

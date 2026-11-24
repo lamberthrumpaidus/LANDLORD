@@ -62,6 +62,12 @@ def run(mobile):
         assert title['renderer']=='gpu',title
         assert len(title['seals'])==7,title
         assert len(title['landmarks'])==7 and all(p['triangles']>100 for p in title['landmarks']),title['landmarks']
+        spectacle=js('return Landlord3D.getSpectacleReport()')
+        assert len(spectacle['entryArt'])==7 and all(x['triangles']>100 for x in spectacle['entryArt']),spectacle
+        assert spectacle['portalShader']
+        out=ROOT/'test-results';out.mkdir(exist_ok=True)
+        wait(lambda:js('return Landlord3D.getStatus().visibleChunks>0'))
+        (out/('title-mobile.png' if mobile else 'title-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         # Actual click dispatch through WebDriver so WebAudio receives a user gesture.
         el=request('POST',sid+'/element',{'using':'css selector','value':'#play'})
         key=el['element-6066-11e4-a52e-4f735466cecf']
@@ -142,6 +148,7 @@ def run(mobile):
         serial=js('return Landlord3D.instantState().dashSerial')
         assert js('return Landlord3D.dash()')
         assert js('return Landlord3D.instantState().dashSerial')==serial+1
+        assert js('return Landlord3D.getSpectacleReport().impactCount')>0
         js('Landlord3D.attack()')
         assert js('return Landlord3D.attackInfo().attackTime')>0
         (out/('attack-mobile.png' if mobile else 'attack-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))

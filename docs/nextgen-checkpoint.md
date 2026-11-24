@@ -104,3 +104,6 @@ Independent attack timeline for each guardian: anticipation, strike, contact and
 
 ## Checkpoint 23 — reproducible visual comparison
 A local-only visual capture hook steps the real game simulation and renders actual Chrome frames. Separate CI job after full regression captures 36 frames of run, combo, jump and dash and emits a controlled 12fps replay plus pose data. This replay is not a performance benchmark. The same job packages the exact static PWA runtime and Windows local server launcher into a playable ZIP, without npm. Pending CI.
+
+## Checkpoint 24 — cinematic spectacle overhaul
+Checkpoint 23 fully passed (CI 45413442789). Replaced opaque title panel with responsive live 3D composition preserving original logo and credits. Added twin monumental entry sentinels and near-spawn lanterns to every realm, non-colliding animated portal surface (world-space shader), hit/dash/portal ground shockwaves and local dynamic illumination, smoothly blended dash FOV. Added two unit tests and title screenshots in Chrome. Existing seven-world progression, input and collision remain protected by the regression suite. Pending CI.

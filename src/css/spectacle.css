@@ -1,0 +1,33 @@
+/* ALL Create by LamberthRumpaidus — cinematic live-world title */
+#overlay:has(#menuScene:not([hidden])):has(#play:not([hidden])){
+ background:linear-gradient(90deg,#050b12f5 0%,#050b12db 26%,#050b1266 52%,#050b120a 82%),linear-gradient(0deg,#040810a6,transparent 32%)!important;
+ backdrop-filter:none!important;justify-content:flex-start!important;
+}
+#overlay:has(#menuScene:not([hidden])):has(#play:not([hidden])) #menuScene.landlord-brand-menu{
+ width:min(480px,43vw)!important;max-width:480px!important;max-height:96dvh!important;min-height:0!important;
+ margin:0 0 0 max(4vw,24px)!important;padding:24px 18px!important;
+ background:none!important;border:none!important;border-radius:0!important;box-shadow:none!important;
+ align-items:flex-start!important;justify-content:center!important;text-align:left!important;overflow:auto!important;
+}
+#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-hero{align-items:flex-start!important}
+#overlay:has(#play:not([hidden])) #menuScene .landlord-game-logo{width:min(100%,385px)!important;max-height:35dvh!important;object-position:left center;animation:none!important}
+#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-intro{margin:0 0 24px!important;max-width:360px;text-align:left;color:#c7c8ca;font-size:14px}
+#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-buttons{max-width:310px!important;margin:0!important}
+#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-buttons button{border-radius:4px!important;min-height:54px!important;text-align:left!important;padding-left:22px!important;letter-spacing:.14em!important;background:#0d1826b8!important;border-color:#c9b68b6b!important}
+#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-buttons #play{background:linear-gradient(110deg,#f4d99d,#bc9352)!important;color:#10151b!important}
+#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-credit{justify-content:flex-start!important;margin:22px 0 0!important;max-width:310px}
+#titleChapter{display:none}
+#overlay:has(#menuScene:not([hidden])):has(#play:not([hidden])) #titleChapter{display:block;position:absolute;right:4vw;bottom:6vh;color:#f2dfb0;text-align:right;pointer-events:none;text-shadow:0 2px 12px #000}
+#titleChapter span{display:block;font:600 10px/1.4 system-ui;letter-spacing:.28em;color:#b8c2ce}
+#titleChapter strong{font:400 clamp(24px,3vw,44px)/1.1 Georgia,serif;letter-spacing:.09em}
+@media(max-width:660px){
+ #overlay:has(#menuScene:not([hidden])):has(#play:not([hidden])){align-items:flex-end!important;justify-content:center!important;background:linear-gradient(0deg,#050b12fa 2%,#050b12e0 27%,#050b1244 66%,#050b1211 100%)!important}
+ #overlay:has(#menuScene:not([hidden])):has(#play:not([hidden])) #menuScene.landlord-brand-menu{width:min(420px,95vw)!important;margin:0 0 max(12px,env(safe-area-inset-bottom))!important;padding:10px 18px!important;max-height:66dvh!important}
+ #overlay:has(#play:not([hidden])) #menuScene .landlord-game-logo{max-height:20dvh!important;width:min(260px,75vw)!important}
+ #overlay:has(#play:not([hidden])) #menuScene .landlord-menu-intro{font-size:12px;margin-bottom:12px!important}
+ #overlay:has(#play:not([hidden])) #menuScene .landlord-menu-buttons{max-width:none!important}
+ #overlay:has(#play:not([hidden])) #menuScene .landlord-menu-buttons button{min-height:46px!important}
+ #overlay:has(#play:not([hidden])) #menuScene .landlord-menu-credit{margin:10px 0 0!important;padding-top:6px}
+ #overlay:has(#menuScene:not([hidden])):has(#play:not([hidden])) #titleChapter{top:5vh;bottom:auto;right:5vw}
+}
+@media(max-height:510px) and (orientation:landscape){#overlay:has(#menuScene:not([hidden])):has(#play:not([hidden])) #menuScene.landlord-brand-menu{padding:8px!important;max-height:96dvh!important}#overlay:has(#play:not([hidden])) #menuScene .landlord-game-logo{max-height:25dvh!important}#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-buttons{flex-direction:column!important}#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-buttons button{min-height:38px!important}#overlay:has(#play:not([hidden])) #menuScene .landlord-menu-intro{margin-bottom:8px!important;font-size:11px}}

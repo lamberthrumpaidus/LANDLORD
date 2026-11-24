@@ -87,7 +87,8 @@ jobs:
           node --check src/js/engine/HeroRig.js
           node --check src/js/engine/HeroArmor.js
           node --check src/js/engine/EnemyMotion.js
-          node --test tests/geometry.test.cjs tests/atlas.test.cjs tests/combat.test.cjs tests/perf.test.cjs tests/mesh.test.cjs tests/rig.test.cjs tests/enemy-motion.test.cjs
+          node --check src/js/engine/Spectacle.js
+          node --test tests/geometry.test.cjs tests/atlas.test.cjs tests/combat.test.cjs tests/perf.test.cjs tests/mesh.test.cjs tests/rig.test.cjs tests/enemy-motion.test.cjs tests/spectacle.test.cjs
       - name: Exercise actual game in preinstalled Chrome
         run: python3 tests/browser_smoke.py
       - name: Publish real browser screenshots

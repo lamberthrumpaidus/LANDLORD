@@ -37,7 +37,7 @@ function takeHit(hp,src){if(src&&ldx.tryParry(src))return;if(player.invuln>0){if
   return;}player.hp=Math.max(0,player.hp-hp);heroRig.hurt();window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hurt',x:src?.x??player.x,y:(src?.y??player.y)+1.5,z:src?.z??player.z,boss:!!src?.boss}}));player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
 let shake=0,impactDirection=[0,0];
 function update(dt){
- updateFireLockState(dt);
+ updateFireLockState(dt);spectacleFX.tick(dt);
  if(game.state==='playing'&&!game.relics[game.zone]){let r=relicPos(game.zone);if(Math.hypot(player.x-r[0],player.z-r[1])<4.5)interact();}clock+=dt;game.time+=dt;game.played+=dt;animatedTime+=dt;ldx.update(dt);
  player.invuln=Math.max(0,player.invuln-dt);
  player.coyote=player.grounded?.11:Math.max(0,player.coyote-dt);
@@ -325,7 +325,7 @@ function bladeSteel(m,base,tip,steel,glow){
  }
  limb(m,add(base,scale(v,.15)),add(tip,scale(v,-.19)),.025,.012,glow,.77,5);
 }
-const heroRig=new LandlordHeroRig.HeroMotion();
+const heroRig=new LandlordHeroRig.HeroMotion(),spectacleFX=new LandlordSpectacle.ImpactFX();
 function playerModel(m){
  const p=player,steel=[.24,.32,.39],polish=[.40,.49,.55],iron=[.075,.105,.145],gold=[.56,.39,.18],leather=[.10,.07,.08],royal=[.20,.045,.065],magic=[.28,.78,.90];
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
@@ -598,6 +598,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
    const g=portalPoint(j);if(Math.abs(player.z-g.z)>75)continue;
    const mag=j===6?1.5:.55,col=j===6?[.49,1,.79]:regions[j].accent;
    let portalFX=new Mesh(),base=height(g.x,g.z);
+   if(j===game.zone)LandlordSpectacle.portal(portalFX,g,base,col,quality);
    portalFX.ring(g.x,base+.16,g.z,4.6+(j===6?Math.sin(clock*2)*.2:0),.12,col,.55*mag);
    for(let k=0;k<7;k++){
      const phi=k*TAU/7+clock*(j===6?.55:.17),rr=3.4+Math.sin(clock*2.7+k)*.14;
@@ -608,7 +609,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
    appendVertices(mesh.d,portalFX.d);
  }
  for(let j=Math.max(0,game.zone-1);j<=Math.min(6,game.zone+1);j++){let p=relicPos(j);if(Math.abs(player.z-p[1])<74){let rm=new Mesh();relicModel(rm,j);appendVertices(mesh.d,rm.d)}}
- discoveryMesh(mesh);
+ discoveryMesh(mesh);spectacleFX.draw(mesh,height,quality);
  if(game.flying){let skyAura=new Mesh();skyAura.ring(player.x,player.y-.45,player.z,3.6,.28,[.32,.96,.86],.9);skyAura.ring(player.x,player.y-.55,player.z,4.3,.09,[.55,.88,1],.65);skyAura.spike(player.x,player.y-1.2+Math.sin(clock*4)*.2,player.z,.7,1.6,[.45,1,1],.42);appendVertices(mesh.d,skyAura.d)}
  for(const a of attacks){
   const am=new Mesh();
@@ -638,6 +639,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
  let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);appendVertices(mesh.d,pm.d)}
  dynamicStats.triangles=mesh.d.length/30;return mesh.get();
 }
+let cameraFov=Math.PI/3.1;
 function computeCamera(dt){
  let horizontal=orbit,dist=10.8+(player.attackTime>0?-.45*Math.sin(Math.PI*clamp(player.attackClock/player.attackDuration,0,1)):0),pitch=orbitPitch;
  if(game.state==='playing'){
@@ -647,7 +649,7 @@ function computeCamera(dt){
  // Portrait phone framing pulls back to keep the full hero and nearby enemies visible.
  const aspect=canvas.width/Math.max(1,canvas.height),portraitZoom=clamp(.94/aspect,1,1.55);
  dist*=portraitZoom;
- if(game.state==='title'){horizontal=Math.sin(clock*.13)*.22;dist=15*portraitZoom;pitch=.28}
+ if(game.state==='title'){horizontal=Math.sin(clock*.15)*.17-.16;dist=16*portraitZoom;pitch=.16}
  // Camera spring is on the focal anchor, not on input. W/S stay consistent even during turns.
  const catchUp=1-Math.exp(-dt*(player.dashTime>0?34:18));
  if(!cameraReady){cameraAnchor=[player.x,player.y,player.z];cameraReady=true;}
@@ -658,6 +660,7 @@ function computeCamera(dt){
  const lookAhead=5.4-(portraitZoom-1)*1.05;
  let target=[x+Math.sin(horizontal)*lookAhead,y+1.85-lookAhead*Math.tan(pitch),z+Math.cos(horizontal)*lookAhead];
  let eye=[x-Math.sin(horizontal)*dist*Math.cos(pitch),y+2.05+dist*Math.sin(pitch),z-Math.cos(horizontal)*dist*Math.cos(pitch)];
+ if(game.state==='title'&&aspect>1.05){target[0]+=3.9;target[1]+=.55;}else if(game.state==='title'){target[1]+=.90;}
  if(viewMode==='fpp'&&game.state==='playing'){eye=[x,y+2.55,z];target=[x+Math.sin(horizontal)*16*Math.cos(pitch),y+2.55-16*Math.sin(pitch),z+Math.cos(horizontal)*16*Math.cos(pitch)];}
  // Sweep a small camera volume from the hero to the desired camera position.
  if(viewMode!=='fpp'||game.state!=='playing'){
@@ -675,10 +678,11 @@ function computeCamera(dt){
  if(shake>0){let amount=shake*.6,n=Math.hypot(...impactDirection)||1,pulse=Math.sin(clock*79)*amount*.65;eye[0]+=impactDirection[0]/n*pulse;eye[2]+=impactDirection[1]/n*pulse;eye[1]+=Math.sin(clock*97)*amount*.32;}
  if(player.cameraKick>0){eye[1]+=player.cameraKick*.41;target[1]-=player.cameraKick*.33;}
  camEye=eye;camFocus=target;
- let view=lookAt(eye,target),proj=perspective(Math.PI/(player.dashTime>0?2.85:3.1),canvas.width/canvas.height,.3,270);
+ const desiredFov=Math.PI/(player.dashTime>0?2.72:3.1);cameraFov=mix(cameraFov,desiredFov,1-Math.exp(-dt*14));
+ let view=lookAt(eye,target),proj=perspective(cameraFov,canvas.width/canvas.height,.3,270);
  viewProj=multiply(proj,view);
  const forward=norm(sub(target,eye)),right=norm(cross(forward,[0,1,0])),up=norm(cross(right,forward));
- cameraBasis={forward,right,up,focal:canvas.height/(2*Math.tan(Math.PI/(player.dashTime>0?5.9:6.26)))};
+ cameraBasis={forward,right,up,focal:canvas.height/(2*Math.tan(cameraFov*.5))};
 }
 let submittedTriangles=0,visibleChunks=0;
 let dynamicUploads=0;
@@ -691,6 +695,7 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  gl.uniform4f(a.torch0,x0,height(x0,z0)+1.8,z0,16);
  gl.uniform4f(a.torch1,x1,height(x1,z1)+1.8,z1,16);
  gl.uniform3f(a.torchColor,.99,.57,.22);
+ const pg=portalPoint(game.zone),pc=game.zone===6?[.49,1,.79]:c.accent,fxLight=spectacleFX.light();gl.uniform4f(a.portalCenter,pg.x,height(pg.x,pg.z)+4.55,pg.z,1);gl.uniform3f(a.portalColor,...pc);gl.uniform4f(a.impactLight,...fxLight.position);gl.uniform3f(a.impactColor,...fxLight.color);
  gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);gl.uniform1f(a.shadowTexel,shadowState?1/shadowState.sz:1/1024);
  if(shadowState){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shadowState.tex);gl.uniform1i(a.shadow,0);}
  gl.uniform1f(a.worldSurface,1);let k=zoneOf(player.z),range=1,frustum=LandlordGeometry.planes(viewProj);

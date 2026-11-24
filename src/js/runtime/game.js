@@ -670,7 +670,7 @@ function realmSurfaceRelief(m,idx){
  }
  m.solidWorld=original;
 }
-const landmarkStats=[];
+const landmarkStats=[],entryArtStats=[];
 function groundMesh(index){let m=new Mesh();m.solidWorld=true;let c=regions[index],st=index*LEN,rows=gl?74:37,cols=gl?65:32;
  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
  let x0=-84+i*168/cols,x1=-84+(i+1)*168/cols;
@@ -686,6 +686,7 @@ function groundMesh(index){let m=new Mesh();m.solidWorld=true;let c=regions[inde
  decoration(m,index);
  if(window.LandlordRealmArt)landmarkStats[index]=LandlordRealmArt.build(m,index,c,{height,roadCenter,hash,tint,limb,LEN,quality});
  realmSurfaceRelief(m,index);
+ entryArtStats[index]=LandlordSpectacle.entry(m,index,c,{height,roadCenter,LEN,limb});
  return m.get();
 }
 const ui={hud:$('hud'),overlay:$('overlay'),play:$('play'),resume:$('resume'),restart:$('restart'),settings:$('settings'),title:$('zoneName'),chapter:$('chapNum'),hp:$('hpFill'),mp:$('mpFill'),hpText:$('hpText'),mpText:$('mpText'),essence:$('essence'),seals:$('seals'),quest:$('questText'),toast:$('toast'),splash:$('regionSplash'),minimap:mini,map:$('mapOverlay'),boss:$('boss'),bossName:$('bossName'),bossFill:$('bossFill'),damage:$('damage'),interaction:$('interact')};
@@ -758,10 +759,11 @@ function initRenderer(){
  try{
  const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
  void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vMaterial=floor(aEmit/16.);vEm=mod(aEmit,16.);vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
- const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;uniform float uQualityTier;uniform sampler2D uBarkMap;uniform sampler2D uLeafMap;uniform sampler2D uWaterMap;varying vec4 vShadow;
+ const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform vec4 uPortalCenter;uniform vec3 uPortalColor;uniform vec4 uImpactLight;uniform vec3 uImpactColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;uniform float uQualityTier;uniform sampler2D uBarkMap;uniform sampler2D uLeafMap;uniform sampler2D uWaterMap;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  void main(){
+  if(vMaterial>3.5&&vMaterial<4.5){vec2 p=(vWorld.xy-uPortalCenter.xy)/vec2(7.6,4.30);float r=length(p),a=atan(p.y,p.x);float waves=.5+.5*sin(19.*r-3.8*uTime+3.*sin(a*5.+uTime));float threads=pow(.5+.5*sin(a*9.+r*18.-uTime*2.3),12.);float rim=pow(clamp(r,0.,1.),9.);float core=exp(-r*r*6.);vec3 light=uPortalColor*(.15+.44*waves+.56*threads+.92*rim)+vec3(.55,.73,.88)*core*.43;gl_FragColor=vec4(clamp(light,0.,1.),1.);return;}
   vec3 N=normalize(vNormal),V=normalize(uCam-vWorld),L=normalize(uLight),H=normalize(L+V);
   float detailFade=1.-smoothstep(38.,105.,vFog);float micro=.5,tiny=.5,moss=.5;
   if(uQualityTier>=1.&&detailFade>.01){micro=mix(.5,noise3(vWorld*2.15),detailFade);moss=mix(.5,noise3(vWorld*.25),detailFade);if(uQualityTier>=2.)tiny=mix(.5,noise3(vWorld*11.6),detailFade);}
@@ -845,6 +847,7 @@ function initRenderer(){
   float torch1=pow(max(0.,1.-distance(vWorld,uTorch1.xyz)/max(1.,uTorch1.w)),2.0);
   float warm=(torch0+torch1)*(0.91+0.09*sin(uTime*7.+vWorld.z*1.7));
   color+=base*uTorchColor*warm*.85;
+  float flash=pow(max(0.,1.-distance(vWorld,uImpactLight.xyz)/max(1.,uImpactLight.w)),2.);color+=uImpactColor*flash*(.28+base*.75);
   // Glossy highlights on wet exposed stone; kept subtle to avoid plastic appearance.
   float facing=pow(1.-max(0.,dot(N,V)),3.);
   color+=vec3(.24,.34,.35)*wetness*ground*facing*.19;
@@ -863,7 +866,7 @@ function initRenderer(){
   gl_FragColor=vec4(color,1.0);
  }`;
  let p=gl.createProgram();gl.attachShader(p,compileShader(gl.VERTEX_SHADER,vertex));gl.attachShader(p,compileShader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error('Program: '+gl.getProgramInfoLog(p));glP=p;
- gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface'),qualityTier:gl.getUniformLocation(p,'uQualityTier'),barkMap:gl.getUniformLocation(p,'uBarkMap'),leafMap:gl.getUniformLocation(p,'uLeafMap'),waterMap:gl.getUniformLocation(p,'uWaterMap')};
+ gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),portalCenter:gl.getUniformLocation(p,'uPortalCenter'),portalColor:gl.getUniformLocation(p,'uPortalColor'),impactLight:gl.getUniformLocation(p,'uImpactLight'),impactColor:gl.getUniformLocation(p,'uImpactColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface'),qualityTier:gl.getUniformLocation(p,'uQualityTier'),barkMap:gl.getUniformLocation(p,'uBarkMap'),leafMap:gl.getUniformLocation(p,'uLeafMap'),waterMap:gl.getUniformLocation(p,'uWaterMap')};
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{materialLibrary=new LandlordMaterialLibrary(gl);}catch(ex){console.warn('Material fallback',ex);}
@@ -1107,7 +1110,7 @@ function openMenu(title=false){releaseGameplayInput();$('victoryOverlay').hidden
 function start(){releaseGameplayInput();if(game.missionEnd){finishGame(true);return;}game.state='playing';settingsOpen=false;ui.overlay.classList.add('off');ui.hud.classList.remove('hidden');$('target').classList.remove('hide');ui.map.classList.remove('visible');lastFrame=0;zoneChanged(true);if(isTouchDevice())revealTouchControls(2700);else hideTouchControls();markExplored();refreshSkills();}
 function resume(){start()}
 function showToast(text,seconds=2.6){ui.toast.textContent=text;toaster=seconds;ui.toast.classList.add('show')}
-function portalFlash(){const veil=$('portalVeil');if(!veil)return;veil.classList.remove('flash');void veil.offsetWidth;veil.classList.add('flash');pulseSfx(470,.28,'sine',.038)}
+function portalFlash(){spectacleFX.spawn('portal',player.x,player.y+2,player.z,regions[game.zone].accent);const veil=$('portalVeil');if(!veil)return;veil.classList.remove('flash');void veil.offsetWidth;veil.classList.add('flash');pulseSfx(470,.28,'sine',.038)}
 function zoneChanged(force=false){let z=zoneOf(player.z);if(force||z!==game.prevZone){game.prevZone=z;game.zone=z;$('sky').dataset.realm=String(z);game.visited[z]=true;ui.title.textContent=regions[z].name;ui.chapter.textContent=String(z+1).padStart(2,'0');ui.splash.querySelector('.name').textContent=regions[z].name;ui.splash.querySelector('.sub').textContent=regions[z].subtitle.toUpperCase();ui.splash.classList.add('visible');splashTime=1.65;let c=regions[z];$('sky').style.background=`radial-gradient(ellipse at 72% 37%,rgb(${c.accent.map(v=>Math.round(v*80+12)).join(' ')}) 0%,rgb(${c.fog.map(v=>Math.round(v*130)).join(' ')}) 38%,rgb(${c.bg.map(v=>Math.round(v*95)).join(' ')}) 76%,#050a12 100%)`;save();}}
 function updateUI(){ui.hp.style.width=clamp(player.hp/player.maxHp*100,0,100)+'%';ui.mp.style.width=clamp(player.mp,0,100)+'%';ui.hpText.textContent=Math.ceil(player.hp)+'/'+player.maxHp;ui.mpText.textContent=Math.floor(player.mp)+'/100';ui.essence.textContent=game.essence;ui.seals.textContent=game.seals.filter(Boolean).length;if($('relics'))$('relics').textContent=game.relics.filter(Boolean).length;$('level').textContent=powerLevel();
  const z=game.zone;
@@ -1314,7 +1317,7 @@ function resolveMelee(){
    let tip=player.swordTip;burst(tip[0],tip[1],tip[2],[.48,.78,1],6,.11);
  }
 }
-function damageEnemy(e,n){if(e.dead)return;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hit',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));gameplayStats.enemyHits++;damagePopup(e,n);e.hp-=n;e.hit=.23;e.stagger=.23;burst(e.x,e.y+1.6,e.z,regions[e.zone].accent,e.boss?25:10,.6);pulseSfx(650,.09,'triangle',.022);
+function damageEnemy(e,n){if(e.dead)return;spectacleFX.spawn('hit',e.x,e.y+1.5,e.z,regions[e.zone].accent);window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hit',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));gameplayStats.enemyHits++;damagePopup(e,n);e.hp-=n;e.hit=.23;e.stagger=.23;burst(e.x,e.y+1.6,e.z,regions[e.zone].accent,e.boss?25:10,.6);pulseSfx(650,.09,'triangle',.022);
  if(e.hp<=0&&!e.dead){e.dead=true;game.kills++;gameplayStats.enemyKills++;let val=e.boss?80:12;game.essence+=val;for(let i=0;i<(e.boss?14:4);i++){pickups.push({x:e.x+(hash(i*2+clock)*2-1)*2,z:e.z+(hash(i*8+clock)*2-1)*2,y:e.y+.4,life:24,value:e.boss?6:2,phase:i});}
  burst(e.x,e.y+1.8,e.z,regions[e.zone].accent,e.boss?70:28,2.3);
  if(e.boss){game.bosses[e.zone]=true;showToast(T('boss'),1.8);save()}else if(game.kills%4===0)showToast(T('essence'),1.1);
@@ -1367,6 +1370,7 @@ function doDash(){
  player.invuln=Math.max(player.invuln,game.flying?.17:.22);
  player.cameraKick=Math.max(player.cameraKick,game.flying?.15:.10);
  const accent=game.flying?[.41,.97,1]:regions[game.zone].accent;
+ spectacleFX.spawn('dash',player.x,player.y+1,player.z,accent);
  burst(player.x,player.y+1.1,player.z,accent,game.flying?12:10,.56);
  pulseSfx(game.flying?340:220,.11,'triangle',.025);
  ldx.noise=Math.max(ldx.noise,14);if(ldx.pulseBuff>0)ldx.shock(player.x,player.z,9,26);
@@ -1500,7 +1504,7 @@ function takeHit(hp,src){if(src&&ldx.tryParry(src))return;if(player.invuln>0){if
   return;}player.hp=Math.max(0,player.hp-hp);heroRig.hurt();window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hurt',x:src?.x??player.x,y:(src?.y??player.y)+1.5,z:src?.z??player.z,boss:!!src?.boss}}));player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
 let shake=0,impactDirection=[0,0];
 function update(dt){
- updateFireLockState(dt);
+ updateFireLockState(dt);spectacleFX.tick(dt);
  if(game.state==='playing'&&!game.relics[game.zone]){let r=relicPos(game.zone);if(Math.hypot(player.x-r[0],player.z-r[1])<4.5)interact();}clock+=dt;game.time+=dt;game.played+=dt;animatedTime+=dt;ldx.update(dt);
  player.invuln=Math.max(0,player.invuln-dt);
  player.coyote=player.grounded?.11:Math.max(0,player.coyote-dt);
@@ -1788,7 +1792,7 @@ function bladeSteel(m,base,tip,steel,glow){
  }
  limb(m,add(base,scale(v,.15)),add(tip,scale(v,-.19)),.025,.012,glow,.77,5);
 }
-const heroRig=new LandlordHeroRig.HeroMotion();
+const heroRig=new LandlordHeroRig.HeroMotion(),spectacleFX=new LandlordSpectacle.ImpactFX();
 function playerModel(m){
  const p=player,steel=[.24,.32,.39],polish=[.40,.49,.55],iron=[.075,.105,.145],gold=[.56,.39,.18],leather=[.10,.07,.08],royal=[.20,.045,.065],magic=[.28,.78,.90];
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
@@ -2061,6 +2065,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
    const g=portalPoint(j);if(Math.abs(player.z-g.z)>75)continue;
    const mag=j===6?1.5:.55,col=j===6?[.49,1,.79]:regions[j].accent;
    let portalFX=new Mesh(),base=height(g.x,g.z);
+   if(j===game.zone)LandlordSpectacle.portal(portalFX,g,base,col,quality);
    portalFX.ring(g.x,base+.16,g.z,4.6+(j===6?Math.sin(clock*2)*.2:0),.12,col,.55*mag);
    for(let k=0;k<7;k++){
      const phi=k*TAU/7+clock*(j===6?.55:.17),rr=3.4+Math.sin(clock*2.7+k)*.14;
@@ -2071,7 +2076,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
    appendVertices(mesh.d,portalFX.d);
  }
  for(let j=Math.max(0,game.zone-1);j<=Math.min(6,game.zone+1);j++){let p=relicPos(j);if(Math.abs(player.z-p[1])<74){let rm=new Mesh();relicModel(rm,j);appendVertices(mesh.d,rm.d)}}
- discoveryMesh(mesh);
+ discoveryMesh(mesh);spectacleFX.draw(mesh,height,quality);
  if(game.flying){let skyAura=new Mesh();skyAura.ring(player.x,player.y-.45,player.z,3.6,.28,[.32,.96,.86],.9);skyAura.ring(player.x,player.y-.55,player.z,4.3,.09,[.55,.88,1],.65);skyAura.spike(player.x,player.y-1.2+Math.sin(clock*4)*.2,player.z,.7,1.6,[.45,1,1],.42);appendVertices(mesh.d,skyAura.d)}
  for(const a of attacks){
   const am=new Mesh();
@@ -2101,6 +2106,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
  let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);appendVertices(mesh.d,pm.d)}
  dynamicStats.triangles=mesh.d.length/30;return mesh.get();
 }
+let cameraFov=Math.PI/3.1;
 function computeCamera(dt){
  let horizontal=orbit,dist=10.8+(player.attackTime>0?-.45*Math.sin(Math.PI*clamp(player.attackClock/player.attackDuration,0,1)):0),pitch=orbitPitch;
  if(game.state==='playing'){
@@ -2110,7 +2116,7 @@ function computeCamera(dt){
  // Portrait phone framing pulls back to keep the full hero and nearby enemies visible.
  const aspect=canvas.width/Math.max(1,canvas.height),portraitZoom=clamp(.94/aspect,1,1.55);
  dist*=portraitZoom;
- if(game.state==='title'){horizontal=Math.sin(clock*.13)*.22;dist=15*portraitZoom;pitch=.28}
+ if(game.state==='title'){horizontal=Math.sin(clock*.15)*.17-.16;dist=16*portraitZoom;pitch=.16}
  // Camera spring is on the focal anchor, not on input. W/S stay consistent even during turns.
  const catchUp=1-Math.exp(-dt*(player.dashTime>0?34:18));
  if(!cameraReady){cameraAnchor=[player.x,player.y,player.z];cameraReady=true;}
@@ -2121,6 +2127,7 @@ function computeCamera(dt){
  const lookAhead=5.4-(portraitZoom-1)*1.05;
  let target=[x+Math.sin(horizontal)*lookAhead,y+1.85-lookAhead*Math.tan(pitch),z+Math.cos(horizontal)*lookAhead];
  let eye=[x-Math.sin(horizontal)*dist*Math.cos(pitch),y+2.05+dist*Math.sin(pitch),z-Math.cos(horizontal)*dist*Math.cos(pitch)];
+ if(game.state==='title'&&aspect>1.05){target[0]+=3.9;target[1]+=.55;}else if(game.state==='title'){target[1]+=.90;}
  if(viewMode==='fpp'&&game.state==='playing'){eye=[x,y+2.55,z];target=[x+Math.sin(horizontal)*16*Math.cos(pitch),y+2.55-16*Math.sin(pitch),z+Math.cos(horizontal)*16*Math.cos(pitch)];}
  // Sweep a small camera volume from the hero to the desired camera position.
  if(viewMode!=='fpp'||game.state!=='playing'){
@@ -2138,10 +2145,11 @@ function computeCamera(dt){
  if(shake>0){let amount=shake*.6,n=Math.hypot(...impactDirection)||1,pulse=Math.sin(clock*79)*amount*.65;eye[0]+=impactDirection[0]/n*pulse;eye[2]+=impactDirection[1]/n*pulse;eye[1]+=Math.sin(clock*97)*amount*.32;}
  if(player.cameraKick>0){eye[1]+=player.cameraKick*.41;target[1]-=player.cameraKick*.33;}
  camEye=eye;camFocus=target;
- let view=lookAt(eye,target),proj=perspective(Math.PI/(player.dashTime>0?2.85:3.1),canvas.width/canvas.height,.3,270);
+ const desiredFov=Math.PI/(player.dashTime>0?2.72:3.1);cameraFov=mix(cameraFov,desiredFov,1-Math.exp(-dt*14));
+ let view=lookAt(eye,target),proj=perspective(cameraFov,canvas.width/canvas.height,.3,270);
  viewProj=multiply(proj,view);
  const forward=norm(sub(target,eye)),right=norm(cross(forward,[0,1,0])),up=norm(cross(right,forward));
- cameraBasis={forward,right,up,focal:canvas.height/(2*Math.tan(Math.PI/(player.dashTime>0?5.9:6.26)))};
+ cameraBasis={forward,right,up,focal:canvas.height/(2*Math.tan(cameraFov*.5))};
 }
 let submittedTriangles=0,visibleChunks=0;
 let dynamicUploads=0;
@@ -2154,6 +2162,7 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  gl.uniform4f(a.torch0,x0,height(x0,z0)+1.8,z0,16);
  gl.uniform4f(a.torch1,x1,height(x1,z1)+1.8,z1,16);
  gl.uniform3f(a.torchColor,.99,.57,.22);
+ const pg=portalPoint(game.zone),pc=game.zone===6?[.49,1,.79]:c.accent,fxLight=spectacleFX.light();gl.uniform4f(a.portalCenter,pg.x,height(pg.x,pg.z)+4.55,pg.z,1);gl.uniform3f(a.portalColor,...pc);gl.uniform4f(a.impactLight,...fxLight.position);gl.uniform3f(a.impactColor,...fxLight.color);
  gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);gl.uniform1f(a.shadowTexel,shadowState?1/shadowState.sz:1/1024);
  if(shadowState){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shadowState.tex);gl.uniform1i(a.shadow,0);}
  gl.uniform1f(a.worldSurface,1);let k=zoneOf(player.z),range=1,frustum=LandlordGeometry.planes(viewProj);
@@ -2789,7 +2798,7 @@ try{
  if(saved){$('play').textContent=T('start')}
  // Show the rendered 3D world in the title, too.
  requestAnimationFrame(loop);
- window.Landlord3D={getAnimationReport:()=>({...heroRig.status(),attackPose:sampleAttackPose(player),armor:'eclipse-plate',enemyClips:LandlordEnemyMotion.clips.map(c=>c.name),activeEnemies:enemies.filter(x=>!x.dead&&x.zone===game.zone&&(x.windup>0||x.strikeAfter>0)).map(x=>({boss:x.boss,...LandlordEnemyMotion.sample(x)}))}),getPerformanceReport:()=>frameProfiler.report(),getFrameState:()=>({state:game.state,zone:game.zone,quality,ambientPoints:game.zone<2?Array.from({length:4},(_,j)=>{const z=game.zone*LEN+68+j*9,x=roadCenter(z)+33*(j%2?1:-1);return {x,y:height(x,z)+.3,z};}):[],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',landmarks:landmarkStats.map(p=>({...p})),won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,dynamicMesh:{...dynamicStats,uploads:dynamicUploads},renderedFrames,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,particleInstancing:!!particleBatch,particleInstances:particleBatch?.count||0,particleFrames:particleBatch?.frames||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
+ window.Landlord3D={getSpectacleReport:()=>({entryArt:entryArtStats.map(x=>({...x})),impactCount:spectacleFX.total,activeImpacts:spectacleFX.effects.length,portalShader:!!gl,fov:cameraFov}),getAnimationReport:()=>({...heroRig.status(),attackPose:sampleAttackPose(player),armor:'eclipse-plate',enemyClips:LandlordEnemyMotion.clips.map(c=>c.name),activeEnemies:enemies.filter(x=>!x.dead&&x.zone===game.zone&&(x.windup>0||x.strikeAfter>0)).map(x=>({boss:x.boss,...LandlordEnemyMotion.sample(x)}))}),getPerformanceReport:()=>frameProfiler.report(),getFrameState:()=>({state:game.state,zone:game.zone,quality,ambientPoints:game.zone<2?Array.from({length:4},(_,j)=>{const z=game.zone*LEN+68+j*9,x=roadCenter(z)+33*(j%2?1:-1);return {x,y:height(x,z)+.3,z};}):[],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',landmarks:landmarkStats.map(p=>({...p})),won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,dynamicMesh:{...dynamicStats,uploads:dynamicUploads},renderedFrames,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,particleInstancing:!!particleBatch,particleInstances:particleBatch?.count||0,particleFrames:particleBatch?.frames||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
  combatContact:(source,target,reach)=>enemyStrikeClear(source,target,reach),collisionAt:(x,z,y,r=.72)=>{const a=blocking(x,z,r,y,2.65);return a?{kind:a.kind,minY:a.minY,maxY:a.maxY,x:a.x,z:a.z}:null},
  setPlayerAltitude:(y)=>{player.y=y;player.grounded=false;return player.y},
  getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:!worldAtlas?.cameraUp,x:player.x,z:player.z,heading:LandlordMapProjection.heading(player.angle,orbit),drawn:minimapDrawState,viewport:worldAtlas?.state()}),mapProject:(dx,dz,atlas=false)=>LandlordMapProjection.project(dx,dz,atlas?worldAtlas?.view.yaw||0:orbit),

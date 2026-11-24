@@ -6,10 +6,11 @@ function initRenderer(){
  try{
  const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
  void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vMaterial=floor(aEmit/16.);vEm=mod(aEmit,16.);vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
- const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;uniform float uQualityTier;uniform sampler2D uBarkMap;uniform sampler2D uLeafMap;uniform sampler2D uWaterMap;varying vec4 vShadow;
+ const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform vec4 uPortalCenter;uniform vec3 uPortalColor;uniform vec4 uImpactLight;uniform vec3 uImpactColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;uniform float uQualityTier;uniform sampler2D uBarkMap;uniform sampler2D uLeafMap;uniform sampler2D uWaterMap;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  void main(){
+  if(vMaterial>3.5&&vMaterial<4.5){vec2 p=(vWorld.xy-uPortalCenter.xy)/vec2(7.6,4.30);float r=length(p),a=atan(p.y,p.x);float waves=.5+.5*sin(19.*r-3.8*uTime+3.*sin(a*5.+uTime));float threads=pow(.5+.5*sin(a*9.+r*18.-uTime*2.3),12.);float rim=pow(clamp(r,0.,1.),9.);float core=exp(-r*r*6.);vec3 light=uPortalColor*(.15+.44*waves+.56*threads+.92*rim)+vec3(.55,.73,.88)*core*.43;gl_FragColor=vec4(clamp(light,0.,1.),1.);return;}
   vec3 N=normalize(vNormal),V=normalize(uCam-vWorld),L=normalize(uLight),H=normalize(L+V);
   float detailFade=1.-smoothstep(38.,105.,vFog);float micro=.5,tiny=.5,moss=.5;
   if(uQualityTier>=1.&&detailFade>.01){micro=mix(.5,noise3(vWorld*2.15),detailFade);moss=mix(.5,noise3(vWorld*.25),detailFade);if(uQualityTier>=2.)tiny=mix(.5,noise3(vWorld*11.6),detailFade);}
@@ -93,6 +94,7 @@ function initRenderer(){
   float torch1=pow(max(0.,1.-distance(vWorld,uTorch1.xyz)/max(1.,uTorch1.w)),2.0);
   float warm=(torch0+torch1)*(0.91+0.09*sin(uTime*7.+vWorld.z*1.7));
   color+=base*uTorchColor*warm*.85;
+  float flash=pow(max(0.,1.-distance(vWorld,uImpactLight.xyz)/max(1.,uImpactLight.w)),2.);color+=uImpactColor*flash*(.28+base*.75);
   // Glossy highlights on wet exposed stone; kept subtle to avoid plastic appearance.
   float facing=pow(1.-max(0.,dot(N,V)),3.);
   color+=vec3(.24,.34,.35)*wetness*ground*facing*.19;
@@ -111,7 +113,7 @@ function initRenderer(){
   gl_FragColor=vec4(color,1.0);
  }`;
  let p=gl.createProgram();gl.attachShader(p,compileShader(gl.VERTEX_SHADER,vertex));gl.attachShader(p,compileShader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error('Program: '+gl.getProgramInfoLog(p));glP=p;
- gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface'),qualityTier:gl.getUniformLocation(p,'uQualityTier'),barkMap:gl.getUniformLocation(p,'uBarkMap'),leafMap:gl.getUniformLocation(p,'uLeafMap'),waterMap:gl.getUniformLocation(p,'uWaterMap')};
+ gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),portalCenter:gl.getUniformLocation(p,'uPortalCenter'),portalColor:gl.getUniformLocation(p,'uPortalColor'),impactLight:gl.getUniformLocation(p,'uImpactLight'),impactColor:gl.getUniformLocation(p,'uImpactColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface'),qualityTier:gl.getUniformLocation(p,'uQualityTier'),barkMap:gl.getUniformLocation(p,'uBarkMap'),leafMap:gl.getUniformLocation(p,'uLeafMap'),waterMap:gl.getUniformLocation(p,'uWaterMap')};
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{materialLibrary=new LandlordMaterialLibrary(gl);}catch(ex){console.warn('Material fallback',ex);}
@@ -355,7 +357,7 @@ function openMenu(title=false){releaseGameplayInput();$('victoryOverlay').hidden
 function start(){releaseGameplayInput();if(game.missionEnd){finishGame(true);return;}game.state='playing';settingsOpen=false;ui.overlay.classList.add('off');ui.hud.classList.remove('hidden');$('target').classList.remove('hide');ui.map.classList.remove('visible');lastFrame=0;zoneChanged(true);if(isTouchDevice())revealTouchControls(2700);else hideTouchControls();markExplored();refreshSkills();}
 function resume(){start()}
 function showToast(text,seconds=2.6){ui.toast.textContent=text;toaster=seconds;ui.toast.classList.add('show')}
-function portalFlash(){const veil=$('portalVeil');if(!veil)return;veil.classList.remove('flash');void veil.offsetWidth;veil.classList.add('flash');pulseSfx(470,.28,'sine',.038)}
+function portalFlash(){spectacleFX.spawn('portal',player.x,player.y+2,player.z,regions[game.zone].accent);const veil=$('portalVeil');if(!veil)return;veil.classList.remove('flash');void veil.offsetWidth;veil.classList.add('flash');pulseSfx(470,.28,'sine',.038)}
 function zoneChanged(force=false){let z=zoneOf(player.z);if(force||z!==game.prevZone){game.prevZone=z;game.zone=z;$('sky').dataset.realm=String(z);game.visited[z]=true;ui.title.textContent=regions[z].name;ui.chapter.textContent=String(z+1).padStart(2,'0');ui.splash.querySelector('.name').textContent=regions[z].name;ui.splash.querySelector('.sub').textContent=regions[z].subtitle.toUpperCase();ui.splash.classList.add('visible');splashTime=1.65;let c=regions[z];$('sky').style.background=`radial-gradient(ellipse at 72% 37%,rgb(${c.accent.map(v=>Math.round(v*80+12)).join(' ')}) 0%,rgb(${c.fog.map(v=>Math.round(v*130)).join(' ')}) 38%,rgb(${c.bg.map(v=>Math.round(v*95)).join(' ')}) 76%,#050a12 100%)`;save();}}
 function updateUI(){ui.hp.style.width=clamp(player.hp/player.maxHp*100,0,100)+'%';ui.mp.style.width=clamp(player.mp,0,100)+'%';ui.hpText.textContent=Math.ceil(player.hp)+'/'+player.maxHp;ui.mpText.textContent=Math.floor(player.mp)+'/100';ui.essence.textContent=game.essence;ui.seals.textContent=game.seals.filter(Boolean).length;if($('relics'))$('relics').textContent=game.relics.filter(Boolean).length;$('level').textContent=powerLevel();
  const z=game.zone;
@@ -562,7 +564,7 @@ function resolveMelee(){
    let tip=player.swordTip;burst(tip[0],tip[1],tip[2],[.48,.78,1],6,.11);
  }
 }
-function damageEnemy(e,n){if(e.dead)return;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hit',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));gameplayStats.enemyHits++;damagePopup(e,n);e.hp-=n;e.hit=.23;e.stagger=.23;burst(e.x,e.y+1.6,e.z,regions[e.zone].accent,e.boss?25:10,.6);pulseSfx(650,.09,'triangle',.022);
+function damageEnemy(e,n){if(e.dead)return;spectacleFX.spawn('hit',e.x,e.y+1.5,e.z,regions[e.zone].accent);window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hit',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));gameplayStats.enemyHits++;damagePopup(e,n);e.hp-=n;e.hit=.23;e.stagger=.23;burst(e.x,e.y+1.6,e.z,regions[e.zone].accent,e.boss?25:10,.6);pulseSfx(650,.09,'triangle',.022);
  if(e.hp<=0&&!e.dead){e.dead=true;game.kills++;gameplayStats.enemyKills++;let val=e.boss?80:12;game.essence+=val;for(let i=0;i<(e.boss?14:4);i++){pickups.push({x:e.x+(hash(i*2+clock)*2-1)*2,z:e.z+(hash(i*8+clock)*2-1)*2,y:e.y+.4,life:24,value:e.boss?6:2,phase:i});}
  burst(e.x,e.y+1.8,e.z,regions[e.zone].accent,e.boss?70:28,2.3);
  if(e.boss){game.bosses[e.zone]=true;showToast(T('boss'),1.8);save()}else if(game.kills%4===0)showToast(T('essence'),1.1);
@@ -615,6 +617,7 @@ function doDash(){
  player.invuln=Math.max(player.invuln,game.flying?.17:.22);
  player.cameraKick=Math.max(player.cameraKick,game.flying?.15:.10);
  const accent=game.flying?[.41,.97,1]:regions[game.zone].accent;
+ spectacleFX.spawn('dash',player.x,player.y+1,player.z,accent);
  burst(player.x,player.y+1.1,player.z,accent,game.flying?12:10,.56);
  pulseSfx(game.flying?340:220,.11,'triangle',.025);
  ldx.noise=Math.max(ldx.noise,14);if(ldx.pulseBuff>0)ldx.shock(player.x,player.z,9,26);

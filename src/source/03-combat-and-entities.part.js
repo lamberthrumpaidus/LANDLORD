@@ -143,7 +143,7 @@ function update(dt){
  player.mp=Math.min(100,player.mp+18*dt);
  for(let e of enemies){
    if(e.dead||Math.abs(e.z-player.z)>92)continue;
-   e.attack=Math.max(0,e.attack-dt);e.hit=Math.max(0,e.hit-dt);e.stagger=Math.max(0,e.stagger-dt);e.hitRecoil=Math.max(0,(e.hitRecoil||0)-dt);
+   e.attack=Math.max(0,e.attack-dt);e.strikeAfter=Math.max(0,(e.strikeAfter||0)-dt);e.hit=Math.max(0,e.hit-dt);e.stagger=Math.max(0,e.stagger-dt);e.hitRecoil=Math.max(0,(e.hitRecoil||0)-dt);
    if(Math.abs(e.knockVX||0)+Math.abs(e.knockVZ||0)>.01){
       const dec=Math.exp(-dt*9.2);moveWithCollision(e,(e.knockVX||0)*dt,(e.knockVZ||0)*dt,e.radius*.64);e.knockVX*=dec;e.knockVZ*=dec;
    }
@@ -154,6 +154,7 @@ function update(dt){
       if(e.windup>0){
         e.windup-=dt;
         if(e.windup<=0){
+          e.strikeAfter=e.strikeRecovery||.38;
           const reach=e.boss?5.4:3.4;
           if(enemyStrikeClear(e,player,reach))takeHit(e.boss?19:7+e.zone*2,e);
           burst(e.x,e.y+1.1,e.z,regions[e.zone].accent,e.boss?25:9,.42);
@@ -181,7 +182,7 @@ function update(dt){
           const heading=steerAround(e,gx+flankX+repelX*2.2,gz+flankZ+repelZ*2.2,retreat?sp*1.28:sp,dt,e.radius*.60);
           if(heading!==null)e.angle+=shortestTurn(e.angle,heading)*Math.min(1,dt*4);
           e.animation+=dt*sp*1.9;
-        } else if(e.attack<=0){e.strikeYaw=e.angle;e.windup=e.boss?(e.p2?.78:.96):.57;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'enemy',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));e.attack=e.boss?(e.p2?1.5:2.3):1.75;}
+        } else if(e.attack<=0){e.strikeYaw=e.angle;e.windup=e.boss?(e.p2?.78:.96):.57;e.strikeDuration=e.windup;e.strikeRecovery=e.boss?.48:.32;e.strikeAfter=0;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'enemy',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));e.attack=e.boss?(e.p2?1.5:2.3):1.75;}
       }
       // Ranged bosses wind up recognizable projectiles instead of random instantaneous hits.
       if(e.boss&&e.zone>=3&&dd>7&&dd<23&&e.projectileCD<=0&&e.windup<=0){
@@ -428,10 +429,10 @@ function enemyModel(m,e){
  const type=e.type,c=regions[e.zone],boss=e.boss,size=boss?1.75:1;
  if(boss&&window.LandlordBossModels){LandlordBossModels.draw(m,e,c,{limb,tint,clamp,clock,quality,distance:distance(player,e)});return;}
  if(type==='skeleton'&&window.LandlordEnemyModels){LandlordEnemyModels.skeleton(m,e,c,{limb,tint,clamp,clock,quality,distance:distance(player,e)});return;}
- const locomotion=e.stagger>0?.0:.32*Math.sin(e.animation),wind=e.windup>0?1-e.windup/(boss?.96:.57):0;
+ const locomotion=e.stagger>0?.0:.32*Math.sin(e.animation),motion=LandlordEnemyMotion.sample(e),wind=e.windup>0?1-e.windup/(boss?.96:.57):0;
  if(type==='spider'&&!boss){
    let rear=Math.sin(clock*4+e.phase)*.14;
-   m.sphere(0,1.1+rear,0,.84,[.15,.1,.18],4,9);m.sphere(0,1.26,.72,.57,c.flora,4,8);
+   m.sphere(0,1.1+rear+motion.y*.24,-motion.lean*.6,.84,[.15,.1,.18],4,9);m.sphere(0,1.26,.72,.57,c.flora,4,8);
    for(let s of [-1,1])for(let i=0;i<4;i++){
       const z=-.68+i*.48,step=Math.sin(e.animation+i*1.9+s)*.18;
       limb(m,[s*.6,1,z],[s*1.7,1.15+step,z+.18],.14,.11,c.flora);
@@ -453,7 +454,8 @@ function enemyModel(m,e){
     let step=Math.sin(e.animation+(s>0?0:Math.PI))*.3;
     limb(m,[s*.48*size,h*.32+y,0],[s*.48*size,h*.16+y,step],.2*size,.14*size,tint(base,.68));
     m.box(s*.48*size,.16+y,step,.38*size,.32,.58*size,tint(base,.48));
-    const shoulder=[s*.81*size,h*.74+y,0],elbow=[s*1.1*size,h*.57+y,.15+wind*.35],hand=[s*.85*size,h*.36+y,.26+wind*.55];
+    const shoulder=[s*.81*size,h*.74+y,-motion.lean*.22],target=[s*.85*size+(s===1?motion.x:-motion.x*.4),h*.36+y+motion.y,.26+motion.z];
+    const arm=LandlordHeroRig.solveTwoBone(shoulder,target,[s*.55,-.2,-.7],.65*size,.66*size),elbow=arm.joint,hand=arm.tip;
     limb(m,shoulder,elbow,.19*size,.14*size,base);
     limb(m,elbow,hand,.17*size,.12*size,tint(base,.83));
  }

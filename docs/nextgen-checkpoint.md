@@ -98,3 +98,6 @@ Independent animation implementation: two-bone IK with fixed segment lengths for
 
 ## Checkpoint 21 — Eclipse Plate character art and chained attack crossfade
 Replaced rounded breastplate, helmet and shoulder shapes with faceted fitted metal shells, angular faceplate, narrow visor, ridge details, bronze edging and articulated overlapping pauldrons. Added a cloth-following back insignia. Combo transitions capture the previous sword pose and blend into the next strike without resetting to idle; hit timing remains unchanged. Added crossfade endpoint and weapon normalization tests. Pending CI and visual review.
+
+## Checkpoint 22 — seven guardian attack animation clips
+Independent attack timeline for each guardian: anticipation, strike, contact and recovery. Recovery persists after damage is resolved, preventing instant pose reset. Reaper sweep, thorn cleave, weaver lunge, veil ritual, cinder slam, storm thrust and ashbound crosscut have different hand, torso and blade targets. Skeletons and humanoid enemies also use fixed-length arm IK. Existing damage timing and attack reach are preserved. Added two timeline continuity tests and browser clip checks. Pending CI.

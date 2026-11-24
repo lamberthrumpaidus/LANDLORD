@@ -6,7 +6,7 @@ function skeleton(m,e,c,u){
  const {limb,tint,clamp,clock,quality,distance}=u;
  const near=distance<25&&quality!=='low',rings=near?6:4,sides=near?10:6;
  const bone=[.48,.44,.36],edge=[.64,.58,.46],dark=[.07,.055,.045],iron=[.12,.135,.145],cloth=[.12,.055,.045];
- const wind=e.windup>0?clamp(1-e.windup/.57,0,1):0,hit=Math.sin(Math.PI*clamp((e.hitRecoil||0)/.53,0,1))*.15;
+ const wind=e.windup>0?clamp(1-e.windup/.57,0,1):0,pose=LandlordEnemyMotion.sample(e),hit=Math.sin(Math.PI*clamp((e.hitRecoil||0)/.53,0,1))*.15;
  const phase=e.animation,activity=e.stagger>0?0:Math.min(1,Math.abs(e.speed||2)/3),bob=Math.sin(phase*2)*.045*activity;
  const pelvis=1.0+bob,sternum=1.72+bob-hit,head=2.53+bob-hit*.6;
  const ell=(x,y,z,rx,ry,rz,col,emit=0)=>m.ellipsoid(x,y,z,rx,ry,rz,col,emit,rings,sides);
@@ -26,11 +26,12 @@ function skeleton(m,e,c,u){
   limb(m,hip,knee,.105,.075,bone,0,sides);ell(...knee,.105,.09,.10,edge);limb(m,knee,foot,.075,.055,bone,0,sides);
   if(near)limb(m,[knee[0]+side*.07,knee[1],knee[2]],[foot[0]+side*.045,foot[1],foot[2]],.04,.032,tint(bone,.78),0,5);
   ell(foot[0],foot[1]+.02,foot[2]+.14,.12,.08,.25,bone);
-  const shoulder=[side*.43,sternum+.30,-.015],elbow=[side*(.56+wind*.08),sternum-.03+wind*.32,.13+wind*.32],hand=[side*.52,sternum-.45+wind*.82,.25+wind*.52];
+  const shoulder=[side*.43,sternum+.30,-.015],target=[side*.52+(side===1?pose.x:-pose.x*.4),sternum-.45+pose.y,.25+pose.z];
+  const arm=LandlordHeroRig.solveTwoBone(shoulder,target,[side*.6,-.3,-.7],.45,.44),elbow=arm.joint,hand=arm.tip;
   ell(...shoulder,.16,.15,.16,iron);limb(m,shoulder,elbow,.10,.07,bone,0,sides);ell(...elbow,.10,.09,.095,bone);limb(m,elbow,hand,.073,.055,bone,0,sides);
   ell(...hand,.09,.10,.13,edge);
   if(side===1){
-   const tip=[hand[0]+.12,hand[1]+.30+wind*.7,hand[2]+1.08];
+   const tip=hand.map((v,i)=>v+pose.blade[i]*1.15);
    limb(m,hand,tip,.07,.04,iron,0,sides);
    m.tri([tip[0]-.16,tip[1]-.12,tip[2]-.36],[tip[0]+.11,tip[1]+.08,tip[2]-.25],[tip[0]+.10,tip[1]+.22,tip[2]+.45],tint(iron,1.7));
   }

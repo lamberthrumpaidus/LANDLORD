@@ -101,6 +101,7 @@ def run(mobile):
         rig=js('return Landlord3D.getAnimationReport()')
         assert rig['frames']>0 and len(rig['legs'])==2 and rig['armor']=='eclipse-plate',rig
         assert all(abs(x)<2 for v in rig['cape'] for x in v),rig
+        assert len(set(rig['enemyClips']))==7,rig
         assert all(abs(v['upper']-.69)<1e-5 and abs(v['lower']-.64)<1e-5 for v in rig['legs']),rig
         # Quality changes must not reset destructible objects or the current journey.
         js('Landlord3D.damageCrate(0,100)')

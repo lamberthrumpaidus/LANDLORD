@@ -78,6 +78,7 @@ def run(mobile):
         assert status['player']['hp']>0,status
         assert status['submittedTriangles']>0,status
         assert status['particleInstancing'],status
+        assert js('return typeof LandlordEnemyModels.skeleton===\'function\'')
         wait(lambda:js('return Landlord3D.getStatus().materialTextures===2'),60)
         wait(lambda:js('return Landlord3D.getStatus().postFX.frames>0'),60)
         assert not js('return Landlord3D.gpuErrors()'),'WebGL error after post-processing'
@@ -145,6 +146,7 @@ def run(mobile):
                 assert js('return Landlord3D.getStatus().visited[arguments[0]]',realm)
                 assert not js('return Landlord3D.gpuErrors()')
                 visited.append(realm)
+                (out/f'realm-{realm+1:02d}.png').write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
             # Return to the first realm; ensure travel remains reversible.
             js('Landlord3D.openMap();Landlord3D.travelRealm(0)')
             wait(lambda:js('return Landlord3D.getStatus().zone===0'))

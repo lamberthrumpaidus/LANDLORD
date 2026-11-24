@@ -444,6 +444,7 @@ function playerModel(m){
 function enemyModel(m,e){
  const type=e.type,c=regions[e.zone],boss=e.boss,size=boss?1.75:1;
  if(boss&&window.LandlordBossModels){LandlordBossModels.draw(m,e,c,{limb,tint,clamp,clock,quality,distance:distance(player,e)});return;}
+ if(type==='skeleton'&&window.LandlordEnemyModels){LandlordEnemyModels.skeleton(m,e,c,{limb,tint,clamp,clock,quality,distance:distance(player,e)});return;}
  const locomotion=e.stagger>0?.0:.32*Math.sin(e.animation),wind=e.windup>0?1-e.windup/(boss?.96:.57):0;
  if(type==='spider'&&!boss){
    let rear=Math.sin(clock*4+e.phase)*.14;

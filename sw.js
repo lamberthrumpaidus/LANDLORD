@@ -1,5 +1,5 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-nextgen-20261124-08';
+const CACHE='landlord-nextgen-20261124-09';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
@@ -9,6 +9,7 @@ const CORE=[
   "src/js/engine/CinematicPipeline.js",
   "src/js/engine/BossModels.js",
   "src/js/engine/ParticleBatch.js",
+  "src/js/engine/EnemyModels.js",
   "assets/branding/landlord-icon.png",
   "assets/branding/landlord-portal-logo.png",
   "assets/creator-banner.png",

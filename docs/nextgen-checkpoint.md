@@ -53,3 +53,6 @@ Checkpoint 05 run 45328984390 failed waiting for visible geometry. Detailed mesh
 - Procedural derivative-based bump detail and roughness modulation from existing textures.
 - WebGL2 billboard particle batching in a single instanced draw, with CPU mesh fallback. Regression checks for particle frames and AO preset switching.
 - This new revision requires CI verification. No real-device FPS or authored AAA asset claims.
+
+## Checkpoint 08 — visual revision from real screenshots
+The verified screenshot showed cartoon-like skeletons with oversized glowing eyes and repetitive cobbles. Replaced the skeleton with articulated bone anatomy, rib cage, hollow eye sockets, corroded weapon, remnants of armor and distance-dependent detail. Added continuous compacted foundation to the road and reduced emission clipping with height-dependent valley fog. Added screenshot capture for all six remaining realms to the desktop CI route. Pending verification.

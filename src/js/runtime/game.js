@@ -254,6 +254,12 @@ function giantCrystalCluster(m,x,z,c,seed){
 }
 function carvedRoad(m,idx){
  const reg=regions[idx],base=idx*LEN,col=tint(reg.stone,.72);
+ // Compacted road foundation between cobbles, following the spline and terrain.
+ for(let row=0;row<Math.ceil(LEN/2);row++){
+  const z0=base+row*2,z1=Math.min(base+LEN,z0+2),x0=roadCenter(z0),x1=roadCenter(z1);
+  const p=(x,z)=>[x,height(x,z)+.035,z];
+  for(let lane=-4;lane<4;lane++){const o=lane*2,n=(lane+1)*2; m.quad(p(x0+o,z0),p(x1+o,z1),p(x1+n,z1),p(x0+n,z0),tint(reg.stone,.41+.06*hash(row*17+lane)));}
+ }
  // Every hand-sized cobble is actual 3D geometry; staggered, worn and slightly irregular.
  for(let row=0;row<Math.ceil((LEN-2)/1.32);row++){
   let z=base+row*1.32+.2,center=roadCenter(z);
@@ -262,8 +268,8 @@ function carvedRoad(m,idx){
    if(hash(seed)<.075)continue;
    let xx=center+lane*1.38+(row%2?.36:0)+(hash(seed+3)-.5)*.12;
    const y=height(xx,z),w=1.16+hash(seed+7)*.20,d=1.05+hash(seed+17)*.17;
-   let factor=.58+hash(seed+26)*.25,roadColor=tint(col,factor+(lane%3===0?.08:0));
-   m.slab(xx,z,w,d,.09+hash(seed+9)*.035,roadColor,(hash(seed+35)-.5)*.12);
+   let factor=.48+hash(seed+26)*.34,roadColor=tint(col,factor+(lane%3===0?.07:0));
+   m.slab(xx,z,w,d,.065+hash(seed+9)*.035,roadColor,(hash(seed+35)-.5)*.18);
    if(hash(seed+41)>.962)m.spike(xx,y+.13,z,.18,.2,reg.accent,.15);
   }
  }
@@ -819,8 +825,8 @@ function initRenderer(){
   float mineral=smoothstep(.77,.96,noise3(vWorld*4.1+vec3(17.)));
   color+=base*mineral*.065*(.45+.55*visibility);
   float flame=1.+sin(uTime*4.2+vWorld.x*2.1+vWorld.z)*.09;
-  color+=vColor*vEm*2.2*flame;
-  float fog=1.-exp(-max(0.,vFog-25.)*.0085);
+  color+=vColor*min(vEm,2.5)*1.65*flame;
+  float valley=exp(-max(0.,vWorld.y-1.)*.13);float fog=1.-exp(-max(0.,vFog-17.)*(.0062+.0048*valley));
   fog=clamp(fog+max(0.,vWorld.y-13.)*.002,0.,.84);
   color=mix(color,uFogColor*vec3(1.12,1.06,1.01),fog);
   // ACES-filmic-inspired tonemap, retaining metal highlights and atmosphere.
@@ -1871,6 +1877,7 @@ function playerModel(m){
 function enemyModel(m,e){
  const type=e.type,c=regions[e.zone],boss=e.boss,size=boss?1.75:1;
  if(boss&&window.LandlordBossModels){LandlordBossModels.draw(m,e,c,{limb,tint,clamp,clock,quality,distance:distance(player,e)});return;}
+ if(type==='skeleton'&&window.LandlordEnemyModels){LandlordEnemyModels.skeleton(m,e,c,{limb,tint,clamp,clock,quality,distance:distance(player,e)});return;}
  const locomotion=e.stagger>0?.0:.32*Math.sin(e.animation),wind=e.windup>0?1-e.windup/(boss?.96:.57):0;
  if(type==='spider'&&!boss){
    let rear=Math.sin(clock*4+e.phase)*.14;

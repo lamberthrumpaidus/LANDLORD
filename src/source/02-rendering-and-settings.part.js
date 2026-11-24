@@ -81,8 +81,8 @@ function initRenderer(){
   float mineral=smoothstep(.77,.96,noise3(vWorld*4.1+vec3(17.)));
   color+=base*mineral*.065*(.45+.55*visibility);
   float flame=1.+sin(uTime*4.2+vWorld.x*2.1+vWorld.z)*.09;
-  color+=vColor*vEm*2.2*flame;
-  float fog=1.-exp(-max(0.,vFog-25.)*.0085);
+  color+=vColor*min(vEm,2.5)*1.65*flame;
+  float valley=exp(-max(0.,vWorld.y-1.)*.13);float fog=1.-exp(-max(0.,vFog-17.)*(.0062+.0048*valley));
   fog=clamp(fog+max(0.,vWorld.y-13.)*.002,0.,.84);
   color=mix(color,uFogColor*vec3(1.12,1.06,1.01),fog);
   // ACES-filmic-inspired tonemap, retaining metal highlights and atmosphere.

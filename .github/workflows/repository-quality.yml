@@ -76,6 +76,7 @@ jobs:
           node --check src/js/engine/MaterialLibrary.js
           node --check src/js/engine/BossModels.js
           node --check src/js/engine/ParticleBatch.js
+          node --check src/js/engine/EnemyModels.js
           node --test tests/geometry.test.cjs
       - name: Exercise actual game in preinstalled Chrome
         run: python3 tests/browser_smoke.py

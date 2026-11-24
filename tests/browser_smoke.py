@@ -142,9 +142,14 @@ def run(mobile):
         js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
         assert js('return Landlord3D.instantState().flying')
         assert js('return Landlord3D.dash()')
+        # Verify key state is cleared when the atlas opens; simulation stays paused.
+        js("window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyW'}))")
+        assert js('return Landlord3D.controls.getInput().walking')
         # Exercise the interactive atlas before the rendered world transitions.
         js('Landlord3D.openMap()')
         wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
+        assert not js('return Landlord3D.controls.getInput().walking')
+        paused=js('return Landlord3D.getStatus().gameTime')
         js("document.getElementById('atlasZoomIn').click()")
         assert js('return Landlord3D.getMapOrientation().viewport.zoom')>1
         js("document.getElementById('atlasCenter').click()")
@@ -166,6 +171,7 @@ def run(mobile):
             cdp('Input.dispatchMouseEvent',{'type':'mouseMoved','x':rect['x']+35,'y':rect['y'],'button':'left','buttons':1})
             cdp('Input.dispatchMouseEvent',{'type':'mouseReleased','x':rect['x']+35,'y':rect['y'],'button':'left','buttons':0,'clickCount':1})
             wait(lambda:js('return Landlord3D.getMapOrientation().viewport.x')!=before)
+        assert js('return Landlord3D.getStatus().gameTime')==paused
         (out/('atlas-mobile.png' if mobile else 'atlas-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         js('Landlord3D.openMap()')
         # Exercise the rendered world transitions in the actual game.

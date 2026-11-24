@@ -83,3 +83,6 @@ Checkpoint 14 passed 10 unit tests and both Chrome profiles. Profiling measured 
 
 ## Checkpoint 16 — preset-aware shading and single dynamic upload
 LOW skips procedural 3D noise; MEDIUM uses dominant-axis projection and five shadow samples; HIGH/ULTRA keep triplanar near-field materials, bump detail, nine-tap shadows and additional mineral/lichen detail. Procedural fine detail fades with distance. Dynamic vertex buffer is uploaded once per frame and reused for the shadow and main passes. Browser regression requires one upload per frame. Pending CI.
+
+## Checkpoint 17 — input lifecycle and overlay power budget
+Release held keys, action captures and joystick when entering menus, atlas, portal travel, visibility loss and resume. Pause/map/settings render at most four world frames per second except on state/preset/resize changes; title at most about 30 FPS; gameplay remains uncapped. Fixed WebGL1-friendly shader integer comparison. Added browser regression for input clearing and frozen game time during atlas use. Pending CI.

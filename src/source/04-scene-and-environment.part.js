@@ -162,9 +162,9 @@ function configureAtlas(){
  mapCanvas.height=Math.round(mapCanvas.width*usableH/usableW);
 }
 function toggleMap(){if(game.state==='playing'){
- game.state='map';ui.map.classList.add('visible');hideTouchControls();keySet.clear();configureAtlas();worldAtlas?.reset();mapDraw(mapCanvas,true);
+ game.state='map';ui.map.classList.add('visible');hideTouchControls();releaseGameplayInput();configureAtlas();worldAtlas?.reset();mapDraw(mapCanvas,true);
  $('mapTitle').textContent=regions[game.zone].name;buildRealmSelector();if(document.pointerLockElement)document.exitPointerLock?.();
- }else if(game.state==='map'){game.state='playing';ui.map.classList.remove('visible');if(isTouchDevice())revealTouchControls();lastFrame=0;}}
+ }else if(game.state==='map'){releaseGameplayInput();game.state='playing';ui.map.classList.remove('visible');if(isTouchDevice())revealTouchControls();lastFrame=0;}}
 function buildRealmSelector(){const bar=$('realmJump');if(!bar)return;bar.replaceChildren();bar.hidden=!game.flying;
  if(!game.flying)return;
  for(let i=0;i<7;i++){let b=document.createElement('button');b.type='button';b.className='realm-choice'+(i===game.zone?' current':'');
@@ -191,12 +191,21 @@ function hideTouchControls(){touchLayer.classList.remove('running','revealed');j
 function setJoy(dx=0,dy=0){const lim=(joyVisual.getBoundingClientRect().width||124)*.30;const mag=Math.hypot(dx,dy),scale=mag>lim?lim/mag:1;joyKnob.style.transform=`translate(${dx*scale}px,${dy*scale}px)`}
 function readJoystick(x,y){const c=joystickCenter,r=(joyVisual.getBoundingClientRect().width||124)*.37;const dx=x-c.x,dy=y-c.y;const raw=Math.min(1,Math.hypot(dx,dy)/r),amount=raw<.11?0:Math.pow((raw-.11)/.89,1.05),ang=Math.atan2(dy,dx);
  touchMove.x=Math.cos(ang)*amount;touchMove.y=-Math.sin(ang)*amount;setJoy(dx,dy)}
+function releaseGameplayInput(){
+ keySet.clear();
+ const captured=[...contacts.keys()];contacts.clear();
+ for(const id of captured){try{if(canvas.hasPointerCapture(id))canvas.releasePointerCapture(id);}catch{}}
+ const actions=[...actionPointers];actionPointers.clear();
+ for(const [id,button] of actions){button.classList.remove('pressed');try{if(button.hasPointerCapture(id))button.releasePointerCapture(id);}catch{}}
+ touchMove.active=false;touchMove.x=touchMove.y=0;flightTouchRise=flightTouchDrop=false;mouseOrbit=false;lastTap=0;
+ joyVisual.classList.remove('active');lookVisual.classList.remove('visible');setJoy();
+}
 function onGameKeyDown(e){
  if(settingsOpen){if(bindingPending){e.preventDefault();e.stopPropagation();if(!e.repeat)chooseBinding(e.code);}else if(e.code==='Escape'){e.preventDefault();showMenuPanel()}return;}
  if(!['playing','map','pause'].includes(game.state))return;
  const isControl=Object.values(keybinds).includes(e.code);if(isControl||e.code==='F3')e.preventDefault();
  if(e.repeat&&(isControl||e.code==='F3'))return;
- keySet.add(e.code);
+ if(game.state==='playing')keySet.add(e.code);
  if(isBound('pause',e.code)){if(game.state==='map')toggleMap();else if(game.state==='playing')openMenu();else if(game.state==='pause')resume();return}
  if(isBound('map',e.code)){toggleMap();return}
  if(game.state!=='playing')return;
@@ -209,7 +218,7 @@ function onGameKeyDown(e){
 }
 window.addEventListener('keydown',onGameKeyDown);
 window.addEventListener('keyup',e=>keySet.delete(e.code));
-window.addEventListener('blur',()=>{keySet.clear();if(game.state==='playing')openMenu()});
+window.addEventListener('blur',()=>{releaseGameplayInput();if(game.state==='playing')openMenu()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('pointerdown',e=>{
  if(game.state!=='playing')return;

@@ -294,7 +294,7 @@ function markExplored(){const j=zoneOf(player.z),cells=game.explored[j];game.vis
  const x=Math.round(player.x/11)*11,z=Math.round(player.z/11)*11;
  if(!cells.some(p=>p[0]===x&&p[1]===z)){cells.push([x,z]);if(cells.length>320)cells.shift();}
 }
-function travelRealm(index){if(!game.flying||game.state!=='map'||index<0||index>6)return;portalFlash();
+function travelRealm(index){if(!game.flying||game.state!=='map'||index<0||index>6)return;releaseGameplayInput();portalFlash();
  player.z=index*LEN+15;player.x=roadCenter(player.z);sidePortalCooldown=2;sidePortalHold=0;player.y=height(player.x,player.z)+16;player.vx=player.vz=player.vy=0;cameraReady=false;
  game.visited[index]=true;markExplored();game.prevZone=-1;game.state='playing';ui.map.classList.remove('visible');
  if(isTouchDevice())revealTouchControls();zoneChanged(true);refreshSkills();lastFrame=0;save();}

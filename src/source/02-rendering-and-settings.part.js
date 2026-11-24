@@ -73,7 +73,7 @@ function initRenderer(){
 }
 function uploadStatics(){if(!gl)return;for(const b of staticBuffers)if(b?.buffer)gl.deleteBuffer(b.buffer);staticBuffers=[];
  // Build colliders for all seven realms, but only allocate GPU buffers near the player.
- for(let j=0;j<7;j++){const data=groundMesh(j);staticBuffers.push({data,buffer:null,count:data.length/10,lastUsed:0});}
+ for(let j=0;j<7;j++){const {data,chunks}=LandlordGeometry.partition(groundMesh(j));staticBuffers.push({data,chunks,buffer:null,count:data.length/10,lastUsed:0});}
 }
 let gpuStamp=0;
 function ensureGpuRealm(index){
@@ -129,8 +129,8 @@ function paintShadowMap(dynamicData){
  gl.bindFramebuffer(gl.FRAMEBUFFER,ss.fb);gl.viewport(0,0,ss.sz,ss.sz);gl.clear(gl.DEPTH_BUFFER_BIT);
  gl.colorMask(false,false,false,false);gl.useProgram(ss.prog);gl.uniformMatrix4fv(ss.vp,false,shadowMatrix);
  // Position is the first attribute with 40-byte vertex stride.
- const draw=(buf,n)=>{gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.enableVertexAttribArray(ss.pos);gl.vertexAttribPointer(ss.pos,3,gl.FLOAT,false,40,0);gl.drawArrays(gl.TRIANGLES,0,n)};
- const z=zoneOf(player.z);for(let j=Math.max(0,z-1);j<=Math.min(6,z+1);j++){const o=ensureGpuRealm(j);if(o)draw(o.buffer,o.count)}
+ const draw=(buf,n,chunks=null)=>{gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.enableVertexAttribArray(ss.pos);gl.vertexAttribPointer(ss.pos,3,gl.FLOAT,false,40,0);if(chunks){const frustum=LandlordGeometry.planes(shadowMatrix);for(const chunk of chunks){if(LandlordGeometry.visible(chunk,frustum)){gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;}}}else{gl.drawArrays(gl.TRIANGLES,0,n);drawCalls++;}};
+ const z=zoneOf(player.z);for(let j=Math.max(0,z-1);j<=Math.min(6,z+1);j++){const o=ensureGpuRealm(j);if(o)draw(o.buffer,o.count,o.chunks)}
  gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);draw(vbo,dynamicData.length/10);
  gl.colorMask(true,true,true,true);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);
 }
@@ -322,8 +322,8 @@ function updateUI(){ui.hp.style.width=clamp(player.hp/player.maxHp*100,0,100)+'%
  charge.classList.toggle('visible',visible);
  if(visible){circle.style.strokeDashoffset=String(213.63*(1-clamp(altarHold/2,0,1)));label.textContent=(2-altarHold).toFixed(1)+'s';} 
 }
-function pulseSfx(freq=400,dur=.14,type='sine',vol=.035){try{const ac=audioContext();if(!ac)return;let osc=ac.createOscillator(),gn=ac.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(Math.max(70,freq*.35),ac.currentTime+dur);gn.gain.setValueAtTime(vol,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+dur);osc.connect(gn).connect(ac.destination);osc.start();osc.stop(ac.currentTime+dur+.01)}catch{}}
-let audio=null;function audioContext(){if(audio)return audio;let A=window.AudioContext||window.webkitAudioContext;if(!A)return null;audio=new A();return audio}
+function pulseSfx(freq=400,dur=.14,type='sine',vol=.035){try{const ac=audioContext();if(!ac)return;let osc=ac.createOscillator(),gn=ac.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(Math.max(70,freq*.35),ac.currentTime+dur);gn.gain.setValueAtTime(vol,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+dur);osc.connect(gn).connect(window.LandlordAudio?.output?.()||ac.destination);osc.start();osc.stop(ac.currentTime+dur+.01)}catch{}}
+let audio=null;function audioContext(){if(window.LandlordAudio?.context)return window.LandlordAudio.context();if(audio)return audio;let A=window.AudioContext||window.webkitAudioContext;if(!A)return null;audio=new A();return audio}
 function burst(x,y,z,col,num=16,power=1){for(let i=0;i<num;i++){
  let a=hash(i*31+clock*3)*TAU,spin=hash(i*71+clock*17),v=(2+spin*5)*power;
  particles.push({x,y,z,vx:Math.cos(a)*v,vy:hash(i*13+clock*29)*5*power+1,vz:Math.sin(a)*v,life:.6+hash(i*41)*.8,max:1.4,col,size:.06+hash(i*19)*.13});}
@@ -443,7 +443,7 @@ function swordWhoosh(index){
    const gain=ac.createGain(),start=ac.currentTime+.004;
    gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(index===2?.14:.10,start+.038);
    gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
-   src.connect(filter).connect(gain).connect(ac.destination);src.start(start);src.stop(start+duration+.01);
+   src.connect(filter).connect(gain).connect(window.LandlordAudio?.output?.()||ac.destination);src.start(start);src.stop(start+duration+.01);
  }catch{}
 }
 function startAttack(index){
@@ -503,7 +503,7 @@ function resolveMelee(){
    let tip=player.swordTip;burst(tip[0],tip[1],tip[2],[.48,.78,1],6,.11);
  }
 }
-function damageEnemy(e,n){if(e.dead)return;gameplayStats.enemyHits++;damagePopup(e,n);e.hp-=n;e.hit=.23;e.stagger=.23;burst(e.x,e.y+1.6,e.z,regions[e.zone].accent,e.boss?25:10,.6);pulseSfx(650,.09,'triangle',.022);
+function damageEnemy(e,n){if(e.dead)return;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hit',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));gameplayStats.enemyHits++;damagePopup(e,n);e.hp-=n;e.hit=.23;e.stagger=.23;burst(e.x,e.y+1.6,e.z,regions[e.zone].accent,e.boss?25:10,.6);pulseSfx(650,.09,'triangle',.022);
  if(e.hp<=0&&!e.dead){e.dead=true;game.kills++;gameplayStats.enemyKills++;let val=e.boss?80:12;game.essence+=val;for(let i=0;i<(e.boss?14:4);i++){pickups.push({x:e.x+(hash(i*2+clock)*2-1)*2,z:e.z+(hash(i*8+clock)*2-1)*2,y:e.y+.4,life:24,value:e.boss?6:2,phase:i});}
  burst(e.x,e.y+1.8,e.z,regions[e.zone].accent,e.boss?70:28,2.3);
  if(e.boss){game.bosses[e.zone]=true;showToast(T('boss'),1.8);save()}else if(game.kills%4===0)showToast(T('essence'),1.1);

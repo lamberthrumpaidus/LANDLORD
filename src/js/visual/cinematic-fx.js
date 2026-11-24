@@ -21,7 +21,7 @@ function pulse(kind){
  else if(kind==='dash'){for(let i=0;i<14;i++)sparks.push({x:rnd(0,w),y:rnd(h*.5,h*.9),vx:rnd(-4,4),vy:rnd(-3,0),t:.65,r:rnd(1,3)})}
  if(sparks.length>70)sparks.splice(0,sparks.length-70);
 }
-function trigger(type){if(window.Landlord3D?.getStatus?.().state==='playing')pulse(type)}
+function trigger(type){if(window.Landlord3D?.getFrameState?.().state==='playing')pulse(type)}
 document.addEventListener('pointerdown',e=>{
  const a=e.target.closest?.('[data-mobile-action]')?.dataset.mobileAction;
  if(a==='fire'||a==='dash')trigger(a);
@@ -54,7 +54,7 @@ function loop(now){
  requestAnimationFrame(loop);
  const dt=Math.min(50,Math.max(0,now-prev));prev=now;avg=avg*.96+dt*.04;
  if(++frame%3===0&&mobile){if(avg>32)quality=.65;else if(avg<23)quality=1}
- const status=window.Landlord3D?.getStatus?.();
+ const status=window.Landlord3D?.getFrameState?.();
  if(status?.state!=='playing'){ctx.clearRect(0,0,w,h);return}
  ctx.clearRect(0,0,w,h);time+=dt/1000;fog();rain(status.zone);
  const max=Math.floor(motes.length*quality);

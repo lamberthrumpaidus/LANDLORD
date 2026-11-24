@@ -10,3 +10,11 @@ Implemented:
 - Browser smoke test for WebGL, all seven realm gateways, map interaction and offline reload.
 
 Pending: review CI results; full PBR texture pipeline, glTF assets, animation overhaul, spatial audio, input stress test, profiling on real mobile hardware. No AAA quality claim until measured.
+
+## Checkpoint 02
+- Spatially partition static geometry and frustum-cull both main and shadow passes; preserve all collision geometry.
+- Report visible chunks, submitted triangles, and actual draw calls.
+- Three local unit tests on the chunk algorithm passed before integration.
+- HRTF audio for combat events, one master audio bus, haptic feedback toggle, removed M-key audio conflict.
+- Offline navigation uses the active version cache to avoid mixing HTML and JavaScript across releases.
+- Browser and hardware verification pending.

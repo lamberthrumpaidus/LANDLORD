@@ -1,9 +1,10 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-nextgen-20261124-01';
+const CACHE='landlord-nextgen-20261124-02';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
   "src/js/platform/offline.js",
+  "src/js/engine/GeometryChunks.js",
   "assets/branding/landlord-icon.png",
   "assets/branding/landlord-portal-logo.png",
   "assets/creator-banner.png",
@@ -41,8 +42,8 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
 self.addEventListener('fetch',event=>{
  const req=event.request;if(req.method!=='GET'||new URL(req.url).origin!==self.location.origin)return;
  if(req.mode==='navigate'){
-  event.respondWith(fetch(req).catch(async()=>await caches.match(url('index.html'))||Response.error()));return;
+  event.respondWith((async()=>{const cache=await caches.open(CACHE);return await cache.match(url('index.html'))||fetch(req);})());return;
  }
  if(!CORE.some(p=>url(p)===req.url))return;
- event.respondWith((async()=>await caches.match(req)||fetch(req))());
+ event.respondWith((async()=>await (await caches.open(CACHE)).match(req)||fetch(req))());
 });

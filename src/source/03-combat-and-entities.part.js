@@ -33,7 +33,7 @@ function takeHit(hp,src){if(src&&ldx.tryParry(src))return;if(player.invuln>0){if
   dodgeRewardTimer=1.15;player.counterReady=2.8;gameplayStats.perfectDodges++;
   player.mp=Math.min(100,player.mp+18);burst(player.x,player.y+1.2,player.z,[.48,1,.85],23,.65);
   showToast(language==='id'?'DODGE SEMPURNA':'PERFECT DODGE',.65);}
-  return;}player.hp=Math.max(0,player.hp-hp);player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
+  return;}player.hp=Math.max(0,player.hp-hp);window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hurt',x:src?.x??player.x,y:(src?.y??player.y)+1.5,z:src?.z??player.z,boss:!!src?.boss}}));player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
 let shake=0;
 function update(dt){
  updateFireLockState(dt);
@@ -179,7 +179,7 @@ function update(dt){
           const heading=steerAround(e,gx+flankX+repelX*2.2,gz+flankZ+repelZ*2.2,retreat?sp*1.28:sp,dt,e.radius*.60);
           if(heading!==null)e.angle+=shortestTurn(e.angle,heading)*Math.min(1,dt*4);
           e.animation+=dt*sp*1.9;
-        } else if(e.attack<=0){e.windup=e.boss?(e.p2?.78:.96):.57;e.attack=e.boss?(e.p2?1.5:2.3):1.75;}
+        } else if(e.attack<=0){e.windup=e.boss?(e.p2?.78:.96):.57;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'enemy',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));e.attack=e.boss?(e.p2?1.5:2.3):1.75;}
       }
       // Ranged bosses wind up recognizable projectiles instead of random instantaneous hits.
       if(e.boss&&e.zone>=3&&dd>7&&dd<23&&e.projectileCD<=0&&e.windup<=0){
@@ -672,7 +672,8 @@ function computeCamera(dt){
  const forward=norm(sub(target,eye)),right=norm(cross(forward,[0,1,0])),up=norm(cross(right,forward));
  cameraBasis={forward,right,up,focal:canvas.height/(2*Math.tan(Math.PI/(player.dashTime>0?5.9:6.26)))};
 }
-function paintWebGL(dynamicData){if(shadowState&&quality!=='low'&&shadowTick++%2===0)paintShadowMap(dynamicData);let c=regions[game.zone],a=indexLocations;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(glP);
+let submittedTriangles=0,visibleChunks=0;
+function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=0;if(shadowState&&quality!=='low'&&shadowTick++%2===0)paintShadowMap(dynamicData);let c=regions[game.zone],a=indexLocations;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(glP);
  gl.uniformMatrix4fv(a.vp,false,viewProj);gl.uniform3f(a.cam,...camEye);gl.uniform3f(a.fog,...c.fog);gl.uniform3f(a.light,-.42,.86,.34);gl.uniform1f(a.time,clock);
  const torchStep=(LEN-12)/28;
  const z0=game.zone*LEN+3+Math.max(0,Math.min(28,Math.round((player.z-game.zone*LEN-3)/torchStep)))*torchStep;
@@ -683,11 +684,11 @@ function paintWebGL(dynamicData){if(shadowState&&quality!=='low'&&shadowTick++%2
  gl.uniform3f(a.torchColor,.99,.57,.22);
  gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);gl.uniform1f(a.shadowTexel,shadowState?1/shadowState.sz:1/1024);
  if(shadowState){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shadowState.tex);gl.uniform1i(a.shadow,0);}
- let k=zoneOf(player.z),range=quality==='low'?1:1;
+ let k=zoneOf(player.z),range=1,frustum=LandlordGeometry.planes(viewProj);
  for(let j=Math.max(0,k-range);j<=Math.min(6,k+range);j++){
- let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);gl.drawArrays(gl.TRIANGLES,0,r.count);
+ let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);for(const chunk of r.chunks){if(!LandlordGeometry.visible(chunk,frustum))continue;gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;visibleChunks++;submittedTriangles+=chunk.count/3;}
  }
- gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);
+ gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
 }
 function paintCPU(dynamicData){const W=canvas.width,H=canvas.height,c=regions[game.zone],dpr=W/innerWidth;
  ctx.clearRect(0,0,W,H);
@@ -900,7 +901,7 @@ const ldx={
   try{const ac=audioContext();if(!ac)return;
    if(!this.rainGain){const len=ac.sampleRate*2,buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
     const src=ac.createBufferSource();src.buffer=buf;src.loop=true;const hp=ac.createBiquadFilter();hp.type='highpass';hp.frequency.value=1100;
-    const g=ac.createGain();g.gain.value=0;src.connect(hp);hp.connect(g);g.connect(ac.destination);src.start();this.rainGain=g}
+    const g=ac.createGain();g.gain.value=0;src.connect(hp);hp.connect(g);g.connect(window.LandlordAudio?.output?.()||ac.destination);src.start();this.rainGain=g}
    this.rainGain.gain.setTargetAtTime(this.rain*.045,ac.currentTime,.6)}catch(err){}
  },
  hud(dt){

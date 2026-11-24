@@ -102,7 +102,7 @@ function steerAround(e,goalX,goalZ,speed,dt,r=.7){
 // Avoid JavaScript's maximum argument count when combining detailed geometry.
 function appendVertices(target,source){for(let i=0;i<source.length;i++)target.push(source[i]);}
 class Mesh{
- constructor(x=0,y=0,z=0,rot=0){this.d=[];this.ox=x;this.oy=y;this.oz=z;this.c=Math.cos(rot);this.s=Math.sin(rot)}
+ constructor(x=0,y=0,z=0,rot=0){this.d=[];this.detail=1;this.ox=x;this.oy=y;this.oz=z;this.c=Math.cos(rot);this.s=Math.sin(rot)}
  pt(p){return [this.ox+p[0]*this.c+p[2]*this.s,this.oy+p[1],this.oz-p[0]*this.s+p[2]*this.c]}
  tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit+(this.material||0)*16)}
  quad(a,b,c,d,col,emit=0){this.tri(a,b,c,col,emit);this.tri(a,c,d,col,emit)}
@@ -132,7 +132,7 @@ class Mesh{
  cone(x,y,z,r,h,col,n=7,top=0,emit=0){
  if(this.solidWorld&&h>1.7&&r>.24){let p=this.pt([x,0,z]);addSolid(p[0],p[2],Math.min(2.1,r*.44),this.oy+y-.25,this.oy+y+h);}
  const base=[],upper=[];for(let i=0;i<n;i++){let a=i/n*TAU;base.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);upper.push([x+Math.cos(a)*top,y+h,z+Math.sin(a)*top]);}for(let i=0;i<n;i++){let q=(i+1)%n;this.quad(base[q],base[i],upper[i],upper[q],tint(col,.91+.09*hash(i+z)),emit)}for(let i=1;i<n-1;i++){this.tri(upper[0],upper[i+1],upper[i],tint(col,1.13),emit);this.tri(base[0],base[i],base[i+1],col,emit)}}
- sphere(x,y,z,r,col,rings=5,sides=8,emit=0){for(let j=0;j<rings;j++){let v0=j/rings*Math.PI,v1=(j+1)/rings*Math.PI;for(let i=0;i<sides;i++){let u0=i/sides*TAU,u1=(i+1)/sides*TAU;let p=(u,v)=>[x+Math.cos(u)*Math.sin(v)*r,y+Math.cos(v)*r,z+Math.sin(u)*Math.sin(v)*r];this.quad(p(u0,v0),p(u1,v0),p(u1,v1),p(u0,v1),tint(col,.93+.13*Math.sin(u0)),emit)}}}
+ sphere(x,y,z,r,col,rings=5,sides=8,emit=0){rings=Math.max(3,Math.round(rings*this.detail));sides=Math.max(5,Math.round(sides*this.detail));for(let j=0;j<rings;j++){let v0=j/rings*Math.PI,v1=(j+1)/rings*Math.PI;for(let i=0;i<sides;i++){let u0=i/sides*TAU,u1=(i+1)/sides*TAU;let p=(u,v)=>[x+Math.cos(u)*Math.sin(v)*r,y+Math.cos(v)*r,z+Math.sin(u)*Math.sin(v)*r];this.quad(p(u0,v0),p(u1,v0),p(u1,v1),p(u0,v1),tint(col,.93+.13*Math.sin(u0)),emit)}}}
  spike(x,y,z,r,h,col,emit=.35){
  if(this.solidWorld&&h>=1.4&&r>.35){let p=this.pt([x,0,z]);addSolid(p[0],p[2],r*.63,this.oy+y-.1,this.oy+y+h);}
  let v=8,lower=[],middle=[],tip=[x,y+h,z];for(let i=0;i<v;i++){let a=i*TAU/v;lower.push([x+Math.cos(a)*r*.43,y,z+Math.sin(a)*r*.43]);middle.push([x+Math.cos(a)*r,y+h*.38,z+Math.sin(a)*r])}for(let i=0;i<v;i++){let k=(i+1)%v;this.quad(lower[k],lower[i],middle[i],middle[k],tint(col,.74+.1*hash(i)),emit);this.tri(middle[k],middle[i],tip,tint(col,.9+.22*hash(i+5)),emit)}}
@@ -179,13 +179,17 @@ function tower(m,x,z,c,seed){let y=height(x,z),h=10+hash(seed)*12,r=2.2+hash(see
 
 // ECLIPSE EDITION: handcrafted procedural landmarks / richer geometric silhouettes.
 Mesh.prototype.ellipsoid=function(x,y,z,rx,ry,rz,col,emit=0,rings=9,sides=13){
-  for(let j=0;j<rings;j++){const a=j*Math.PI/rings,b=(j+1)*Math.PI/rings;
-    for(let i=0;i<sides;i++){const c=i*TAU/sides,d=(i+1)*TAU/sides;
-      const p=(u,v)=>[x+rx*Math.cos(u)*Math.sin(v),y+ry*Math.cos(v),z+rz*Math.sin(u)*Math.sin(v)];
-      const n=(u,v)=>norm([Math.cos(u)*Math.sin(v)/rx,Math.cos(v)/ry,Math.sin(u)*Math.sin(v)/rz]);
-      this.smoothQuad([p(c,a),p(d,a),p(d,b),p(c,b)],[n(c,a),n(d,a),n(d,b),n(c,b)],col,emit);
-    }
-  }
+ rings=Math.max(3,Math.round(rings*this.detail));sides=Math.max(5,Math.round(sides*this.detail));
+ const {points,faces}=LandlordMeshBudget.sphereGrid(rings,sides),data=this.d,em=emit+(this.material||0)*16;
+ const pos=new Float64Array(points.length),normal=new Float64Array(points.length),base=this.pt([0,0,0]),simple=this.pt===Mesh.prototype.pt;
+ for(let k=0;k<points.length;k+=3){
+  const px=x+rx*points[k],py=y+ry*points[k+1],pz=z+rz*points[k+2];
+  let nx=points[k]/rx,ny=points[k+1]/ry,nz=points[k+2]/rz;
+  const nlen=Math.hypot(nx,ny,nz)||1;nx/=nlen;ny/=nlen;nz/=nlen;
+  if(simple){pos[k]=this.ox+px*this.c+pz*this.s;pos[k+1]=this.oy+py;pos[k+2]=this.oz-px*this.s+pz*this.c;normal[k]=nx*this.c+nz*this.s;normal[k+1]=ny;normal[k+2]=-nx*this.s+nz*this.c;}
+  else{const p=this.pt([px,py,pz]),n=norm(sub(this.pt([nx,ny,nz]),base));pos.set(p,k);normal.set(n,k);}
+ }
+ for(const i of faces){const k=i*3;data.push(pos[k],pos[k+1],pos[k+2],normal[k],normal[k+1],normal[k+2],col[0],col[1],col[2],em);}
 };
 // Paths use a different curved Catmull-Rom route in each realm.
 function ancientArch(m,x,z,c,scaleFactor=1,broken=false){

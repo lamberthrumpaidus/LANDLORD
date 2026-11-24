@@ -81,6 +81,7 @@ def run(mobile):
         status=js('return Landlord3D.getStatus()')
         assert status['player']['hp']>0,status
         assert status['submittedTriangles']>0,status
+        assert status['dynamicMesh']['triangles']>0 and status['dynamicMesh']['culled']>0,status
         assert status['particleInstancing'],status
         assert js('return typeof LandlordEnemyModels.skeleton===\'function\'')
         wait(lambda:js('return Landlord3D.getStatus().materialTextures===5'),60)
@@ -95,7 +96,7 @@ def run(mobile):
         status=js('return Landlord3D.getStatus()')
         perf=js('return Landlord3D.getPerformanceReport()')
         assert perf['samples']>0 and perf['frame']['p95']>0 and perf['mesh']['mean']>=0,perf
-        print(json.dumps({'profileTiming':'mobile' if mobile else 'desktop','measurement':perf}),flush=True)
+        print(json.dumps({'profileTiming':'mobile' if mobile else 'desktop','measurement':perf,'dynamicMesh':status['dynamicMesh']}),flush=True)
         # Quality changes must not reset destructible objects or the current journey.
         js('Landlord3D.damageCrate(0,100)')
         assert js('return Landlord3D.breakableSpots()[0].dead')

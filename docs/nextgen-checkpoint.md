@@ -77,3 +77,6 @@ Reviewed actual desktop and mobile screenshots from successful run 45330774866. 
 
 ## Checkpoint 14 — frame-time instrumentation and UI optimization
 Checkpoint 12 passed CI run 45330899309. Corrected the FPS and adaptive-resolution input to use observed wall-clock frame intervals rather than the simulation's clamped delta. Added bounded CPU frame-stage profiling (mean, p50, p95, maximum) and tab visibility reset. HUD writes run once per frame rather than once per simulation substep. Added two unit tests and CI timing output; these headless software-GL timings are not real phone or GPU benchmarks. Pending CI.
+
+## Checkpoint 15 — reduce CPU mesh work
+Checkpoint 14 passed 10 unit tests and both Chrome profiles. Profiling measured mesh-stage means of 40.16 ms desktop and 38.93 ms mobile emulation (software GL; not physical-device results). Cached sphere topology avoids repeated trigonometry and degenerate polar triangles; transforms vertices/normals once per unique grid point. Added conservative dynamic actor frustum culling, keeping nearby shadow casters, and distance/preset tessellation while preserving gameplay/AI. Added 3 unit tests and browser counters. Pending CI.

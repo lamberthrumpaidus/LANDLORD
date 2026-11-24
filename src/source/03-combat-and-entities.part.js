@@ -302,6 +302,7 @@ let warnTimer=0,sidePortalHold=0,sidePortalCooldown=0;
 function powerLevel(){return 1+Math.min(5,Math.floor(game.essence/190))}
 // Skinned-style procedural limbs: every knee, heel, shoulder and sword joint is animated in 3D.
 function limb(m,a,b,ra,rb,col,emit=0,sides=7){
+ sides=Math.max(4,Math.round(sides*m.detail));
  let axis=norm(sub(b,a)),ref=Math.abs(axis[1])>.92?[0,0,1]:[0,1,0],right=norm(cross(axis,ref)),up=norm(cross(right,axis));
  for(let i=0;i<sides;i++){let t=i*TAU/sides,u=(i+1)*TAU/sides;
    const point=(ctr,r,k)=>add(ctr,add(scale(right,Math.cos(k)*r),scale(up,Math.sin(k)*r)));
@@ -545,8 +546,13 @@ function wildlifeModel(mesh,b){
  limb(m,[0,1.02*f,-.84*f],[-Math.sin(phase*.25)*.45,1.38*f,-1.9*f],.22*f,.02*f,col,.05,5);
  m.ring(0,.05,0,1.27*f,.10,[.08,.045,.1],0);
 }
-function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead&&Math.abs(e.z-player.z)<65&&Math.abs(e.x-player.x)<65);
- if(viewMode!=='fpp'){let pm=new Mesh(player.x,player.y,player.z,player.angle);playerModel(pm);appendVertices(mesh.d,pm.d);}
+let dynamicStats={candidates:0,culled:0,triangles:0};
+function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGeometry.planes(viewProj):null;
+ dynamicStats={candidates:0,culled:0,triangles:0};
+ const eligible=(e,opts)=>{dynamicStats.candidates++;const yes=LandlordMeshBudget.eligible(e,player,planes,LandlordGeometry.visible,opts);if(!yes)dynamicStats.culled++;return yes;};
+ const detail=(e,hero=false)=>LandlordMeshBudget.detail(quality,distance(player,e),hero);
+ const near=enemies.filter(e=>!e.dead&&eligible(e,{range:65,radius:e.boss?9:4,height:e.boss?11:5,shadow:24}));
+ if(viewMode!=='fpp'){let pm=new Mesh(player.x,player.y,player.z,player.angle);pm.detail=detail(player,true);playerModel(pm);appendVertices(mesh.d,pm.d);}
  // Contact shadow stays on the actual terrain during jumps.
  let shadow=new Mesh();shadow.ring(player.x,height(player.x,player.z)+.025,player.z,1.03+Math.abs(player.y-height(player.x,player.z))*.10,.24,[.045,.055,.075],0);appendVertices(mesh.d,shadow.d);
  // Sword ribbon: geometry follows the REAL sword tip from the articulated arm.
@@ -568,12 +574,12 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
  }
 
  for(const b of wildlife){
-  if(b.dead||Math.abs(b.z-player.z)>68||Math.abs(b.x-player.x)>68||(b.kind==='bat'&&!ldx.batsOut()))continue;
+  if(b.dead||(b.kind==='bat'&&!ldx.batsOut())||!eligible(b,{range:68,radius:4,height:5,shadow:24}))continue;
   const model=new Mesh(b.x,b.y,b.z,b.angle);
-  wildlifeModel(model,b);appendVertices(mesh.d,model.d);
+  model.detail=detail(b);wildlifeModel(model,b);appendVertices(mesh.d,model.d);
  }
  for(let e of near){
-  let em=new Mesh(e.x,e.y+(e.type==='specter'?.6+Math.sin(clock*2+e.phase)*.24:0),e.z,e.angle);enemyModel(em,e);appendVertices(mesh.d,em.d);
+  let em=new Mesh(e.x,e.y+(e.type==='specter'?.6+Math.sin(clock*2+e.phase)*.24:0),e.z,e.angle);em.detail=detail(e);enemyModel(em,e);appendVertices(mesh.d,em.d);
   let aura=new Mesh();
   aura.ring(e.x,e.y+.05,e.z,e.boss?2.7:1,.18,[.045,.05,.065],0);
   if(e.hit>0)aura.ring(e.x,e.y+.2,e.z,e.boss?4.1:1.6,.13,[1,.18,.14],.7);
@@ -588,7 +594,7 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
  }
  // Crates from V3: wood frame, metal straps, glowing relic core, no static dead geometry.
  for(const b of breakables){
-   if(b.dead||Math.abs(b.x-player.x)>59||Math.abs(b.z-player.z)>65)continue;
+   if(b.dead||!eligible(b,{range:65,radius:3,height:4,shadow:24}))continue;
    const m=new Mesh(),base=b.y,col=b.kind==='relic'?[.23,.39,.47]:[.40,.22,.11];
    m.box(b.x,base+1.15,b.z,2.25,2.25,2.25,col);
    m.box(b.x,base+1.15,b.z,2.43,.23,2.43,[.58,.48,.32]);
@@ -646,7 +652,7 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
  // Procedural drifting embers and floating fireflies.
  let n=quality==='low'?8:quality==='balanced'?20:45;for(let j=0;j<n;j++){let phase=hash(j*23)*TAU,x=player.x+Math.sin(j*11.5+clock*.11)*38,z=player.z+Math.cos(j*19.25-clock*.13)*31,y=1.5+hash(j*79)*13+Math.sin(clock*.8+phase)*1.5;
  let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);appendVertices(mesh.d,pm.d)}
- return mesh.get();
+ dynamicStats.triangles=mesh.d.length/30;return mesh.get();
 }
 function computeCamera(dt){
  let horizontal=orbit,dist=10.8+(player.attackTime>0?-.45*Math.sin(Math.PI*clamp(player.attackClock/player.attackDuration,0,1)):0),pitch=orbitPitch;

@@ -103,7 +103,7 @@ function steerAround(e,goalX,goalZ,speed,dt,r=.7){
 // Avoid JavaScript's maximum argument count when combining detailed geometry.
 function appendVertices(target,source){for(let i=0;i<source.length;i++)target.push(source[i]);}
 class Mesh{
- constructor(x=0,y=0,z=0,rot=0){this.d=[];this.ox=x;this.oy=y;this.oz=z;this.c=Math.cos(rot);this.s=Math.sin(rot)}
+ constructor(x=0,y=0,z=0,rot=0){this.d=[];this.detail=1;this.ox=x;this.oy=y;this.oz=z;this.c=Math.cos(rot);this.s=Math.sin(rot)}
  pt(p){return [this.ox+p[0]*this.c+p[2]*this.s,this.oy+p[1],this.oz-p[0]*this.s+p[2]*this.c]}
  tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit+(this.material||0)*16)}
  quad(a,b,c,d,col,emit=0){this.tri(a,b,c,col,emit);this.tri(a,c,d,col,emit)}
@@ -133,7 +133,7 @@ class Mesh{
  cone(x,y,z,r,h,col,n=7,top=0,emit=0){
  if(this.solidWorld&&h>1.7&&r>.24){let p=this.pt([x,0,z]);addSolid(p[0],p[2],Math.min(2.1,r*.44),this.oy+y-.25,this.oy+y+h);}
  const base=[],upper=[];for(let i=0;i<n;i++){let a=i/n*TAU;base.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);upper.push([x+Math.cos(a)*top,y+h,z+Math.sin(a)*top]);}for(let i=0;i<n;i++){let q=(i+1)%n;this.quad(base[q],base[i],upper[i],upper[q],tint(col,.91+.09*hash(i+z)),emit)}for(let i=1;i<n-1;i++){this.tri(upper[0],upper[i+1],upper[i],tint(col,1.13),emit);this.tri(base[0],base[i],base[i+1],col,emit)}}
- sphere(x,y,z,r,col,rings=5,sides=8,emit=0){for(let j=0;j<rings;j++){let v0=j/rings*Math.PI,v1=(j+1)/rings*Math.PI;for(let i=0;i<sides;i++){let u0=i/sides*TAU,u1=(i+1)/sides*TAU;let p=(u,v)=>[x+Math.cos(u)*Math.sin(v)*r,y+Math.cos(v)*r,z+Math.sin(u)*Math.sin(v)*r];this.quad(p(u0,v0),p(u1,v0),p(u1,v1),p(u0,v1),tint(col,.93+.13*Math.sin(u0)),emit)}}}
+ sphere(x,y,z,r,col,rings=5,sides=8,emit=0){rings=Math.max(3,Math.round(rings*this.detail));sides=Math.max(5,Math.round(sides*this.detail));for(let j=0;j<rings;j++){let v0=j/rings*Math.PI,v1=(j+1)/rings*Math.PI;for(let i=0;i<sides;i++){let u0=i/sides*TAU,u1=(i+1)/sides*TAU;let p=(u,v)=>[x+Math.cos(u)*Math.sin(v)*r,y+Math.cos(v)*r,z+Math.sin(u)*Math.sin(v)*r];this.quad(p(u0,v0),p(u1,v0),p(u1,v1),p(u0,v1),tint(col,.93+.13*Math.sin(u0)),emit)}}}
  spike(x,y,z,r,h,col,emit=.35){
  if(this.solidWorld&&h>=1.4&&r>.35){let p=this.pt([x,0,z]);addSolid(p[0],p[2],r*.63,this.oy+y-.1,this.oy+y+h);}
  let v=8,lower=[],middle=[],tip=[x,y+h,z];for(let i=0;i<v;i++){let a=i*TAU/v;lower.push([x+Math.cos(a)*r*.43,y,z+Math.sin(a)*r*.43]);middle.push([x+Math.cos(a)*r,y+h*.38,z+Math.sin(a)*r])}for(let i=0;i<v;i++){let k=(i+1)%v;this.quad(lower[k],lower[i],middle[i],middle[k],tint(col,.74+.1*hash(i)),emit);this.tri(middle[k],middle[i],tip,tint(col,.9+.22*hash(i+5)),emit)}}
@@ -180,13 +180,17 @@ function tower(m,x,z,c,seed){let y=height(x,z),h=10+hash(seed)*12,r=2.2+hash(see
 
 // ECLIPSE EDITION: handcrafted procedural landmarks / richer geometric silhouettes.
 Mesh.prototype.ellipsoid=function(x,y,z,rx,ry,rz,col,emit=0,rings=9,sides=13){
-  for(let j=0;j<rings;j++){const a=j*Math.PI/rings,b=(j+1)*Math.PI/rings;
-    for(let i=0;i<sides;i++){const c=i*TAU/sides,d=(i+1)*TAU/sides;
-      const p=(u,v)=>[x+rx*Math.cos(u)*Math.sin(v),y+ry*Math.cos(v),z+rz*Math.sin(u)*Math.sin(v)];
-      const n=(u,v)=>norm([Math.cos(u)*Math.sin(v)/rx,Math.cos(v)/ry,Math.sin(u)*Math.sin(v)/rz]);
-      this.smoothQuad([p(c,a),p(d,a),p(d,b),p(c,b)],[n(c,a),n(d,a),n(d,b),n(c,b)],col,emit);
-    }
-  }
+ rings=Math.max(3,Math.round(rings*this.detail));sides=Math.max(5,Math.round(sides*this.detail));
+ const {points,faces}=LandlordMeshBudget.sphereGrid(rings,sides),data=this.d,em=emit+(this.material||0)*16;
+ const pos=new Float64Array(points.length),normal=new Float64Array(points.length),base=this.pt([0,0,0]),simple=this.pt===Mesh.prototype.pt;
+ for(let k=0;k<points.length;k+=3){
+  const px=x+rx*points[k],py=y+ry*points[k+1],pz=z+rz*points[k+2];
+  let nx=points[k]/rx,ny=points[k+1]/ry,nz=points[k+2]/rz;
+  const nlen=Math.hypot(nx,ny,nz)||1;nx/=nlen;ny/=nlen;nz/=nlen;
+  if(simple){pos[k]=this.ox+px*this.c+pz*this.s;pos[k+1]=this.oy+py;pos[k+2]=this.oz-px*this.s+pz*this.c;normal[k]=nx*this.c+nz*this.s;normal[k+1]=ny;normal[k+2]=-nx*this.s+nz*this.c;}
+  else{const p=this.pt([px,py,pz]),n=norm(sub(this.pt([nx,ny,nz]),base));pos.set(p,k);normal.set(n,k);}
+ }
+ for(const i of faces){const k=i*3;data.push(pos[k],pos[k+1],pos[k+2],normal[k],normal[k+1],normal[k+2],col[0],col[1],col[2],em);}
 };
 // Paths use a different curved Catmull-Rom route in each realm.
 function ancientArch(m,x,z,c,scaleFactor=1,broken=false){
@@ -1756,6 +1760,7 @@ let warnTimer=0,sidePortalHold=0,sidePortalCooldown=0;
 function powerLevel(){return 1+Math.min(5,Math.floor(game.essence/190))}
 // Skinned-style procedural limbs: every knee, heel, shoulder and sword joint is animated in 3D.
 function limb(m,a,b,ra,rb,col,emit=0,sides=7){
+ sides=Math.max(4,Math.round(sides*m.detail));
  let axis=norm(sub(b,a)),ref=Math.abs(axis[1])>.92?[0,0,1]:[0,1,0],right=norm(cross(axis,ref)),up=norm(cross(right,axis));
  for(let i=0;i<sides;i++){let t=i*TAU/sides,u=(i+1)*TAU/sides;
    const point=(ctr,r,k)=>add(ctr,add(scale(right,Math.cos(k)*r),scale(up,Math.sin(k)*r)));
@@ -1999,8 +2004,13 @@ function wildlifeModel(mesh,b){
  limb(m,[0,1.02*f,-.84*f],[-Math.sin(phase*.25)*.45,1.38*f,-1.9*f],.22*f,.02*f,col,.05,5);
  m.ring(0,.05,0,1.27*f,.10,[.08,.045,.1],0);
 }
-function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead&&Math.abs(e.z-player.z)<65&&Math.abs(e.x-player.x)<65);
- if(viewMode!=='fpp'){let pm=new Mesh(player.x,player.y,player.z,player.angle);playerModel(pm);appendVertices(mesh.d,pm.d);}
+let dynamicStats={candidates:0,culled:0,triangles:0};
+function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGeometry.planes(viewProj):null;
+ dynamicStats={candidates:0,culled:0,triangles:0};
+ const eligible=(e,opts)=>{dynamicStats.candidates++;const yes=LandlordMeshBudget.eligible(e,player,planes,LandlordGeometry.visible,opts);if(!yes)dynamicStats.culled++;return yes;};
+ const detail=(e,hero=false)=>LandlordMeshBudget.detail(quality,distance(player,e),hero);
+ const near=enemies.filter(e=>!e.dead&&eligible(e,{range:65,radius:e.boss?9:4,height:e.boss?11:5,shadow:24}));
+ if(viewMode!=='fpp'){let pm=new Mesh(player.x,player.y,player.z,player.angle);pm.detail=detail(player,true);playerModel(pm);appendVertices(mesh.d,pm.d);}
  // Contact shadow stays on the actual terrain during jumps.
  let shadow=new Mesh();shadow.ring(player.x,height(player.x,player.z)+.025,player.z,1.03+Math.abs(player.y-height(player.x,player.z))*.10,.24,[.045,.055,.075],0);appendVertices(mesh.d,shadow.d);
  // Sword ribbon: geometry follows the REAL sword tip from the articulated arm.
@@ -2022,12 +2032,12 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
  }
 
  for(const b of wildlife){
-  if(b.dead||Math.abs(b.z-player.z)>68||Math.abs(b.x-player.x)>68||(b.kind==='bat'&&!ldx.batsOut()))continue;
+  if(b.dead||(b.kind==='bat'&&!ldx.batsOut())||!eligible(b,{range:68,radius:4,height:5,shadow:24}))continue;
   const model=new Mesh(b.x,b.y,b.z,b.angle);
-  wildlifeModel(model,b);appendVertices(mesh.d,model.d);
+  model.detail=detail(b);wildlifeModel(model,b);appendVertices(mesh.d,model.d);
  }
  for(let e of near){
-  let em=new Mesh(e.x,e.y+(e.type==='specter'?.6+Math.sin(clock*2+e.phase)*.24:0),e.z,e.angle);enemyModel(em,e);appendVertices(mesh.d,em.d);
+  let em=new Mesh(e.x,e.y+(e.type==='specter'?.6+Math.sin(clock*2+e.phase)*.24:0),e.z,e.angle);em.detail=detail(e);enemyModel(em,e);appendVertices(mesh.d,em.d);
   let aura=new Mesh();
   aura.ring(e.x,e.y+.05,e.z,e.boss?2.7:1,.18,[.045,.05,.065],0);
   if(e.hit>0)aura.ring(e.x,e.y+.2,e.z,e.boss?4.1:1.6,.13,[1,.18,.14],.7);
@@ -2042,7 +2052,7 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
  }
  // Crates from V3: wood frame, metal straps, glowing relic core, no static dead geometry.
  for(const b of breakables){
-   if(b.dead||Math.abs(b.x-player.x)>59||Math.abs(b.z-player.z)>65)continue;
+   if(b.dead||!eligible(b,{range:65,radius:3,height:4,shadow:24}))continue;
    const m=new Mesh(),base=b.y,col=b.kind==='relic'?[.23,.39,.47]:[.40,.22,.11];
    m.box(b.x,base+1.15,b.z,2.25,2.25,2.25,col);
    m.box(b.x,base+1.15,b.z,2.43,.23,2.43,[.58,.48,.32]);
@@ -2100,7 +2110,7 @@ function buildDynamic(){let mesh=new Mesh();const near=enemies.filter(e=>!e.dead
  // Procedural drifting embers and floating fireflies.
  let n=quality==='low'?8:quality==='balanced'?20:45;for(let j=0;j<n;j++){let phase=hash(j*23)*TAU,x=player.x+Math.sin(j*11.5+clock*.11)*38,z=player.z+Math.cos(j*19.25-clock*.13)*31,y=1.5+hash(j*79)*13+Math.sin(clock*.8+phase)*1.5;
  let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);appendVertices(mesh.d,pm.d)}
- return mesh.get();
+ dynamicStats.triangles=mesh.d.length/30;return mesh.get();
 }
 function computeCamera(dt){
  let horizontal=orbit,dist=10.8+(player.attackTime>0?-.45*Math.sin(Math.PI*clamp(player.attackClock/player.attackDuration,0,1)):0),pitch=orbitPitch;
@@ -2753,7 +2763,7 @@ try{
  if(saved){$('play').textContent=T('start')}
  // Show the rendered 3D world in the title, too.
  requestAnimationFrame(loop);
- window.Landlord3D={getPerformanceReport:()=>frameProfiler.report(),getFrameState:()=>({state:game.state,zone:game.zone,quality,ambientPoints:game.zone<2?Array.from({length:4},(_,j)=>{const z=game.zone*LEN+68+j*9,x=roadCenter(z)+33*(j%2?1:-1);return {x,y:height(x,z)+.3,z};}):[],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',landmarks:landmarkStats.map(p=>({...p})),won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,particleInstancing:!!particleBatch,particleInstances:particleBatch?.count||0,particleFrames:particleBatch?.frames||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
+ window.Landlord3D={getPerformanceReport:()=>frameProfiler.report(),getFrameState:()=>({state:game.state,zone:game.zone,quality,ambientPoints:game.zone<2?Array.from({length:4},(_,j)=>{const z=game.zone*LEN+68+j*9,x=roadCenter(z)+33*(j%2?1:-1);return {x,y:height(x,z)+.3,z};}):[],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',landmarks:landmarkStats.map(p=>({...p})),won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,dynamicMesh:{...dynamicStats},quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,particleInstancing:!!particleBatch,particleInstances:particleBatch?.count||0,particleFrames:particleBatch?.frames||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
  combatContact:(source,target,reach)=>enemyStrikeClear(source,target,reach),collisionAt:(x,z,y,r=.72)=>{const a=blocking(x,z,r,y,2.65);return a?{kind:a.kind,minY:a.minY,maxY:a.maxY,x:a.x,z:a.z}:null},
  setPlayerAltitude:(y)=>{player.y=y;player.grounded=false;return player.y},
  getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:true,x:player.x,z:player.z,viewport:worldAtlas?.state()}),

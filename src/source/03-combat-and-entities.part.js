@@ -443,6 +443,7 @@ function playerModel(m){
 }
 function enemyModel(m,e){
  const type=e.type,c=regions[e.zone],boss=e.boss,size=boss?1.75:1;
+ if(boss&&window.LandlordBossModels){LandlordBossModels.draw(m,e,c,{limb,tint,clamp,clock,quality,distance:distance(player,e)});return;}
  const locomotion=e.stagger>0?.0:.32*Math.sin(e.animation),wind=e.windup>0?1-e.windup/(boss?.96:.57):0;
  if(type==='spider'&&!boss){
    let rear=Math.sin(clock*4+e.phase)*.14;
@@ -457,8 +458,13 @@ function enemyModel(m,e){
  const base=boss?[.19,.15,.25]:(type==='goblin'?[.18,.35,.21]:type==='skeleton'?[.67,.64,.6]:c.stone);
  const h=boss?5.8:type==='specter'?3.8:2.75,hover=type==='specter'?Math.sin(clock*2+e.phase)*.2:0;
  const y=hover+(e.hit>0?.05*Math.sin(clock*45):0);const recoil=Math.sin(Math.PI*clamp((e.hitRecoil||0)/.53,0,1))*.40;
- m.box(0,h*.37+y,-recoil*.2,.85*size,1.25*size,.65*size,tint(base,.75));m.box(0,h*.69+y,-recoil*.35,1.25*size,1.3*size,.83*size,e.hitRecoil>0?tint(base,1.38):base);
- m.sphere(0,h*.92+y,.11-recoil*.44,.48*size,tint(base,1.17),4,8);
+ const lod=distance(player,e)<22&&quality!=='low',r=lod?7:4,sides=lod?12:7;
+ m.ellipsoid(0,h*.37+y,-recoil*.2,.43*size,.60*size,.32*size,tint(base,.72),0,r,sides);
+ m.ellipsoid(0,h*.69+y,-recoil*.35,.64*size,.65*size,.43*size,e.hitRecoil>0?tint(base,1.38):base,0,r,sides);
+ m.ellipsoid(0,h*.92+y,.11-recoil*.44,.40*size,.48*size,.37*size,tint(base,1.09),0,r,sides);
+ if(type==='skeleton'){for(let j=0;j<4;j++)m.box(0,h*.49+j*.15,.37,.68-.065*j,.055,.08,tint(base,1.26));m.box(0,h*.82+y,.43,.35,.14,.08,[.13,.12,.14]);}
+ if(type==='goblin'){for(const side of [-1,1])m.tri([side*.29,h*.91+y,.08],[side*.76,h*1.04+y,-.04],[side*.27,h*1.02+y,.13],tint(base,.9));}
+ if(type==='knight'||type==='sentinel'){for(const side of [-1,1])m.ellipsoid(side*.70,h*.77+y,0,.31,.22,.34,tint(base,1.24),0,r,sides);m.box(0,h*.93+y,.45,.63,.11,.09,[.03,.04,.07]);}
  for(let s of [-1,1]){
     let step=Math.sin(e.animation+(s>0?0:Math.PI))*.3;
     limb(m,[s*.48*size,h*.32+y,0],[s*.48*size,h*.16+y,step],.2*size,.14*size,tint(base,.68));

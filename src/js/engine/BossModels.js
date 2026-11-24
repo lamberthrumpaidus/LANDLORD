@@ -1,0 +1,89 @@
+/* ALL Create by LamberthRumpaidus */
+(function(root){
+'use strict';
+const themes=[
+ {metal:[.12,.15,.20],trim:[.44,.35,.25],cloth:[.075,.045,.06],kind:'reaper'},
+ {metal:[.13,.22,.14],trim:[.35,.29,.14],cloth:[.09,.13,.08],kind:'thorn'},
+ {metal:[.28,.22,.32],trim:[.50,.43,.37],cloth:[.12,.08,.17],kind:'weaver'},
+ {metal:[.20,.10,.17],trim:[.47,.25,.31],cloth:[.18,.06,.13],kind:'veil'},
+ {metal:[.26,.16,.10],trim:[.60,.37,.14],cloth:[.26,.055,.025],kind:'cinder'},
+ {metal:[.13,.24,.30],trim:[.32,.52,.58],cloth:[.075,.18,.23],kind:'storm'},
+ {metal:[.12,.08,.20],trim:[.40,.23,.47],cloth:[.19,.035,.14],kind:'ashbound'}
+];
+function draw(m,e,c,util){
+ const {limb,tint,clamp,clock,quality,distance}=util,T=themes[e.zone]||themes[0],accent=c.accent;
+ const high=distance<32&&quality!=='low',sides=high?12:7,rings=high?8:4;
+ const S=e.stagger>0?0:Math.sin(e.animation)*.18,wind=e.windup>0?clamp(1-e.windup/(e.p2?.78:.96),0,1):0;
+ const recoil=Math.sin(Math.PI*clamp((e.hitRecoil||0)/.53,0,1))*.32;
+ const sphere=(x,y,z,rx,ry,rz,col,em=0)=>m.ellipsoid(x,y,z,rx,ry,rz,col,em,rings,sides);
+ if(T.kind==='weaver'){
+  sphere(0,2.15,-.55,1.5,1.12,1.75,T.metal);
+  sphere(0,2.1,1.1,1.12,.91,1.05,T.trim);
+  for(const side of [-1,1])for(let i=0;i<4;i++){
+   const z=-1.5+i*.92,phase=Math.sin(e.animation+i*1.35+side)*.25;
+   const p0=[side*.8,2.2,z],p1=[side*(2.3+i%2*.20),2.6+phase,z-.35],p2=[side*3.1,.28+Math.abs(phase),z+.60+wind*.35];
+   limb(m,p0,p1,.26,.19,T.metal,0,sides);limb(m,p1,p2,.19,.07,T.trim,0,sides);
+   sphere(...p1,.24,.27,.24,T.metal);
+  }
+  for(let i=0;i<4;i++)sphere((i-1.5)*.36,2.39+(i%2)*.11,2.0,.13,.11,.10,accent,.55);
+  for(const side of [-1,1])limb(m,[side*.51,1.88,1.84],[side*.31,1.12,2.43+wind*.3],.20,.055,T.trim,0,7);
+  if(high)for(let i=0;i<5;i++)m.spike(0,2.9,-1.8+i*.65,.34,.55,accent,.19);
+  return;
+ }
+ const hover=T.kind==='veil'||T.kind==='storm',y=hover?.42+Math.sin(clock*2+e.phase)*.16:0;
+ const hip=2.0+y,chest=3.5+y,head=5.05+y;
+ const bright=e.hit>0?tint(T.metal,1.55):T.metal;
+ sphere(0,hip,-recoil*.15,.94,.78,.66,T.metal);
+ sphere(0,chest,-recoil*.28,1.17,1.22,.73,bright);
+ sphere(0,head,-recoil*.40,.61,.75,.57,T.metal);
+ m.box(0,head+.03,.49,.86,.13,.16,[.025,.029,.04]);
+ for(const side of [-1,1]){
+  sphere(side*.25,head+.045,.58,.13,.065,.045,accent,.68);
+  const stride=Math.sin(e.animation+(side===1?Math.PI:0))*.31;
+  if(!hover){
+   limb(m,[side*.58,hip-.30,0],[side*.64,1.0+y,stride*.4],.35,.26,T.metal,0,sides);
+   limb(m,[side*.64,1+y,stride*.4],[side*.66,.23+y,-stride],.25,.18,T.trim,0,sides);
+   sphere(side*.66,.25+y,-stride+.18,.38,.22,.53,T.metal);
+   sphere(side*.64,1.0+y,stride*.4,.32,.32,.29,T.trim);
+  }else{
+   for(let j=0;j<3;j++)m.spike(side*(.4+j*.18),.55+y+j*.27,Math.sin(clock*3+j)*.17,.25,.9,T.cloth,.08);
+  }
+  const shoulder=[side*1.24,chest+.6,-.04],elbow=[side*(1.57+wind*.22),chest-.14+wind*.35,.22+wind*.60],hand=[side*(1.45+wind*.25),chest-.87+wind*1.34,.58+wind*.70];
+  sphere(...shoulder,.54,.37,.55,T.trim);limb(m,shoulder,elbow,.31,.25,T.metal,0,sides);limb(m,elbow,hand,.25,.19,T.trim,0,sides);sphere(...hand,.24,.27,.27,T.metal);
+  if(high)for(let j=0;j<3;j++)sphere(side*(1.19+j*.12),chest+.83-j*.18,-.06,.42-j*.045,.13,.44,T.metal);
+  if(side===1){
+   const blade=[hand[0]+.15,hand[1]+1.3+wind*.65,hand[2]+2.1];
+   limb(m,hand,blade,.17,.07,T.trim,0,sides);
+   if(T.kind==='reaper'){
+    const tip=[blade[0]-.95,blade[1]+.38,blade[2]+1.15];
+    m.tri([blade[0]+.32,blade[1]-.15,blade[2]],[blade[0],blade[1]+.32,blade[2]+.30],tip,T.trim,.15);
+    m.tri([blade[0],blade[1]+.32,blade[2]+.30],[tip[0]-.15,tip[1]+.18,tip[2]],tip,accent,.52);
+   }else{
+    const p=[blade[0],blade[1]+.45,blade[2]+.85];limb(m,blade,p,.29,.03,accent,.48,sides);
+   }
+  }
+ }
+ // World-specific crowns, plates, horns, mantle, and floating shards.
+ for(let j=0;j<4;j++)m.box(0,chest-.52+j*.29,.71,.48+.10*j,.085,.08,T.trim);
+ sphere(0,chest+.32,.73,.29,.34,.07,accent,.28);
+ if(T.kind==='thorn'){
+  for(const s of [-1,1]){
+   limb(m,[s*.39,head+.35,0],[s*.88,head+1.02,-.12],.15,.07,T.trim,0,7);
+   limb(m,[s*.88,head+1.02,-.12],[s*1.35,head+1.48,.16],.07,.018,T.trim,0,7);
+   limb(m,[s*.78,head+.92,-.10],[s*.54,head+1.34,.25],.08,.018,T.trim,0,7);
+  }
+ }else if(T.kind==='cinder'){
+  for(let i=0;i<6;i++){let t=i*Math.PI/3;m.spike(Math.cos(t)*.48,head+.50,Math.sin(t)*.48,.12,.46,T.trim,.12);}
+ }else if(T.kind==='storm'||T.kind==='ashbound'){
+  for(let i=0;i<5;i++){let t=clock*.45+i*Math.PI*.4;m.spike(Math.cos(t)*1.66,head+.14+Math.sin(t)*.32,Math.sin(t)*1.66,.23,.65,accent,.45);}
+ }else{
+  for(const s of [-1,1])limb(m,[s*.40,head+.30,-.06],[s*.70,head+.92,-.14],.17,.035,T.trim,0,7);
+ }
+ for(let i=0;i<(high?9:5);i++){
+  let x=-1.03+i*2.06/(high?9:5),x2=x+2.06/(high?9:5),hem=hover?.68+y:.24+y;
+  const wave=.25*Math.sin(clock*2+i*.5)+S;
+  m.quad([x,chest+.65,-.58],[x2,chest+.65,-.58],[x2*1.25,hem,-.98-wave],[x*1.25,hem,-.98-wave],tint(T.cloth,.8+.15*Math.cos(i*1.5)));
+ }
+}
+root.LandlordBossModels={draw,themes};
+})(globalThis);

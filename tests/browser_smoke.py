@@ -124,6 +124,23 @@ def run(mobile):
         js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
         assert js('return Landlord3D.instantState().flying')
         assert js('return Landlord3D.dash()')
+        # Exercise the rendered world transitions in the actual game.
+        visited=[0]
+        if not mobile:
+            for realm in range(1,7):
+                js('Landlord3D.openMap()')
+                wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
+                before=js('return Landlord3D.getStatus().postFX.frames')
+                js('Landlord3D.travelRealm(arguments[0])',realm)
+                wait(lambda:js('return Landlord3D.getStatus().zone')==realm)
+                wait(lambda:js('return Landlord3D.getStatus().postFX.frames')>before)
+                assert js('return Landlord3D.getStatus().visited[arguments[0]]',realm)
+                assert not js('return Landlord3D.gpuErrors()')
+                visited.append(realm)
+            # Return to the first realm; ensure travel remains reversible.
+            js('Landlord3D.openMap();Landlord3D.travelRealm(0)')
+            wait(lambda:js('return Landlord3D.getStatus().zone===0'))
+        wait(lambda:js('return LandlordAudio.ambientEmitter'),30)
         js('Landlord3D.openMap()')
         wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
         js('Landlord3D.openMap()')
@@ -135,7 +152,7 @@ def run(mobile):
         request('POST',sid+'/refresh',{})
         wait(lambda:js('return !!window.Landlord3D'))
         assert not js('return window.__landlordErrors'),js('return window.__landlordErrors')
-        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'postFX':status['postFX'],'textures':status['materialTextures'],'qualitySwitches':4,'combatInput':True,'multiTouch':mobile,'offlineReload':True,'errors':[]}),flush=True)
+        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'postFX':status['postFX'],'textures':status['materialTextures'],'qualitySwitches':4,'visitedRealms':visited,'ambientEmitter':True,'combatInput':True,'multiTouch':mobile,'offlineReload':True,'errors':[]}),flush=True)
 
 if __name__=='__main__':
     driver=shutil.which('chromedriver') or str(pathlib.Path(os.environ['CHROMEWEBDRIVER'])/'chromedriver')

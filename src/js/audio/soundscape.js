@@ -73,12 +73,32 @@ function setXYZ(node,p,prefix='position'){
  if(node[prefix+'X']){for(let i=0;i<3;i++)node[prefix+'XYZ'[i]].setValueAtTime(p[i],ctx.currentTime);}
  else if(prefix==='position')node.setPosition(...p);
 }
+let waterEmitter=null;
+function updateWater(frame){
+ if(!ctx||ctx.state!=='running')return;
+ const points=frame.ambientPoints||[];
+ if(!waterEmitter&&points.length&&frame.state==='playing'){
+  try{
+   const n=ctx.sampleRate*3,buffer=ctx.createBuffer(1,n,ctx.sampleRate),samples=buffer.getChannelData(0);let low=0,smoothed=0;
+   for(let i=0;i<n;i++){const white=Math.random()*2-1;low=.86*low+.14*white;smoothed=.99*smoothed+.01*white;samples[i]=(low*.68+smoothed*.32)*(.70+.30*Math.sin(i/ctx.sampleRate*6.4));}
+   const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain(),panner=ctx.createPanner();
+   source.buffer=buffer;source.loop=true;filter.type='lowpass';filter.frequency.value=1600;gain.gain.value=0;
+   panner.panningModel='HRTF';panner.distanceModel='inverse';panner.refDistance=5;panner.maxDistance=65;panner.rolloffFactor=1.15;
+   source.connect(filter).connect(gain).connect(panner).connect(ambientBus);source.start();waterEmitter={source,gain,panner};
+  }catch(error){console.warn('Ambient emitter unavailable',error);return;}
+ }
+ if(!waterEmitter)return;
+ if(!points.length||frame.state!=='playing'){waterEmitter.gain.gain.setTargetAtTime(0,ctx.currentTime,.15);return;}
+ let nearest=points.reduce((a,b)=>Math.hypot(a.x-frame.player.x,a.z-frame.player.z)<Math.hypot(b.x-frame.player.x,b.z-frame.player.z)?a:b);
+ setXYZ(waterEmitter.panner,[nearest.x,nearest.y,nearest.z]);waterEmitter.gain.gain.setTargetAtTime(.6,ctx.currentTime,.2);
+}
 function updateListener(frame){
  if(!ctx||!frame)return;
  const l=ctx.listener;
  setXYZ(l,frame.eye);
  if(l.forwardX){setXYZ(l,frame.forward,'forward');setXYZ(l,frame.up,'up');}
  else l.setOrientation(...frame.forward,...frame.up);
+ updateWater(frame);
 }
 function playAt(kind,p,opt={}){
  if(!ctx||ctx.state!=='running'||!enabled)return;
@@ -159,6 +179,6 @@ function ready(){
  document.addEventListener('click',e=>{if(e.target.closest?.('#play,#resume,#closeSettings')){begin();play('menu')}});
 
 }
-window.LandlordAudio={unlock,play,playAt,setVolume,setMute,begin,context:()=>initialize()?ctx:null,output:()=>sfxBus,get spatialEvents(){return spatialEvents},get active(){return !!ctx&&ctx.state==='running'&&enabled},get events(){return events}};
+window.LandlordAudio={unlock,play,playAt,setVolume,setMute,begin,context:()=>initialize()?ctx:null,output:()=>sfxBus,get spatialEvents(){return spatialEvents},get ambientEmitter(){return !!waterEmitter},get active(){return !!ctx&&ctx.state==='running'&&enabled},get events(){return events}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});else ready();
 })();

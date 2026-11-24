@@ -37,3 +37,9 @@ Previous verified baseline: 5c111222, run 45328001276 passed desktop/mobile WebG
 - Lower overexposure and lantern intensity; separate world texture influence from character materials.
 - Compact HUD now displays HP, mana, Essence, level, Seals and Relics, with reduced-motion support.
 - Capture browser screenshots after chapter splash is gone; browser verification pending.
+
+## Checkpoint 06 — seven guardian silhouettes and spatial environment
+- Dedicated procedural models for seven existing guardians, including a multi-legged Weaver, Reaper blade, Thornheart antlers, Cinder King crown and floating Storm/Ashbound crystals. Preserve boss logic and original names.
+- Distinct regular humanoid silhouettes and distance-dependent mesh detail; no authored GLB assets yet.
+- HRTF looping water ambience anchored to the actual wetland positions; fades when paused or leaving the biome.
+- Regression suite visits all seven worlds using actual map/flight travel, checks renderer errors after transitions and confirms spatial emitter initialization.

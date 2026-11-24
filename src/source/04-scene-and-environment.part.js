@@ -2,13 +2,14 @@
 function drawWorld(dt){resize();computeCamera(dt);let dynamic=buildDynamic();if(gl)paintWebGL(dynamic);else paintCPU(dynamic);drawAtmosphere()}
 function drawAtlas(target){
  const c=target.getContext('2d');if(!c)return;
- const W=target.width,H=target.height,scale=H/330;
- const X=x=>W*.5+(x-player.x)*scale,Z=z=>H*.55-(z-player.z)*scale;
+ const W=target.width,H=target.height,view=worldAtlas?.view||{x:player.x,z:player.z,zoom:1},scale=H/330*view.zoom;
+ const X=x=>W*.5+(x-view.x)*scale,Z=z=>H*.55-(z-view.z)*scale;
  c.clearRect(0,0,W,H);
  c.fillStyle='#101a25';c.fillRect(0,0,W,H);
- const worldNear=player.z-215,worldFar=player.z+215;
+ const worldNear=view.z-H*.45/scale-30,worldFar=view.z+H*.55/scale+30;
  for(let j=Math.max(0,zoneOf(worldNear));j<=Math.min(6,zoneOf(worldFar));j++){
   const reg=regions[j],top=Z((j+1)*LEN),bottom=Z(j*LEN);
+  if(!game.visited[j])continue;
   const color=reg.ground.map(v=>Math.floor(clamp(v*220,0,255)));
   c.fillStyle=`rgb(${color.join(',')})`;c.fillRect(0,top,W,bottom-top);
   const treeColor=reg.kind==='forest'?'#48766a':'#344254';
@@ -44,14 +45,17 @@ function drawAtlas(target){
   c.strokeStyle='#80f5cc';c.lineWidth=3;c.beginPath();c.arc(px,py,7,0,TAU);c.stroke();
  }
  // Fog is rendered to its own buffer, so the underlying map cannot disappear.
- const mask=document.createElement('canvas');mask.width=W;mask.height=H;const f=mask.getContext('2d');
+ const mask=atlasFogBuffer;if(mask.width!==W||mask.height!==H){mask.width=W;mask.height=H;}const f=mask.getContext('2d');f.clearRect(0,0,W,H);
  f.fillStyle='#060a13f6';f.fillRect(0,0,W,H);
  f.globalCompositeOperation='destination-out';
  for(const cells of game.explored){for(const point of cells){const xx=X(point[0]),yy=Z(point[1]);
   if(xx<-160||xx>W+160||yy<-160||yy>H+160)continue;
-  const grad=f.createRadialGradient(xx,yy,8,xx,yy,48*scale);grad.addColorStop(0,'#000');grad.addColorStop(.52,'#000');grad.addColorStop(1,'transparent');
+  const radius=48*scale;const grad=f.createRadialGradient(xx,yy,Math.min(8,radius*.2),xx,yy,radius);grad.addColorStop(0,'#000');grad.addColorStop(.52,'#000');grad.addColorStop(1,'transparent');
   f.fillStyle=grad;f.beginPath();f.arc(xx,yy,48*scale,0,TAU);f.fill();
  }}f.globalCompositeOperation='source-over';c.drawImage(mask,0,0);
+ // Live enemies are only revealed in explored cells, never through fog.
+ for(const enemy of enemies){if(enemy.dead||!game.visited[enemy.zone]||!game.explored[enemy.zone].some(p=>Math.hypot(p[0]-enemy.x,p[1]-enemy.z)<24))continue;
+  const x=X(enemy.x),y=Z(enemy.z);if(x<0||x>W||y<0||y>H)continue;c.fillStyle=enemy.boss?'#ff9a69':'#e5747b';c.beginPath();c.arc(x,y,enemy.boss?7:4,0,TAU);c.fill();}
  const posX=X(player.x),posY=Z(player.z);
  c.save();c.translate(posX,posY);c.rotate(player.angle);c.fillStyle='#ffe3ad';c.shadowColor='#fff0a6';c.shadowBlur=19;
  c.beginPath();c.moveTo(0,-14);c.lineTo(-10,9);c.lineTo(0,4);c.lineTo(10,9);c.fill();c.restore();
@@ -138,7 +142,7 @@ function mapDraw(target,large=false){if(large)return drawAtlas(target);if(target
  c.beginPath();c.roundRect(-62,base+1,124,LEN-2,4);c.fill();
  c.fillStyle='rgba(4,9,15,.3)';c.fillRect(-7,base+2,14,LEN-4);
  c.strokeStyle=`rgb(${reg.accent.map(v=>Math.round(v*230)).join(',')})`;c.lineWidth=large?1.5:2.5;c.strokeRect(-62,base+1,124,LEN-2);
- c.beginPath();c.fillStyle=game.seals[j]?'#597d6e':'#fbe2ad';c.arc(0,shrinePoint(idx).z,large?4:4.5,0,TAU);c.fill();
+ c.beginPath();c.fillStyle=game.seals[j]?'#597d6e':'#fbe2ad';c.arc(0,shrinePoint(j).z,large?4:4.5,0,TAU);c.fill();
  c.beginPath();c.fillStyle=game.bosses[j]?'#6b7568':'#eb605f';c.moveTo(0,base+99);c.lineTo(-5,base+106);c.lineTo(0,base+113);c.lineTo(5,base+106);c.closePath();c.fill();
  if(large){for(let i=0;i<22;i++){let x=(hash(i*21+j*43)*2-1)*49,z=base+hash(i*3+j*55)*LEN;c.beginPath();c.fillStyle='rgba(0,0,0,.24)';c.arc(x,z,1.5+hash(i)*2.5,0,TAU);c.fill()}}
  }
@@ -149,6 +153,8 @@ function mapDraw(target,large=false){if(large)return drawAtlas(target);if(target
  c.font='11px system-ui';c.fillStyle=game.seals[i]?'#c2efbb':'#c9b5a7';c.fillText(game.seals[i]?'✦ Segel aktif':'○ Belum aktif',W*.63,y+19);c.font='bold 13px system-ui';}
  }
 }
+const atlasFogBuffer=document.createElement('canvas');
+const worldAtlas=window.LandlordAtlas?new LandlordAtlas(mapCanvas,()=>{if(game.state==='map')mapDraw(mapCanvas,true)},()=>player,END):null;
 function configureAtlas(){
  const portrait=innerHeight>innerWidth;
  const usableW=Math.max(290,innerWidth-32),usableH=Math.max(280,innerHeight-(portrait?110:80));
@@ -156,7 +162,7 @@ function configureAtlas(){
  mapCanvas.height=Math.round(mapCanvas.width*usableH/usableW);
 }
 function toggleMap(){if(game.state==='playing'){
- game.state='map';ui.map.classList.add('visible');hideTouchControls();keySet.clear();configureAtlas();mapDraw(mapCanvas,true);
+ game.state='map';ui.map.classList.add('visible');hideTouchControls();keySet.clear();configureAtlas();worldAtlas?.reset();mapDraw(mapCanvas,true);
  $('mapTitle').textContent=regions[game.zone].name;buildRealmSelector();if(document.pointerLockElement)document.exitPointerLock?.();
  }else if(game.state==='map'){game.state='playing';ui.map.classList.remove('visible');if(isTouchDevice())revealTouchControls();lastFrame=0;}}
 function buildRealmSelector(){const bar=$('realmJump');if(!bar)return;bar.replaceChildren();bar.hidden=!game.flying;

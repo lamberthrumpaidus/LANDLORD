@@ -62,3 +62,6 @@ Used the original repository's bamboo bark, leaf and water texture maps in the W
 
 ## Checkpoint 10 — durable offline save mirror
 Added IndexedDB progress snapshots with serialized writes, startup recovery when localStorage is absent, and ordered reset/tombstone handling. Existing saves are compatible and localStorage remains a synchronous copy. The browser regression removes localStorage before offline reload and requires IndexedDB to restore the destroyed crate flag. PWA settings report a waiting update without forcing a mid-game version change. Pending CI.
+
+## Checkpoint 11 — interactive world atlas
+Checkpoint 10 passed both browser profiles, all seven desktop world transitions and IndexedDB recovery (run 45330096984). Added independent atlas viewport, cursor-anchored scroll zoom, drag, pinch, keyboard navigation, recenter, discovered enemy markers and a reusable fog buffer. Fixed stale index in fallback map rendering. Added two viewport unit tests and actual Chrome mouse/touch gesture regressions. Awaiting CI.

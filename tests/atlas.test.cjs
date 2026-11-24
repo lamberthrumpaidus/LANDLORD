@@ -1,0 +1,3 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {Viewport}=require('../src/js/ui/WorldAtlas.js');
+test('zoom preserves world coordinate beneath pointer',()=>{const v=new Viewport();v.reset(12,180);const w=1000,h=700,x=730,y=240;const point=()=>[v.x+(x-w*.5)/v.scale(h),v.z-(y-h*.55)/v.scale(h)];const before=point();v.zoomAt(2,x,y,w,h);assert.ok(point().every((n,i)=>Math.abs(n-before[i])<1e-9));});
+test('pan, bounds and zoom clamps',()=>{const v=new Viewport();v.pan(300,500,330);v.bound(1750);assert.equal(v.x,-100);assert.equal(v.z,518);v.zoomAt(100,500,181.5,1000,330);assert.equal(v.zoom,3.8);v.reset(4,8);assert.deepEqual([v.x,v.z,v.zoom],[4,8,1]);});

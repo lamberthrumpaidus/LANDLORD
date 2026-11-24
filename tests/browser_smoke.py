@@ -133,6 +133,32 @@ def run(mobile):
         js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
         assert js('return Landlord3D.instantState().flying')
         assert js('return Landlord3D.dash()')
+        # Exercise the interactive atlas before the rendered world transitions.
+        js('Landlord3D.openMap()')
+        wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
+        js("document.getElementById('atlasZoomIn').click()")
+        assert js('return Landlord3D.getMapOrientation().viewport.zoom')>1
+        js("document.getElementById('atlasCenter').click()")
+        assert js('return Landlord3D.getMapOrientation().viewport.zoom')==1
+        rect=js("const r=document.getElementById('bigMap').getBoundingClientRect();return {x:r.x+r.width*.5,y:r.y+r.height*.45}")
+        if mobile:
+            points=[{'x':rect['x']-35,'y':rect['y'],'id':11},{'x':rect['x']+35,'y':rect['y'],'id':12}]
+            cdp('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':points})
+            points[0]['x']-=25;points[1]['x']+=25
+            cdp('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':points})
+            wait(lambda:js('return Landlord3D.getMapOrientation().viewport.zoom')>1)
+            cdp('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
+            wait(lambda:js('return Landlord3D.getMapOrientation().viewport.contacts')==0)
+        else:
+            cdp('Input.dispatchMouseEvent',{'type':'mouseWheel','x':rect['x'],'y':rect['y'],'deltaX':0,'deltaY':-200})
+            wait(lambda:js('return Landlord3D.getMapOrientation().viewport.zoom')>1)
+            before=js('return Landlord3D.getMapOrientation().viewport.x')
+            cdp('Input.dispatchMouseEvent',{'type':'mousePressed','x':rect['x'],'y':rect['y'],'button':'left','buttons':1,'clickCount':1})
+            cdp('Input.dispatchMouseEvent',{'type':'mouseMoved','x':rect['x']+35,'y':rect['y'],'button':'left','buttons':1})
+            cdp('Input.dispatchMouseEvent',{'type':'mouseReleased','x':rect['x']+35,'y':rect['y'],'button':'left','buttons':0,'clickCount':1})
+            wait(lambda:js('return Landlord3D.getMapOrientation().viewport.x')!=before)
+        (out/('atlas-mobile.png' if mobile else 'atlas-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
+        js('Landlord3D.openMap()')
         # Exercise the rendered world transitions in the actual game.
         visited=[0]
         if not mobile:

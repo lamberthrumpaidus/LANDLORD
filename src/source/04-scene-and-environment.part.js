@@ -156,7 +156,7 @@ function configureAtlas(){
  mapCanvas.height=Math.round(mapCanvas.width*usableH/usableW);
 }
 function toggleMap(){if(game.state==='playing'){
- game.state='map';ui.map.classList.add('visible');touchLayer.classList.remove('running');configureAtlas();mapDraw(mapCanvas,true);
+ game.state='map';ui.map.classList.add('visible');hideTouchControls();keySet.clear();configureAtlas();mapDraw(mapCanvas,true);
  $('mapTitle').textContent=regions[game.zone].name;buildRealmSelector();if(document.pointerLockElement)document.exitPointerLock?.();
  }else if(game.state==='map'){game.state='playing';ui.map.classList.remove('visible');if(isTouchDevice())revealTouchControls();lastFrame=0;}}
 function buildRealmSelector(){const bar=$('realmJump');if(!bar)return;bar.replaceChildren();bar.hidden=!game.flying;
@@ -165,10 +165,11 @@ function buildRealmSelector(){const bar=$('realmJump');if(!bar)return;bar.replac
  b.textContent=String(i+1).padStart(2,'0')+(game.visited[i]?' · '+regions[i].name:' · ?');b.title=game.visited[i]?regions[i].name:'Wilayah belum dijelajahi';
  b.addEventListener('click',()=>travelRealm(i));bar.appendChild(b);}
 }
-function toggleQuality(){const modes=['high','cinematic','balanced','low'];quality=modes[(modes.indexOf(quality)+1)%modes.length];try{localStorage.setItem('rubaka3d-quality',quality)}catch{}resize();updateSettingsUI()}
+function setGraphicsQuality(next,persist=false){if(!['high','cinematic','balanced','low'].includes(next))return false;quality=next;adaptiveFactor=1;perfClock=slowFrames=perfFrames=0;if(persist)try{localStorage.setItem('rubaka3d-quality',quality)}catch{}resize();updateSettingsUI();return true;}
+function toggleQuality(){const modes=['high','cinematic','balanced','low'];setGraphicsQuality(modes[(modes.indexOf(quality)+1)%modes.length],true)}
 const keySet=new Set();let touchMove={active:false,x:0,y:0},contacts=new Map(),mouseOrbit=false,lastTap=0;
 const touchLayer=$('mobileControls'),joyVisual=$('joyVisual'),joyKnob=$('joyKnob'),lookVisual=$('lookVisual');
-let flightTouchRise=false,flightTouchDrop=false;
+let flightTouchRise=false,flightTouchDrop=false;const actionPointers=new Map();
 let peekTimer=0,joystickCenter={x:90,y:0};
 const isTouchDevice=()=>matchMedia('(pointer:coarse)').matches||document.body.classList.contains('touch-device');
 function placeJoystick(){
@@ -180,7 +181,7 @@ function placeJoystick(){
  return joystickCenter;
 }
 function revealTouchControls(){if(game.state!=='playing')return;document.body.classList.add('touch-device');touchLayer.classList.add('running','revealed');placeJoystick()}
-function hideTouchControls(){touchLayer.classList.remove('running','revealed');joyVisual.classList.remove('active');lookVisual.classList.remove('visible');clearTimeout(peekTimer);contacts.clear();touchMove.active=false;touchMove.x=touchMove.y=0;joyKnob.style.transform='translate(0px,0px)'}
+function hideTouchControls(){touchLayer.classList.remove('running','revealed');joyVisual.classList.remove('active');lookVisual.classList.remove('visible');clearTimeout(peekTimer);contacts.clear();actionPointers.clear();flightTouchRise=false;flightTouchDrop=false;for(const b of document.querySelectorAll('.ghost-btn.pressed'))b.classList.remove('pressed');touchMove.active=false;touchMove.x=touchMove.y=0;joyKnob.style.transform='translate(0px,0px)'}
 function setJoy(dx=0,dy=0){const lim=(joyVisual.getBoundingClientRect().width||124)*.30;const mag=Math.hypot(dx,dy),scale=mag>lim?lim/mag:1;joyKnob.style.transform=`translate(${dx*scale}px,${dy*scale}px)`}
 function readJoystick(x,y){const c=joystickCenter,r=(joyVisual.getBoundingClientRect().width||124)*.37;const dx=x-c.x,dy=y-c.y;const raw=Math.min(1,Math.hypot(dx,dy)/r),amount=raw<.11?0:Math.pow((raw-.11)/.89,1.05),ang=Math.atan2(dy,dx);
  touchMove.x=Math.cos(ang)*amount;touchMove.y=-Math.sin(ang)*amount;setJoy(dx,dy)}
@@ -209,6 +210,8 @@ canvas.addEventListener('pointerdown',e=>{
  if(e.pointerType==='touch'){
   e.preventDefault();revealTouchControls(1600);
   const side=e.clientX<innerWidth*.48?'left':'right';
+  // One owner for each continuous gesture. Extra touches never pause gameplay.
+  if([...contacts.values()].some(p=>p.side===side))return;
   contacts.set(e.pointerId,{x:e.clientX,y:e.clientY,ox:e.clientX,oy:e.clientY,side,start:performance.now(),moved:false,charged:false});
   canvas.setPointerCapture(e.pointerId);
   if(side==='left'){
@@ -219,8 +222,6 @@ canvas.addEventListener('pointerdown',e=>{
     setJoy();joyVisual.classList.add('active');
   }
   else{lookVisual.style.left=e.clientX+'px';lookVisual.style.top=e.clientY+'px';lookVisual.classList.add('visible')}
-  // Both thumbs can move + look simultaneously without accidentally dashing.
-  if(contacts.size>=3){openMenu();return}
  }else if(e.button===2){mouseOrbit=true;canvas.setPointerCapture(e.pointerId)}else if(e.button===0){doAttack();if(!isTouchDevice()&&document.pointerLockElement!==canvas){try{canvas.requestPointerLock?.().catch?.(()=>{});}catch{}}}
 });
 canvas.addEventListener('pointermove',e=>{
@@ -245,21 +246,22 @@ function pointerEnd(e){const p=contacts.get(e.pointerId);
     const next=[...contacts.values()].find(t=>t.side==='left');
     if(next){touchMove.active=true;readJoystick(next.x,next.y)}
     else{touchMove.active=false;touchMove.x=touchMove.y=0;joyVisual.classList.remove('active');setJoy();placeJoystick()}
-  }else{lookVisual.classList.remove('visible');if(!p.moved&&!p.charged&&performance.now()-p.start<400){{const now=performance.now();if(now-lastTap<300){doJump();lastTap=0}else{doAttack();lastTap=now}}}}
+  }else{lookVisual.classList.remove('visible');if(e.type==='pointerup'&&!p.moved&&!p.charged&&game.state==='playing'&&performance.now()-p.start<400){{const now=performance.now();if(now-lastTap<300){doJump();lastTap=0}else{doAttack();lastTap=now}}}}
   revealTouchControls(1650);
  }else{mouseOrbit=false}
 }
-canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointercancel',pointerEnd);
+canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointercancel',pointerEnd);canvas.addEventListener('lostpointercapture',pointerEnd);
 // Touchable hotspots are transparent until a finger touches the screen; buttons always work.
 document.querySelectorAll('[data-mobile-action]').forEach(button=>{
  button.addEventListener('pointerdown',e=>{
   if(game.state!=='playing')return;e.preventDefault();e.stopPropagation();revealTouchControls(1800);button.classList.add('pressed');
+  actionPointers.set(e.pointerId,button);try{button.setPointerCapture(e.pointerId);}catch{}
   const action=button.dataset.mobileAction;
    if(game.flying&&action==='jump')flightTouchRise=true;
    if(game.flying&&action==='descend')flightTouchDrop=true;
    ({attack:doAttack,jump:doJump,dash:doDash,descend:()=>{},fire:doFire,view:toggleView,pause:()=>openMenu()})[action]?.();
  });
- for(const ev of ['pointerup','pointercancel','pointerleave'])button.addEventListener(ev,()=>{button.classList.remove('pressed');if(button.dataset.mobileAction==='jump')flightTouchRise=false;if(button.dataset.mobileAction==='descend')flightTouchDrop=false;});
+ for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>{if(actionPointers.get(e.pointerId)!==button)return;actionPointers.delete(e.pointerId);if([...actionPointers.values()].includes(button))return;button.classList.remove('pressed');if(button.dataset.mobileAction==='jump')flightTouchRise=false;if(button.dataset.mobileAction==='descend')flightTouchDrop=false;});
 });
 $('play').addEventListener('click',()=>{audioContext()?.resume?.();let hasSave=false;try{hasSave=!!localStorage.getItem('landlord-openrealms-save-v1')}catch{}if(hasSave)fromSave();else newGame()});
 $('victoryRestart').addEventListener('click',()=>{$('victoryOverlay').hidden=true;newGame()});
@@ -270,16 +272,13 @@ $('closeMap').addEventListener('click',e=>{e.stopPropagation();if(game.state==='
 mini.addEventListener('click',e=>{if(game.state==='playing'){e.preventDefault();e.stopPropagation();toggleMap()}});
 ui.map.addEventListener('click',e=>{if(e.target===$('mapOverlay'))toggleMap()});
 function fpsTick(dt){fps=mix(fps,1/Math.max(dt,.001),.06)}
-let miniRefresh=0,perfClock=0,slowFrames=0;
+let miniRefresh=0,perfClock=0,slowFrames=0,perfFrames=0;
 function adaptPerformance(dt){
- if(!isTouchDevice()||(quality!=='balanced'&&quality!=='high'))return;
- perfClock+=dt;if(dt>.036)slowFrames++;
- if(perfClock>=8){
-  const slowRatio=slowFrames/Math.max(1,perfClock*30);
-  if(slowRatio>.58){
-   quality=quality==='high'?'balanced':'low';
-   resize();updateSettingsUI();showToast(language==='id'?'GRAFIK DISESUAIKAN UNTUK FPS':'GRAPHICS OPTIMIZED FOR FPS',1.1);
-  }
-  perfClock=0;slowFrames=0;
+ if(!isTouchDevice()||!gl||quality==='low')return;
+ perfClock+=dt;perfFrames++;if(dt>.036)slowFrames++;
+ if(perfClock>=4){const slowRatio=slowFrames/Math.max(1,perfFrames),mean=perfClock/Math.max(1,perfFrames);
+  const next=slowRatio>.45?Math.max(.62,adaptiveFactor-.12):mean<.022?Math.min(1,adaptiveFactor+.06):adaptiveFactor;
+  if(Math.abs(next-adaptiveFactor)>.001){adaptiveFactor=next;resize();}
+  perfClock=slowFrames=perfFrames=0;
  }
 }

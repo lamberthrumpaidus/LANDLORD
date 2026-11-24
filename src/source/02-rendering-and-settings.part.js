@@ -153,9 +153,9 @@ function paintShadowMap(dynamicData){
  gl.colorMask(true,true,true,true);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);
 }
 
-let lastViewportW=0,lastViewportH=0;
+let lastViewportW=0,lastViewportH=0,adaptiveFactor=1;
 function resize(){syncShadowQuality();res=quality==='cinematic'?Math.max(1.1,Math.min(1.75,(devicePixelRatio||1)*1.16)):quality==='high'?Math.min(devicePixelRatio||1,1.45):quality==='balanced'?Math.min(devicePixelRatio||1,1.0):.65;
- res=Math.min(res,(innerWidth*innerHeight>1250000?1.05:2));
+ res=Math.min(res,(innerWidth*innerHeight>1250000?1.05:2))*adaptiveFactor;
  let w=Math.max(2,Math.round(innerWidth*res)),h=Math.max(2,Math.round(innerHeight*res));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}}
 let cpuMeshes=[];
 function rebuild(){solidCells.clear();solidCount=0;if(gl)uploadStatics();else cpuMeshes=regions.map((_,i)=>groundMesh(i));resolveDiscoveries();initializeBreakables();}
@@ -342,10 +342,10 @@ function updateUI(){ui.hp.style.width=clamp(player.hp/player.maxHp*100,0,100)+'%
 }
 function pulseSfx(freq=400,dur=.14,type='sine',vol=.035){try{const ac=audioContext();if(!ac)return;let osc=ac.createOscillator(),gn=ac.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(Math.max(70,freq*.35),ac.currentTime+dur);gn.gain.setValueAtTime(vol,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+dur);osc.connect(gn).connect(window.LandlordAudio?.output?.()||ac.destination);osc.start();osc.stop(ac.currentTime+dur+.01)}catch{}}
 let audio=null;function audioContext(){if(window.LandlordAudio?.context)return window.LandlordAudio.context();if(audio)return audio;let A=window.AudioContext||window.webkitAudioContext;if(!A)return null;audio=new A();return audio}
-function burst(x,y,z,col,num=16,power=1){for(let i=0;i<num;i++){
+function burst(x,y,z,col,num=16,power=1){const budget=quality==='low'?70:quality==='balanced'?130:quality==='high'?200:280;num=Math.max(1,Math.round(num*(quality==='low'?.42:quality==='balanced'?.68:1)*adaptiveFactor));for(let i=0;i<num;i++){
  let a=hash(i*31+clock*3)*TAU,spin=hash(i*71+clock*17),v=(2+spin*5)*power;
  particles.push({x,y,z,vx:Math.cos(a)*v,vy:hash(i*13+clock*29)*5*power+1,vz:Math.sin(a)*v,life:.6+hash(i*41)*.8,max:1.4,col,size:.06+hash(i*19)*.13});}
- if(particles.length>230)particles.splice(0,particles.length-230)}
+ if(particles.length>budget)particles.splice(0,particles.length-budget)}
 function getInput(){
  // Keyboard, gesture and controller all mean CAMERA-RELATIVE SCREEN DIRECTIONS.
  // Crucial: the renderer looks toward +Z at yaw 0, so SCREEN RIGHT is world -X.
@@ -480,13 +480,20 @@ function doAttack(){
  }
  startAttack(player.comboTime>0?(player.combo+1)%3:0);
 }
+function meleeLineClear(target){
+ const dx=target.x-player.x,dz=target.z-player.z,dy=(target.y??player.y)-player.y;
+ if(Math.abs(dy)>(target.boss?4.2:2.7))return false;
+ const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.45));
+ for(let i=1;i<steps;i++){const t=i/steps;if(blocking(player.x+dx*t,player.z+dz*t,.14,player.y+1+dy*t,.3))return false;}
+ return true;
+}
 function resolveMelee(){
  let hit=false,closest=null,nearest=999;
  for(const e of enemies){
    if(e.dead||e.zone!==game.zone)continue;
    const dist=distance(player,e),angle=Math.atan2(e.x-player.x,e.z-player.z),off=Math.abs(shortestTurn(player.angle,angle));
    const spec=COMBOS[player.combo],reach=spec.reach+(e.boss?1.0:0);
-   if(dist<reach+e.radius*.24&&off<(player.combo===2?1.1:1.40)){
+   if(dist<reach+e.radius*.24&&off<(player.combo===2?1.1:1.40)&&meleeLineClear(e)){
      let power=(23+game.seals.filter(Boolean).length*2.2+(powerLevel()-1)*3)*spec.power;
      if(player.counterReady>0)power*=1.75;
      damageEnemy(e,power);hit=true;
@@ -499,7 +506,7 @@ function resolveMelee(){
  for(const beast of wildlife){
    if(beast.dead||beast.kind==='bat'||beast.zone!==game.zone)continue;
    const dd=distance(player,beast),ang=Math.atan2(beast.x-player.x,beast.z-player.z);
-   if(dd<COMBOS[player.combo].reach+1.3&&Math.abs(shortestTurn(player.angle,ang))<1.35){
+   if(dd<COMBOS[player.combo].reach+1.3&&Math.abs(shortestTurn(player.angle,ang))<1.35&&meleeLineClear(beast)){
      const raw=(23+powerLevel()*4)*COMBOS[player.combo].power*(player.counterReady>0?1.75:1);
      beast.hp-=raw;damagePopup(beast,raw);beast.hit=.45;hit=true;
      burst(beast.x,beast.y+.8,beast.z,[.84,.14,.37],18,.42);
@@ -512,11 +519,12 @@ function resolveMelee(){
    let e=closest,accent=COMBOS[player.combo].color;
    burst(e.x,e.y+1.9,e.z,accent,player.combo===2?48:29,player.combo===2?2.0:1.2);
    hitFlashes.push({x:e.x,y:e.y+2.0,z:e.z,life:.28,max:.28,combo:player.combo});
-   player.hitPause=0;player.cameraKick=player.combo===2?.26:.15;
+   player.hitPause=player.combo===2?.055:.034;player.cameraKick=player.combo===2?.26:.15;
+   impactDirection=[e.x-player.x,e.z-player.z];
    shake=Math.max(shake,player.combo===2?.41:.23);
    pulseSfx(player.combo===2?95:130,.19,'sawtooth',.065);
  } else if(hit){
-   shake=Math.max(shake,.17);player.cameraKick=.12;player.hitPause=0;
+   shake=Math.max(shake,.17);player.cameraKick=.12;player.hitPause=.026;
  } else if(player.swordTip){
    let tip=player.swordTip;burst(tip[0],tip[1],tip[2],[.48,.78,1],6,.11);
  }
@@ -557,7 +565,7 @@ function activateFlight(){game.flying=!game.flying;game.secretFlight=true;
 let jumpTimes=[];
 function doDash(){
  if(game.state!=='playing')return false;
- const input=getInput();let dir=cameraMove(input);
+ player.hitPause=0;const input=getInput();let dir=cameraMove(input);
  if(!input.walking){dir={x:Math.sin(orbit),z:Math.cos(orbit)}}
  const length=Math.hypot(dir.x,dir.z)||1;
  player.dashVX=dir.x/length;player.dashVZ=dir.z/length;

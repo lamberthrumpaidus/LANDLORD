@@ -711,7 +711,7 @@ $('settings').addEventListener('click',openSettings);
 $('backSettings').addEventListener('click',showMenuPanel);
 $('closeSettings').addEventListener('click',showMenuPanel);
 document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',()=>{language=b.dataset.lang;try{localStorage.setItem('rubaka7-language',language)}catch{}updateSettingsUI()}));
-document.querySelectorAll('[data-graphics]').forEach(b=>b.addEventListener('click',()=>{quality=b.dataset.graphics;try{localStorage.setItem('rubaka3d-quality',quality)}catch{}resize();rebuild();updateSettingsUI()}));
+document.querySelectorAll('[data-graphics]').forEach(b=>b.addEventListener('click',()=>{setGraphicsQuality(b.dataset.graphics,true)}));
 $('resetKeys').addEventListener('click',()=>{keybinds={...DEFAULT_KEYS};bindingPending=null;$('bindingNotice').textContent=T('default');$('bindingNotice').className='binding-notice success';updateSettingsUI()});
 function isBound(action,code){return keybinds[action]===code}
 updateSettingsUI();

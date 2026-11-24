@@ -24,3 +24,9 @@ Use Chrome and ChromeDriver preinstalled on GitHub Ubuntu 24.04, eliminating ext
 
 ## Checkpoint 03 — cinematic GPU renderer
 Previous verified baseline: 5c111222, run 45328001276 passed desktop/mobile WebGL, seven realm gateway checks and offline reload. Added framebuffer bloom (threshold, downsampled separable Gaussian blur, composite), color grading, texture loading/mipmaps from original local assets, procedural GGX specular and corrected terrain winding. Low quality bypasses bloom. CI must verify shader/framebuffer health and capture browser screenshots. This is not a full authored PBR material set or HDR pipeline.
+
+## Checkpoint 04 — responsiveness and combat
+- Independent left/right touch owners, pointer capture for actions, cancel/lost-capture cleanup, no third-touch pause, clear controls on map.
+- Localized sword-animation hit-stop without delaying dash, movement or physics; directional camera impact; melee vertical/obstacle checks.
+- Particle budgets and adaptive internal resolution keep the user's selected graphics preset; graphics changes no longer regenerate the world or reset destructibles.
+- Expanded real Chrome regression checks for four quality presets, persistent destructibles, dash, attack, triple jump, air dash and emulated three-finger input.

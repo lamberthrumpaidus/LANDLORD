@@ -80,6 +80,48 @@ def run(mobile):
         out.mkdir(exist_ok=True)
         (out/('mobile.png' if mobile else 'desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         status=js('return Landlord3D.getStatus()')
+        # Quality changes must not reset destructible objects or the current journey.
+        js('Landlord3D.damageCrate(0,100)')
+        assert js('return Landlord3D.breakableSpots()[0].dead')
+        for preset,shadow in [('low',0),('balanced',512),('high',1024),('cinematic',2048)]:
+            js('return Landlord3D.setGraphicsQuality(arguments[0])',preset)
+            wait(lambda:js('return Landlord3D.getStatus().shadowResolution')==shadow)
+            if preset=='low':
+                wait(lambda:js('return !Landlord3D.getStatus().postFX.active'))
+            else:
+                wait(lambda:js('return Landlord3D.getStatus().postFX.active'))
+            assert js('return Landlord3D.breakableSpots()[0].dead')
+        js("Landlord3D.setGraphicsQuality('balanced')")
+        assert not js('return Landlord3D.gpuErrors()'),'WebGL error after quality switching'
+        if mobile:
+            size=js('return [innerWidth,innerHeight]')
+            w,h=size
+            action=js("const r=document.querySelector('[data-mobile-action=dash]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,id:3}")
+            left={'x':w*.2,'y':h*.65,'id':1}
+            right={'x':w*.75,'y':h*.35,'id':2}
+            cdp('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[left,right]})
+            wait(lambda:js('return Landlord3D.getStatus().touchContacts===2'))
+            left['y']-=30
+            right['x']-=24
+            yaw=js('return Landlord3D.getStatus().cameraYaw')
+            cdp('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[left,right]})
+            wait(lambda:js('return Landlord3D.controls.getInput().walking'))
+            assert js('return Landlord3D.getStatus().cameraYaw')!=yaw
+            serial=js('return Landlord3D.instantState().dashSerial')
+            cdp('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[left,right,action]})
+            wait(lambda:js('return Landlord3D.instantState().dashSerial')>serial)
+            assert js("return Landlord3D.getStatus().state==='playing'&&Landlord3D.getStatus().touchContacts===2&&Landlord3D.getStatus().actionContacts===1")
+            cdp('Input.dispatchTouchEvent',{'type':'touchCancel','touchPoints':[]})
+            wait(lambda:js('return Landlord3D.getStatus().touchContacts===0&&Landlord3D.getStatus().actionContacts===0'))
+            assert not js('return Landlord3D.controls.getInput().walking')
+        serial=js('return Landlord3D.instantState().dashSerial')
+        assert js('return Landlord3D.dash()')
+        assert js('return Landlord3D.instantState().dashSerial')==serial+1
+        js('Landlord3D.attack()')
+        assert js('return Landlord3D.attackInfo().attackTime')>0
+        js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
+        assert js('return Landlord3D.instantState().flying')
+        assert js('return Landlord3D.dash()')
         js('Landlord3D.openMap()')
         wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
         js('Landlord3D.openMap()')
@@ -91,7 +133,7 @@ def run(mobile):
         request('POST',sid+'/refresh',{})
         wait(lambda:js('return !!window.Landlord3D'))
         assert not js('return window.__landlordErrors'),js('return window.__landlordErrors')
-        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'postFX':status['postFX'],'textures':status['materialTextures'],'offlineReload':True,'errors':[]}),flush=True)
+        print(json.dumps({'profile':'mobile' if mobile else 'desktop','renderer':title['renderer'],'realms':len(checks),'wildlife':status['wildlifeCount'],'submittedTriangles':status['submittedTriangles'],'visibleChunks':status['visibleChunks'],'postFX':status['postFX'],'textures':status['materialTextures'],'qualitySwitches':4,'combatInput':True,'multiTouch':mobile,'offlineReload':True,'errors':[]}),flush=True)
 
 if __name__=='__main__':
     driver=shutil.which('chromedriver') or str(pathlib.Path(os.environ['CHROMEWEBDRIVER'])/'chromedriver')

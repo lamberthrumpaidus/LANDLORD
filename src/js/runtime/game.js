@@ -712,7 +712,7 @@ $('settings').addEventListener('click',openSettings);
 $('backSettings').addEventListener('click',showMenuPanel);
 $('closeSettings').addEventListener('click',showMenuPanel);
 document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',()=>{language=b.dataset.lang;try{localStorage.setItem('rubaka7-language',language)}catch{}updateSettingsUI()}));
-document.querySelectorAll('[data-graphics]').forEach(b=>b.addEventListener('click',()=>{quality=b.dataset.graphics;try{localStorage.setItem('rubaka3d-quality',quality)}catch{}resize();rebuild();updateSettingsUI()}));
+document.querySelectorAll('[data-graphics]').forEach(b=>b.addEventListener('click',()=>{setGraphicsQuality(b.dataset.graphics,true)}));
 $('resetKeys').addEventListener('click',()=>{keybinds={...DEFAULT_KEYS};bindingPending=null;$('bindingNotice').textContent=T('default');$('bindingNotice').className='binding-notice success';updateSettingsUI()});
 function isBound(action,code){return keybinds[action]===code}
 updateSettingsUI();
@@ -879,9 +879,9 @@ function paintShadowMap(dynamicData){
  gl.colorMask(true,true,true,true);gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,canvas.width,canvas.height);
 }
 
-let lastViewportW=0,lastViewportH=0;
+let lastViewportW=0,lastViewportH=0,adaptiveFactor=1;
 function resize(){syncShadowQuality();res=quality==='cinematic'?Math.max(1.1,Math.min(1.75,(devicePixelRatio||1)*1.16)):quality==='high'?Math.min(devicePixelRatio||1,1.45):quality==='balanced'?Math.min(devicePixelRatio||1,1.0):.65;
- res=Math.min(res,(innerWidth*innerHeight>1250000?1.05:2));
+ res=Math.min(res,(innerWidth*innerHeight>1250000?1.05:2))*adaptiveFactor;
  let w=Math.max(2,Math.round(innerWidth*res)),h=Math.max(2,Math.round(innerHeight*res));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}}
 let cpuMeshes=[];
 function rebuild(){solidCells.clear();solidCount=0;if(gl)uploadStatics();else cpuMeshes=regions.map((_,i)=>groundMesh(i));resolveDiscoveries();initializeBreakables();}
@@ -1068,10 +1068,10 @@ function updateUI(){ui.hp.style.width=clamp(player.hp/player.maxHp*100,0,100)+'%
 }
 function pulseSfx(freq=400,dur=.14,type='sine',vol=.035){try{const ac=audioContext();if(!ac)return;let osc=ac.createOscillator(),gn=ac.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(Math.max(70,freq*.35),ac.currentTime+dur);gn.gain.setValueAtTime(vol,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+dur);osc.connect(gn).connect(window.LandlordAudio?.output?.()||ac.destination);osc.start();osc.stop(ac.currentTime+dur+.01)}catch{}}
 let audio=null;function audioContext(){if(window.LandlordAudio?.context)return window.LandlordAudio.context();if(audio)return audio;let A=window.AudioContext||window.webkitAudioContext;if(!A)return null;audio=new A();return audio}
-function burst(x,y,z,col,num=16,power=1){for(let i=0;i<num;i++){
+function burst(x,y,z,col,num=16,power=1){const budget=quality==='low'?70:quality==='balanced'?130:quality==='high'?200:280;num=Math.max(1,Math.round(num*(quality==='low'?.42:quality==='balanced'?.68:1)*adaptiveFactor));for(let i=0;i<num;i++){
  let a=hash(i*31+clock*3)*TAU,spin=hash(i*71+clock*17),v=(2+spin*5)*power;
  particles.push({x,y,z,vx:Math.cos(a)*v,vy:hash(i*13+clock*29)*5*power+1,vz:Math.sin(a)*v,life:.6+hash(i*41)*.8,max:1.4,col,size:.06+hash(i*19)*.13});}
- if(particles.length>230)particles.splice(0,particles.length-230)}
+ if(particles.length>budget)particles.splice(0,particles.length-budget)}
 function getInput(){
  // Keyboard, gesture and controller all mean CAMERA-RELATIVE SCREEN DIRECTIONS.
  // Crucial: the renderer looks toward +Z at yaw 0, so SCREEN RIGHT is world -X.
@@ -1206,13 +1206,20 @@ function doAttack(){
  }
  startAttack(player.comboTime>0?(player.combo+1)%3:0);
 }
+function meleeLineClear(target){
+ const dx=target.x-player.x,dz=target.z-player.z,dy=(target.y??player.y)-player.y;
+ if(Math.abs(dy)>(target.boss?4.2:2.7))return false;
+ const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.45));
+ for(let i=1;i<steps;i++){const t=i/steps;if(blocking(player.x+dx*t,player.z+dz*t,.14,player.y+1+dy*t,.3))return false;}
+ return true;
+}
 function resolveMelee(){
  let hit=false,closest=null,nearest=999;
  for(const e of enemies){
    if(e.dead||e.zone!==game.zone)continue;
    const dist=distance(player,e),angle=Math.atan2(e.x-player.x,e.z-player.z),off=Math.abs(shortestTurn(player.angle,angle));
    const spec=COMBOS[player.combo],reach=spec.reach+(e.boss?1.0:0);
-   if(dist<reach+e.radius*.24&&off<(player.combo===2?1.1:1.40)){
+   if(dist<reach+e.radius*.24&&off<(player.combo===2?1.1:1.40)&&meleeLineClear(e)){
      let power=(23+game.seals.filter(Boolean).length*2.2+(powerLevel()-1)*3)*spec.power;
      if(player.counterReady>0)power*=1.75;
      damageEnemy(e,power);hit=true;
@@ -1225,7 +1232,7 @@ function resolveMelee(){
  for(const beast of wildlife){
    if(beast.dead||beast.kind==='bat'||beast.zone!==game.zone)continue;
    const dd=distance(player,beast),ang=Math.atan2(beast.x-player.x,beast.z-player.z);
-   if(dd<COMBOS[player.combo].reach+1.3&&Math.abs(shortestTurn(player.angle,ang))<1.35){
+   if(dd<COMBOS[player.combo].reach+1.3&&Math.abs(shortestTurn(player.angle,ang))<1.35&&meleeLineClear(beast)){
      const raw=(23+powerLevel()*4)*COMBOS[player.combo].power*(player.counterReady>0?1.75:1);
      beast.hp-=raw;damagePopup(beast,raw);beast.hit=.45;hit=true;
      burst(beast.x,beast.y+.8,beast.z,[.84,.14,.37],18,.42);
@@ -1238,11 +1245,12 @@ function resolveMelee(){
    let e=closest,accent=COMBOS[player.combo].color;
    burst(e.x,e.y+1.9,e.z,accent,player.combo===2?48:29,player.combo===2?2.0:1.2);
    hitFlashes.push({x:e.x,y:e.y+2.0,z:e.z,life:.28,max:.28,combo:player.combo});
-   player.hitPause=0;player.cameraKick=player.combo===2?.26:.15;
+   player.hitPause=player.combo===2?.055:.034;player.cameraKick=player.combo===2?.26:.15;
+   impactDirection=[e.x-player.x,e.z-player.z];
    shake=Math.max(shake,player.combo===2?.41:.23);
    pulseSfx(player.combo===2?95:130,.19,'sawtooth',.065);
  } else if(hit){
-   shake=Math.max(shake,.17);player.cameraKick=.12;player.hitPause=0;
+   shake=Math.max(shake,.17);player.cameraKick=.12;player.hitPause=.026;
  } else if(player.swordTip){
    let tip=player.swordTip;burst(tip[0],tip[1],tip[2],[.48,.78,1],6,.11);
  }
@@ -1283,7 +1291,7 @@ function activateFlight(){game.flying=!game.flying;game.secretFlight=true;
 let jumpTimes=[];
 function doDash(){
  if(game.state!=='playing')return false;
- const input=getInput();let dir=cameraMove(input);
+ player.hitPause=0;const input=getInput();let dir=cameraMove(input);
  if(!input.walking){dir={x:Math.sin(orbit),z:Math.cos(orbit)}}
  const length=Math.hypot(dir.x,dir.z)||1;
  player.dashVX=dir.x/length;player.dashVZ=dir.z/length;
@@ -1430,7 +1438,7 @@ function takeHit(hp,src){if(src&&ldx.tryParry(src))return;if(player.invuln>0){if
   player.mp=Math.min(100,player.mp+18);burst(player.x,player.y+1.2,player.z,[.48,1,.85],23,.65);
   showToast(language==='id'?'DODGE SEMPURNA':'PERFECT DODGE',.65);}
   return;}player.hp=Math.max(0,player.hp-hp);window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hurt',x:src?.x??player.x,y:(src?.y??player.y)+1.5,z:src?.z??player.z,boss:!!src?.boss}}));player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
-let shake=0;
+let shake=0,impactDirection=[0,0];
 function update(dt){
  updateFireLockState(dt);
  if(game.state==='playing'&&!game.relics[game.zone]){let r=relicPos(game.zone);if(Math.hypot(player.x-r[0],player.z-r[1])<4.5)interact();}clock+=dt;game.time+=dt;game.played+=dt;animatedTime+=dt;ldx.update(dt);
@@ -1440,8 +1448,9 @@ function update(dt){
  player.counterReady=Math.max(0,player.counterReady-dt);
  for(const p of damagePopups){p.t+=dt;p.life-=dt;}
  damagePopups=damagePopups.filter(p=>p.life>0);
- // A brief impact pause makes heavy strikes register without stopping the entire game.
- const animDT=dt; // Impact effects never freeze or delay animation frames.
+ // Localized hit-stop: only sword pose time is affected; movement, inputs and world physics continue.
+ const stopped=player.dashTime>0?0:Math.min(dt,player.hitPause);
+ const animDT=dt-stopped;
  player.hitPause=Math.max(0,player.hitPause-dt);
  player.cameraKick=Math.max(0,player.cameraKick-dt*1.9);
  const hadAttack=player.attackTime>0;
@@ -2060,7 +2069,7 @@ function computeCamera(dt){
  }
  // Prevent camera clipping below elevated terrain.
  if(viewMode!=='fpp'||game.state!=='playing')eye[1]=Math.max(eye[1],height(eye[0],eye[2])+.35);
- if(shake>0){let amount=shake*.6;eye[0]+=(Math.random()-.5)*amount;eye[1]+=(Math.random()-.5)*amount}
+ if(shake>0){let amount=shake*.6,n=Math.hypot(...impactDirection)||1,pulse=Math.sin(clock*79)*amount*.65;eye[0]+=impactDirection[0]/n*pulse;eye[2]+=impactDirection[1]/n*pulse;eye[1]+=Math.sin(clock*97)*amount*.32;}
  if(player.cameraKick>0){eye[1]+=player.cameraKick*.41;target[1]-=player.cameraKick*.33;}
  camEye=eye;camFocus=target;
  let view=lookAt(eye,target),proj=perspective(Math.PI/(player.dashTime>0?2.85:3.1),canvas.width/canvas.height,.3,270);
@@ -2512,7 +2521,7 @@ function configureAtlas(){
  mapCanvas.height=Math.round(mapCanvas.width*usableH/usableW);
 }
 function toggleMap(){if(game.state==='playing'){
- game.state='map';ui.map.classList.add('visible');touchLayer.classList.remove('running');configureAtlas();mapDraw(mapCanvas,true);
+ game.state='map';ui.map.classList.add('visible');hideTouchControls();keySet.clear();configureAtlas();mapDraw(mapCanvas,true);
  $('mapTitle').textContent=regions[game.zone].name;buildRealmSelector();if(document.pointerLockElement)document.exitPointerLock?.();
  }else if(game.state==='map'){game.state='playing';ui.map.classList.remove('visible');if(isTouchDevice())revealTouchControls();lastFrame=0;}}
 function buildRealmSelector(){const bar=$('realmJump');if(!bar)return;bar.replaceChildren();bar.hidden=!game.flying;
@@ -2521,10 +2530,11 @@ function buildRealmSelector(){const bar=$('realmJump');if(!bar)return;bar.replac
  b.textContent=String(i+1).padStart(2,'0')+(game.visited[i]?' · '+regions[i].name:' · ?');b.title=game.visited[i]?regions[i].name:'Wilayah belum dijelajahi';
  b.addEventListener('click',()=>travelRealm(i));bar.appendChild(b);}
 }
-function toggleQuality(){const modes=['high','cinematic','balanced','low'];quality=modes[(modes.indexOf(quality)+1)%modes.length];try{localStorage.setItem('rubaka3d-quality',quality)}catch{}resize();updateSettingsUI()}
+function setGraphicsQuality(next,persist=false){if(!['high','cinematic','balanced','low'].includes(next))return false;quality=next;adaptiveFactor=1;perfClock=slowFrames=perfFrames=0;if(persist)try{localStorage.setItem('rubaka3d-quality',quality)}catch{}resize();updateSettingsUI();return true;}
+function toggleQuality(){const modes=['high','cinematic','balanced','low'];setGraphicsQuality(modes[(modes.indexOf(quality)+1)%modes.length],true)}
 const keySet=new Set();let touchMove={active:false,x:0,y:0},contacts=new Map(),mouseOrbit=false,lastTap=0;
 const touchLayer=$('mobileControls'),joyVisual=$('joyVisual'),joyKnob=$('joyKnob'),lookVisual=$('lookVisual');
-let flightTouchRise=false,flightTouchDrop=false;
+let flightTouchRise=false,flightTouchDrop=false;const actionPointers=new Map();
 let peekTimer=0,joystickCenter={x:90,y:0};
 const isTouchDevice=()=>matchMedia('(pointer:coarse)').matches||document.body.classList.contains('touch-device');
 function placeJoystick(){
@@ -2536,7 +2546,7 @@ function placeJoystick(){
  return joystickCenter;
 }
 function revealTouchControls(){if(game.state!=='playing')return;document.body.classList.add('touch-device');touchLayer.classList.add('running','revealed');placeJoystick()}
-function hideTouchControls(){touchLayer.classList.remove('running','revealed');joyVisual.classList.remove('active');lookVisual.classList.remove('visible');clearTimeout(peekTimer);contacts.clear();touchMove.active=false;touchMove.x=touchMove.y=0;joyKnob.style.transform='translate(0px,0px)'}
+function hideTouchControls(){touchLayer.classList.remove('running','revealed');joyVisual.classList.remove('active');lookVisual.classList.remove('visible');clearTimeout(peekTimer);contacts.clear();actionPointers.clear();flightTouchRise=false;flightTouchDrop=false;for(const b of document.querySelectorAll('.ghost-btn.pressed'))b.classList.remove('pressed');touchMove.active=false;touchMove.x=touchMove.y=0;joyKnob.style.transform='translate(0px,0px)'}
 function setJoy(dx=0,dy=0){const lim=(joyVisual.getBoundingClientRect().width||124)*.30;const mag=Math.hypot(dx,dy),scale=mag>lim?lim/mag:1;joyKnob.style.transform=`translate(${dx*scale}px,${dy*scale}px)`}
 function readJoystick(x,y){const c=joystickCenter,r=(joyVisual.getBoundingClientRect().width||124)*.37;const dx=x-c.x,dy=y-c.y;const raw=Math.min(1,Math.hypot(dx,dy)/r),amount=raw<.11?0:Math.pow((raw-.11)/.89,1.05),ang=Math.atan2(dy,dx);
  touchMove.x=Math.cos(ang)*amount;touchMove.y=-Math.sin(ang)*amount;setJoy(dx,dy)}
@@ -2565,6 +2575,8 @@ canvas.addEventListener('pointerdown',e=>{
  if(e.pointerType==='touch'){
   e.preventDefault();revealTouchControls(1600);
   const side=e.clientX<innerWidth*.48?'left':'right';
+  // One owner for each continuous gesture. Extra touches never pause gameplay.
+  if([...contacts.values()].some(p=>p.side===side))return;
   contacts.set(e.pointerId,{x:e.clientX,y:e.clientY,ox:e.clientX,oy:e.clientY,side,start:performance.now(),moved:false,charged:false});
   canvas.setPointerCapture(e.pointerId);
   if(side==='left'){
@@ -2575,8 +2587,6 @@ canvas.addEventListener('pointerdown',e=>{
     setJoy();joyVisual.classList.add('active');
   }
   else{lookVisual.style.left=e.clientX+'px';lookVisual.style.top=e.clientY+'px';lookVisual.classList.add('visible')}
-  // Both thumbs can move + look simultaneously without accidentally dashing.
-  if(contacts.size>=3){openMenu();return}
  }else if(e.button===2){mouseOrbit=true;canvas.setPointerCapture(e.pointerId)}else if(e.button===0){doAttack();if(!isTouchDevice()&&document.pointerLockElement!==canvas){try{canvas.requestPointerLock?.().catch?.(()=>{});}catch{}}}
 });
 canvas.addEventListener('pointermove',e=>{
@@ -2601,21 +2611,22 @@ function pointerEnd(e){const p=contacts.get(e.pointerId);
     const next=[...contacts.values()].find(t=>t.side==='left');
     if(next){touchMove.active=true;readJoystick(next.x,next.y)}
     else{touchMove.active=false;touchMove.x=touchMove.y=0;joyVisual.classList.remove('active');setJoy();placeJoystick()}
-  }else{lookVisual.classList.remove('visible');if(!p.moved&&!p.charged&&performance.now()-p.start<400){{const now=performance.now();if(now-lastTap<300){doJump();lastTap=0}else{doAttack();lastTap=now}}}}
+  }else{lookVisual.classList.remove('visible');if(e.type==='pointerup'&&!p.moved&&!p.charged&&game.state==='playing'&&performance.now()-p.start<400){{const now=performance.now();if(now-lastTap<300){doJump();lastTap=0}else{doAttack();lastTap=now}}}}
   revealTouchControls(1650);
  }else{mouseOrbit=false}
 }
-canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointercancel',pointerEnd);
+canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointercancel',pointerEnd);canvas.addEventListener('lostpointercapture',pointerEnd);
 // Touchable hotspots are transparent until a finger touches the screen; buttons always work.
 document.querySelectorAll('[data-mobile-action]').forEach(button=>{
  button.addEventListener('pointerdown',e=>{
   if(game.state!=='playing')return;e.preventDefault();e.stopPropagation();revealTouchControls(1800);button.classList.add('pressed');
+  actionPointers.set(e.pointerId,button);try{button.setPointerCapture(e.pointerId);}catch{}
   const action=button.dataset.mobileAction;
    if(game.flying&&action==='jump')flightTouchRise=true;
    if(game.flying&&action==='descend')flightTouchDrop=true;
    ({attack:doAttack,jump:doJump,dash:doDash,descend:()=>{},fire:doFire,view:toggleView,pause:()=>openMenu()})[action]?.();
  });
- for(const ev of ['pointerup','pointercancel','pointerleave'])button.addEventListener(ev,()=>{button.classList.remove('pressed');if(button.dataset.mobileAction==='jump')flightTouchRise=false;if(button.dataset.mobileAction==='descend')flightTouchDrop=false;});
+ for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>{if(actionPointers.get(e.pointerId)!==button)return;actionPointers.delete(e.pointerId);if([...actionPointers.values()].includes(button))return;button.classList.remove('pressed');if(button.dataset.mobileAction==='jump')flightTouchRise=false;if(button.dataset.mobileAction==='descend')flightTouchDrop=false;});
 });
 $('play').addEventListener('click',()=>{audioContext()?.resume?.();let hasSave=false;try{hasSave=!!localStorage.getItem('landlord-openrealms-save-v1')}catch{}if(hasSave)fromSave();else newGame()});
 $('victoryRestart').addEventListener('click',()=>{$('victoryOverlay').hidden=true;newGame()});
@@ -2626,17 +2637,14 @@ $('closeMap').addEventListener('click',e=>{e.stopPropagation();if(game.state==='
 mini.addEventListener('click',e=>{if(game.state==='playing'){e.preventDefault();e.stopPropagation();toggleMap()}});
 ui.map.addEventListener('click',e=>{if(e.target===$('mapOverlay'))toggleMap()});
 function fpsTick(dt){fps=mix(fps,1/Math.max(dt,.001),.06)}
-let miniRefresh=0,perfClock=0,slowFrames=0;
+let miniRefresh=0,perfClock=0,slowFrames=0,perfFrames=0;
 function adaptPerformance(dt){
- if(!isTouchDevice()||(quality!=='balanced'&&quality!=='high'))return;
- perfClock+=dt;if(dt>.036)slowFrames++;
- if(perfClock>=8){
-  const slowRatio=slowFrames/Math.max(1,perfClock*30);
-  if(slowRatio>.58){
-   quality=quality==='high'?'balanced':'low';
-   resize();updateSettingsUI();showToast(language==='id'?'GRAFIK DISESUAIKAN UNTUK FPS':'GRAPHICS OPTIMIZED FOR FPS',1.1);
-  }
-  perfClock=0;slowFrames=0;
+ if(!isTouchDevice()||!gl||quality==='low')return;
+ perfClock+=dt;perfFrames++;if(dt>.036)slowFrames++;
+ if(perfClock>=4){const slowRatio=slowFrames/Math.max(1,perfFrames),mean=perfClock/Math.max(1,perfFrames);
+  const next=slowRatio>.45?Math.max(.62,adaptiveFactor-.12):mean<.022?Math.min(1,adaptiveFactor+.06):adaptiveFactor;
+  if(Math.abs(next-adaptiveFactor)>.001){adaptiveFactor=next;resize();}
+  perfClock=slowFrames=perfFrames=0;
  }
 }
 // Create by LamberthRumpaidus
@@ -2666,7 +2674,7 @@ try{
  if(saved){$('play').textContent=T('start')}
  // Show the rendered 3D world in the title, too.
  requestAnimationFrame(loop);
- window.Landlord3D={getFrameState:()=>({state:game.state,zone:game.zone,quality,player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,state:game.state}),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
+ window.Landlord3D={getFrameState:()=>({state:game.state,zone:game.zone,quality,player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
  collisionAt:(x,z,y,r=.72)=>{const a=blocking(x,z,r,y,2.65);return a?{kind:a.kind,minY:a.minY,maxY:a.maxY,x:a.x,z:a.z}:null},
  setPlayerAltitude:(y)=>{player.y=y;player.grounded=false;return player.y},
  getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:true,x:player.x,z:player.z}),

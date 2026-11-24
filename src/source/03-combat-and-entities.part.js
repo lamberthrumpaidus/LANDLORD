@@ -34,7 +34,7 @@ function takeHit(hp,src){if(src&&ldx.tryParry(src))return;if(player.invuln>0){if
   player.mp=Math.min(100,player.mp+18);burst(player.x,player.y+1.2,player.z,[.48,1,.85],23,.65);
   showToast(language==='id'?'DODGE SEMPURNA':'PERFECT DODGE',.65);}
   return;}player.hp=Math.max(0,player.hp-hp);window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hurt',x:src?.x??player.x,y:(src?.y??player.y)+1.5,z:src?.z??player.z,boss:!!src?.boss}}));player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
-let shake=0;
+let shake=0,impactDirection=[0,0];
 function update(dt){
  updateFireLockState(dt);
  if(game.state==='playing'&&!game.relics[game.zone]){let r=relicPos(game.zone);if(Math.hypot(player.x-r[0],player.z-r[1])<4.5)interact();}clock+=dt;game.time+=dt;game.played+=dt;animatedTime+=dt;ldx.update(dt);
@@ -44,8 +44,9 @@ function update(dt){
  player.counterReady=Math.max(0,player.counterReady-dt);
  for(const p of damagePopups){p.t+=dt;p.life-=dt;}
  damagePopups=damagePopups.filter(p=>p.life>0);
- // A brief impact pause makes heavy strikes register without stopping the entire game.
- const animDT=dt; // Impact effects never freeze or delay animation frames.
+ // Localized hit-stop: only sword pose time is affected; movement, inputs and world physics continue.
+ const stopped=player.dashTime>0?0:Math.min(dt,player.hitPause);
+ const animDT=dt-stopped;
  player.hitPause=Math.max(0,player.hitPause-dt);
  player.cameraKick=Math.max(0,player.cameraKick-dt*1.9);
  const hadAttack=player.attackTime>0;
@@ -664,7 +665,7 @@ function computeCamera(dt){
  }
  // Prevent camera clipping below elevated terrain.
  if(viewMode!=='fpp'||game.state!=='playing')eye[1]=Math.max(eye[1],height(eye[0],eye[2])+.35);
- if(shake>0){let amount=shake*.6;eye[0]+=(Math.random()-.5)*amount;eye[1]+=(Math.random()-.5)*amount}
+ if(shake>0){let amount=shake*.6,n=Math.hypot(...impactDirection)||1,pulse=Math.sin(clock*79)*amount*.65;eye[0]+=impactDirection[0]/n*pulse;eye[2]+=impactDirection[1]/n*pulse;eye[1]+=Math.sin(clock*97)*amount*.32;}
  if(player.cameraKick>0){eye[1]+=player.cameraKick*.41;target[1]-=player.cameraKick*.33;}
  camEye=eye;camFocus=target;
  let view=lookAt(eye,target),proj=perspective(Math.PI/(player.dashTime>0?2.85:3.1),canvas.width/canvas.height,.3,270);

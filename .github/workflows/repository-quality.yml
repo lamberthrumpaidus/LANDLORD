@@ -78,6 +78,7 @@ jobs:
           node --check src/js/engine/BossModels.js
           node --check src/js/engine/ParticleBatch.js
           node --check src/js/engine/EnemyModels.js
+          node --check src/js/ui/MapProjection.js
           node --check src/js/ui/WorldAtlas.js
           node --check src/js/engine/CombatRules.js
           node --check src/js/engine/RealmArt.js

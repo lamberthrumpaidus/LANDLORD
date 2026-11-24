@@ -86,3 +86,6 @@ LOW skips procedural 3D noise; MEDIUM uses dominant-axis projection and five sha
 
 ## Checkpoint 17 — input lifecycle and overlay power budget
 Release held keys, action captures and joystick when entering menus, atlas, portal travel, visibility loss and resume. Pause/map/settings render at most four world frames per second except on state/preset/resize changes; title at most about 30 FPS; gameplay remains uncapped. Fixed WebGL1-friendly shader integer comparison. Added browser regression for input clearing and frozen game time during atlas use. Pending CI.
+
+## Checkpoint 18 — shared camera/map coordinate convention
+Checkpoint 15–17 passed all CI. Actual camera right is (-cos yaw,+sin yaw), while the prior minimap projected positive world X right and rotated by -yaw. This caused left/right mirror mismatch. New shared projection uses right and forward dot products; player arrow uses yaw-heading. Minimap immediately refreshes on yaw changes and fills rotated corners. Full atlas defaults to camera-up, freezes orientation on open, offers CAM/N toggle and preserves rotated pan/pinch/zoom behavior. Unit and browser cardinal movement checks added. Pending browser CI.

@@ -1,18 +1,19 @@
 /* ALL Create by LamberthRumpaidus */
 (function(root){
 'use strict';
+const projection=typeof module!=='undefined'&&module.exports?require('./MapProjection.js'):root.LandlordMapProjection;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 class Viewport{
- constructor(){this.x=0;this.z=18;this.zoom=1;}
- reset(x,z){this.x=x;this.z=z;this.zoom=1;}
+ constructor(){this.x=0;this.z=18;this.zoom=1;this.yaw=0;}
+ reset(x,z,yaw=this.yaw){this.x=x;this.z=z;this.zoom=1;this.yaw=yaw;}
  scale(h){return h/330*this.zoom;}
- pan(dx,dy,h){const s=this.scale(h);this.x-=dx/s;this.z+=dy/s;}
- zoomAt(factor,x,y,w,h){const prev=this.scale(h),nx=clamp(this.zoom*factor,.35,3.8);this.zoom=nx;const next=this.scale(h);this.x+=(x-w*.5)*(1/prev-1/next);this.z-=(y-h*.55)*(1/prev-1/next);}
+ pan(dx,dy,h){const s=this.scale(h),p=projection.unproject(dx/s,dy/s,this.yaw);this.x-=p.x;this.z-=p.z;}
+ zoomAt(factor,x,y,w,h){const prev=this.scale(h),nx=clamp(this.zoom*factor,.35,3.8);this.zoom=nx;const next=this.scale(h);const p=projection.unproject((x-w*.5)*(1/prev-1/next),(y-h*.55)*(1/prev-1/next),this.yaw);this.x+=p.x;this.z+=p.z;}
  bound(end){this.x=clamp(this.x,-100,100);this.z=clamp(this.z,0,end);}
 }
 class Atlas{
- constructor(canvas,redraw,player,end){
-  this.canvas=canvas;this.redraw=redraw;this.player=player;this.end=end;this.view=new Viewport();this.points=new Map();this.pending=false;
+ constructor(canvas,redraw,player,end,cameraYaw=()=>0){
+  this.canvas=canvas;this.redraw=redraw;this.player=player;this.end=end;this.cameraYaw=cameraYaw;this.cameraUp=true;this.view=new Viewport();this.points=new Map();this.pending=false;
   const local=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/Math.max(1,r.width),y:(e.clientY-r.top)*canvas.height/Math.max(1,r.height)};};
   const shape=()=>{const a=[...this.points.values()];if(a.length<2)return a[0]?{...a[0],d:0}:null;return{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2,d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};};
   canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);this.points.set(e.pointerId,local(e));canvas.classList.add('dragging');});
@@ -24,11 +25,12 @@ class Atlas{
   document.getElementById('atlasZoomIn').addEventListener('click',()=>this.zoom(1.25));
   document.getElementById('atlasZoomOut').addEventListener('click',()=>this.zoom(.8));
   document.getElementById('atlasCenter').addEventListener('click',()=>this.reset());
+  document.getElementById('atlasOrientation').addEventListener('click',()=>{this.cameraUp=!this.cameraUp;this.view.yaw=this.cameraUp?this.cameraYaw():0;this.changed();});
  }
  zoom(f){this.view.zoomAt(f,this.canvas.width*.5,this.canvas.height*.55,this.canvas.width,this.canvas.height);this.changed();}
- reset(){const p=this.player();this.view.reset(p.x,p.z);this.points.clear();this.changed();}
- changed(){this.view.bound(this.end);document.getElementById('atlasZoomValue').textContent=Math.round(this.view.zoom*100)+'%';if(this.pending)return;this.pending=true;requestAnimationFrame(()=>{this.pending=false;this.redraw();});}
- state(){return {x:this.view.x,z:this.view.z,zoom:this.view.zoom,contacts:this.points.size};}
+ reset(){const p=this.player();this.view.reset(p.x,p.z,this.cameraUp?this.cameraYaw():0);this.points.clear();this.changed();}
+ changed(){this.view.bound(this.end);const button=document.getElementById('atlasOrientation');button.setAttribute('aria-pressed',String(this.cameraUp));button.textContent=this.cameraUp?'CAM':'N';button.title=this.cameraUp?'Camera up / Arah kamera':'North up / Utara';document.getElementById('atlasZoomValue').textContent=Math.round(this.view.zoom*100)+'%';if(this.pending)return;this.pending=true;requestAnimationFrame(()=>{this.pending=false;this.redraw();});}
+ state(){return {x:this.view.x,z:this.view.z,zoom:this.view.zoom,yaw:this.view.yaw,cameraUp:this.cameraUp,contacts:this.points.size};}
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={Viewport};else root.LandlordAtlas=Atlas;
 })(globalThis);

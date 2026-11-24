@@ -142,6 +142,13 @@ def run(mobile):
         js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
         assert js('return Landlord3D.instantState().flying')
         assert js('return Landlord3D.dash()')
+        # Compare map projection with the actual game movement at four camera headings.
+        for yaw in [0,1.5707963267948966,3.141592653589793,4.71238898038469]:
+            js('Landlord3D.controls.setOrbit(arguments[0])',yaw)
+            for x,z,expected in [(0,1,(0,-1)),(1,0,(1,0)),(0,-1,(0,1)),(-1,0,(-1,0))]:
+                result=js('const d=Landlord3D.controls.cameraMove({x:arguments[0],z:arguments[1]});return Landlord3D.mapProject(d.x,d.z)',x,z)
+                assert abs(result['x']-expected[0])<1e-6 and abs(result['y']-expected[1])<1e-6,result
+        js('Landlord3D.controls.setOrbit(0.7)')
         # Verify key state is cleared when the atlas opens; simulation stays paused.
         js("window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyW'}))")
         assert js('return Landlord3D.controls.getInput().walking')
@@ -150,6 +157,11 @@ def run(mobile):
         wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
         assert not js('return Landlord3D.controls.getInput().walking')
         paused=js('return Landlord3D.getStatus().gameTime')
+        assert abs(js('return Landlord3D.getMapOrientation().viewport.yaw')-.7)<1e-6
+        js("document.getElementById('atlasOrientation').click()")
+        assert js('return Landlord3D.getMapOrientation().atlasNorthUp')
+        js("document.getElementById('atlasOrientation').click()")
+        assert abs(js('return Landlord3D.getMapOrientation().viewport.yaw')-.7)<1e-6
         js("document.getElementById('atlasZoomIn').click()")
         assert js('return Landlord3D.getMapOrientation().viewport.zoom')>1
         js("document.getElementById('atlasCenter').click()")

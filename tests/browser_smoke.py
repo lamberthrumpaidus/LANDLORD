@@ -82,6 +82,7 @@ def run(mobile):
         assert status['player']['hp']>0,status
         assert status['submittedTriangles']>0,status
         assert status['dynamicMesh']['triangles']>0 and status['dynamicMesh']['culled']>0,status
+        assert status['dynamicMesh']['uploads']==1,status
         assert status['particleInstancing'],status
         assert js('return typeof LandlordEnemyModels.skeleton===\'function\'')
         wait(lambda:js('return Landlord3D.getStatus().materialTextures===5'),60)

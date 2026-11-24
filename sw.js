@@ -1,5 +1,5 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-nextgen-20261124-17';
+const CACHE='landlord-nextgen-20261124-18';
 const CORE=[
   "index.html",
   "manifest.webmanifest",

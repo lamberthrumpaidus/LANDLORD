@@ -80,3 +80,6 @@ Checkpoint 12 passed CI run 45330899309. Corrected the FPS and adaptive-resoluti
 
 ## Checkpoint 15 — reduce CPU mesh work
 Checkpoint 14 passed 10 unit tests and both Chrome profiles. Profiling measured mesh-stage means of 40.16 ms desktop and 38.93 ms mobile emulation (software GL; not physical-device results). Cached sphere topology avoids repeated trigonometry and degenerate polar triangles; transforms vertices/normals once per unique grid point. Added conservative dynamic actor frustum culling, keeping nearby shadow casters, and distance/preset tessellation while preserving gameplay/AI. Added 3 unit tests and browser counters. Pending CI.
+
+## Checkpoint 16 — preset-aware shading and single dynamic upload
+LOW skips procedural 3D noise; MEDIUM uses dominant-axis projection and five shadow samples; HIGH/ULTRA keep triplanar near-field materials, bump detail, nine-tap shadows and additional mineral/lichen detail. Procedural fine detail fades with distance. Dynamic vertex buffer is uploaded once per frame and reused for the shadow and main passes. Browser regression requires one upload per frame. Pending CI.

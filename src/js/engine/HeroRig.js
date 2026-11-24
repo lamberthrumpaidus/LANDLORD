@@ -13,6 +13,7 @@ function solveTwoBone(origin,goal,pole,a,b){
  const along=(a*a-b*b+reach*reach)/(2*reach),side=Math.sqrt(Math.max(0,a*a-along*along));
  return {joint:add(add(origin,mul(axis,along)),mul(bend,side)),tip,clamped:Math.abs(reach-raw)>.001};
 }
+function blendPose(from,to,t){const u=clamp(t,0,1),s=u*u*(3-2*u),out={...to};out.hand=from.hand.map((v,i)=>mix(v,to.hand[i],s));let blade=from.blade.map((v,i)=>mix(v,to.blade[i],s));out.blade=len(blade)>.00001?norm(blade):norm(to.blade);for(const k of ['twist','crouch','lunge'])out[k]=mix(from[k],to[k],s);return out;}
 function world(p,x,z){const c=Math.cos(p.angle),s=Math.sin(p.angle);return [p.x+x*c+z*s,p.z-x*s+z*c];}
 function local(p,x,z){const dx=x-p.x,dz=z-p.z,c=Math.cos(p.angle),s=Math.sin(p.angle);return [dx*c-dz*s,dx*s+dz*c];}
 function approach(value,target,dt,rate){return mix(value,target,1-Math.exp(-dt*rate));}
@@ -79,6 +80,6 @@ class HeroMotion{
  cloth(t){const u=clamp(t,0,1)*(this.cape.length-1),i=Math.floor(u),j=Math.min(i+1,this.cape.length-1);return {x:mix(this.cape[i].x,this.cape[j].x,u-i),z:mix(this.cape[i].z,this.cape[j].z,u-i)};}
  status(){return {mode:this.mode,weights:{...this.weights},steps:this.steps,frames:this.frames,legs:this.legDiagnostics.map(x=>({...x})),cape:this.cape.map(n=>[n.x,n.z])};}
 }
-const api={HeroMotion,solveTwoBone,world,local};
+const api={HeroMotion,solveTwoBone,blendPose,world,local};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LandlordHeroRig=api;
 })(globalThis);

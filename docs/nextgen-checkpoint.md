@@ -95,3 +95,6 @@ Instrumented the actual Canvas2D transform to validate camera forward/up and rig
 
 ## Checkpoint 20 — procedural articulated hero animation
 Independent animation implementation: two-bone IK with fixed segment lengths for legs and arms, terrain-aware feet with stance/swing anchors and reach limits, damped blend weights for run/air/dash/flight/hurt, and an eight-node damped cape chain driven by velocity and acceleration. Teleport reset avoids stretching; combat hit timing and all gameplay mechanics remain unchanged. Three new pure animation tests plus browser bone-length assertions and attack screenshots. Procedural rig, not imported motion-capture or GPU skinning; pending CI.
+
+## Checkpoint 21 — Eclipse Plate character art and chained attack crossfade
+Replaced rounded breastplate, helmet and shoulder shapes with faceted fitted metal shells, angular faceplate, narrow visor, ridge details, bronze edging and articulated overlapping pauldrons. Added a cloth-following back insignia. Combo transitions capture the previous sword pose and blend into the next strike without resetting to idle; hit timing remains unchanged. Added crossfade endpoint and weapon normalization tests. Pending CI and visual review.

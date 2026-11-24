@@ -350,27 +350,13 @@ function playerModel(m){
     return [xx+(p.lean*.22)*(y+1.5),hips+y+.055*Math.sin(pose.progress*Math.PI),zz+pose.lunge*.28];
  };
  m.pt=(v)=>oldPt(twistLocal(v));
- m.ellipsoid(0,chest-.25,0,.59,.82,.43,iron,0,10,12);
- m.ellipsoid(0,chest+.15,.07,.69,.60,.43,steel,0,9,13);
- m.box(0,chest+.16,.46,.26,.85,.07,tint(gold,.86));
- m.box(0,chest+.51,.39,1.06,.12,.13,polish);
- m.box(0,chest-.40,.36,1.02,.13,.14,gold);
+ LandlordHeroArmor.breastplate(m,chest,hips,m.detail);
  m.box(0,hips-.07,.01,1.0,.27,.7,leather);
  m.box(0,hips-.08,.41,.27,.22,.14,gold,.34);
  for(let j=-2;j<=2;j++)m.box(j*.25,hips-.26,.24-Math.abs(j)*.05,.22,.48,.29,tint(steel,.78+j*.025),0,j*.08);
  // Neck, visor, head, crest; subtly pitch into each attack for weight.
  m.ellipsoid(0,chest+.75,0,.32,.29,.30,iron,0,6,9);
- m.ellipsoid(0,chest+1.06,.02,.37,.48,.36,steel,0,12,18);
- m.ellipsoid(0,chest+1.36,-.05,.28,.16,.30,polish,0,8,14);
- m.ellipsoid(0,chest+1.22,.25,.32,.21,.18,iron,0,8,14);
- m.box(0,chest+1.07,.36,.60,.10,.15,[.018,.025,.036]);
- m.box(0,chest+.96,.37,.6,.11,.17,[.06,.11,.15]);
- for(const side of [-1,1]){
-   m.ellipsoid(side*.14,chest+1.08,.435,.085,.025,.024,magic,.42,4,8);
-   m.box(side*.34,chest+1.14,-.02,.075,.42,.30,tint(gold,.77),0,side*.04);
- }
- m.ellipsoid(0,chest+1.53,-.13,.11,.15,.35,tint(royal,1.4),0,7,13);
- for(let i=0;i<5;i++)m.box(0,chest+.91+i*.08,-.325,.12,.027,.035,gold);
+ LandlordHeroArmor.helmet(m,chest,m.detail);
  m.box(0,chest+.65,-.01,1.28,.21,.70,tint(steel,.9));
  // Joint chain: shoulders -> elbows -> wrists, with independently posed hands.
  for(const side of [-1,1]){
@@ -387,9 +373,7 @@ function playerModel(m){
    }
    hand[1]+=rig.air*.25+rig.flight*.21;hand[0]+=side*rig.flight*.37;hand[2]-=rig.dash*.34+rig.hurt*.18;
    const arm=LandlordHeroRig.solveTwoBone(shoulder,hand,[side*.7,-.25,-.75],.86,.82);elbow=arm.joint;hand=arm.tip;
-   m.ellipsoid(side*.79,chest+.34,-.04,.43,.28,.46,iron,0,9,14);
-   for(let plate=0;plate<3;plate++){const shift=plate*.095;m.ellipsoid(side*(.74+shift),chest+.46-plate*.135,-.055,.36-plate*.035,.12,.40-plate*.018,plate===0?polish:steel,0,7,14);}
-   m.box(side*.85,chest+.50,-.33,.17,.07,.08,gold);
+   LandlordHeroArmor.pauldron(m,side,chest,m.detail);
    limb(m,shoulder,elbow,.25,.20,steel,0,9);
    m.ellipsoid(...elbow,.23,.23,.23,gold,0,5,8);
    limb(m,elbow,hand,.21,.15,iron,0,9);
@@ -421,6 +405,9 @@ function playerModel(m){
      if(strip===0||strip===10){const x=strip===0?x0:x1,dx=strip===0?.045:-.045;const p0=[fx(x,a),fy(a),fz(x,a)-.014],p1=[fx(x+dx,a),fy(a),fz(x+dx,a)-.014],p2=[fx(x+dx,b),fy(b),fz(x+dx,b)-.014],p3=[fx(x,b),fy(b),fz(x,b)-.014];m.quad(p0,p1,p2,p3,tint(gold,.78));}
    }
  }
+ // Woven emblem on the back of the cape follows the same cloth displacement.
+ const insignia=(x,t)=>[x*(1+.34*t)+heroRig.cloth(t).x+p.lean*t*.45+Math.sin(pose.progress*TAU)*pose.twist*.22*t,chest+.48-t*2.43,-.485+heroRig.cloth(t).z-.10*Math.cos(x*15)*(.35+t)-.09*Math.sin(clock*3.1+t*4+x*2)*t-.14*flutter*t-pose.lunge*t*.39];
+ const mark=[insignia(0,.22),insignia(-.21,.39),insignia(0,.58),insignia(.21,.39)];m.quad(...mark,tint(gold,.73));m.quad(insignia(0,.30),insignia(-.11,.39),insignia(0,.49),insignia(.11,.39),royal);
  m.pt=oldPt;
  // Sword history is updated AFTER calculating actual world-space joint positions.
  if(p.swordTip&&p.swordBase&&attack&&pose.active>.012&&clock-p.lastSwordStamp>.012){

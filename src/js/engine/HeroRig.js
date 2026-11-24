@@ -35,7 +35,8 @@ class HeroMotion{
   const dash=p.dashTime>0,air=!p.grounded,run=p.grounded&&!dash&&speed>.6;
   this.mode=flying?'flight':dash?'dash':air?(p.vy>0?'rise':'fall'):this.hurtTime>0?'hurt':p.attackTime>0?'attack':run?'run':'idle';
   for(const [k,v] of Object.entries({run:run?clamp(speed/10,0,1):0,air:air?1:0,dash:dash?1:0,flight:flying?1:0,hurt:this.hurtTime>0?Math.sin(Math.PI*this.hurtTime/.33):0}))this.weights[k]=approach(this.weights[k],v,dt,k==='hurt'?25:15);
-  if(run)this.phase+=dist*(2.45-.30*clamp(speed/14,0,1));
+  if(run)this.phase+=Math.min(dist*2.45,dt*Math.PI*2*2.65);
+  const stanceFraction=.48-.18*this.weights.run;
   const actual=local({...p,x:0,z:0},dx,dz),direction=dist>.0001?actual.map(v=>v/dist):this.strideDirection;
   this.strideDirection=this.strideDirection.map((v,i)=>approach(v,direction[i],dt,19));
   const yawRate=Math.atan2(Math.sin(p.angle-this.lastAngle),Math.cos(p.angle-this.lastAngle))/Math.max(.01,dt);this.lastAngle=p.angle;
@@ -49,7 +50,7 @@ class HeroMotion{
   for(const sample of this.dashTrail)sample.life-=dt;this.dashTrail=this.dashTrail.filter(s=>s.life>0);
   if((dash||flying&&speed>18)&&(!this.dashTrail.length||Math.hypot(p.x-this.dashTrail.at(-1).x,p.y-this.dashTrail.at(-1).y,p.z-this.dashTrail.at(-1).z)>.72)){this.dashTrail.push({x:p.x,y:p.y,z:p.z,angle:p.angle,life:.30,flight:flying});if(this.dashTrail.length>24)this.dashTrail.shift();}
   for(let i=0;i<2;i++){
-   const side=i===0?-1:1,cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stance=cycle<.48;
+   const side=i===0?-1:1,cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stance=cycle<stanceFraction;
    const stride=.42+.58*this.weights.run,front=run?(1-cycle*2)*stride:0,dir=this.strideDirection;
    const desired=world(p,side*.36+dir[0]*front,dir[1]*front);
    let f=this.feet[i];
@@ -64,7 +65,7 @@ class HeroMotion{
     if(!f.stance||!f.initialized||overreach){f.x=desired[0];f.z=desired[1];if(!f.stance){this.steps++;this.events.push({kind:'step',x:f.x,z:f.z,y:terrain(f.x,f.z),strength:clamp(speed/14,.15,1),side});}}f.lift=0;
    }else{
     if(f.stance||!f.initialized){f.fromX=f.x;f.fromZ=f.z;const next=world(p,side*.36+dir[0]*stride,dir[1]*stride);f.toX=next[0];f.toZ=next[1];}
-    const u=clamp((cycle-.48)/.52,0,1),s=u*u*(3-2*u),next=world(p,side*.36+dir[0]*stride,dir[1]*stride);
+    const u=clamp((cycle-stanceFraction)/(1-stanceFraction),0,1),s=u*u*(3-2*u),next=world(p,side*.36+dir[0]*stride,dir[1]*stride);
     f.toX=approach(f.toX,next[0],dt,18);f.toZ=approach(f.toZ,next[1],dt,18);
     f.x=mix(f.fromX,f.toX,s);f.z=mix(f.fromZ,f.toZ,s);f.lift=Math.sin(Math.PI*u)*(.24+.40*this.weights.run);
    }
@@ -94,7 +95,7 @@ class HeroMotion{
   const ankle=[x,.18+offset+lift+air*.36+flight*.10+dash*.11,z];
   const solved=solveTwoBone(hip,ankle,[side*.12,0,1],.69,.64);
   this.legDiagnostics[i]={upper:len(sub(solved.joint,hip)),lower:len(sub(solved.tip,solved.joint)),planted:!!(f?.stance&&p.grounded&&!p.dashTime),clamped:solved.clamped};
-  const cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,roll=f?.stance?Math.max(0,(cycle-.30)/.18)*.35:-Math.sin(Math.PI*clamp((cycle-.48)/.52,0,1))*.60;
+  const cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stanceFraction=.48-.18*w.run,roll=f?.stance?clamp((cycle-stanceFraction*.65)/(stanceFraction*.35),0,1)*.35:-Math.sin(Math.PI*clamp((cycle-stanceFraction)/(1-stanceFraction),0,1))*.60;
   solved.footPitch=clamp(roll*w.run-air*.30-flight*.32-dash*.36,-.85,.65);return solved;
  }
  drainEvents(){const out=this.events;this.events=[];return out;}

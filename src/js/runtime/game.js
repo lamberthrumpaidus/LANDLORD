@@ -182,12 +182,13 @@ function tower(m,x,z,c,seed){let y=height(x,z),h=10+hash(seed)*12,r=2.2+hash(see
 Mesh.prototype.ellipsoid=function(x,y,z,rx,ry,rz,col,emit=0,rings=9,sides=13){
  rings=Math.max(3,Math.round(rings*this.detail));sides=Math.max(5,Math.round(sides*this.detail));
  const {points,faces}=LandlordMeshBudget.sphereGrid(rings,sides),data=this.d,em=emit+(this.material||0)*16;
- const pos=new Float64Array(points.length),normal=new Float64Array(points.length),base=this.pt([0,0,0]),simple=this.pt===Mesh.prototype.pt;
+ const pos=new Float64Array(points.length),normal=new Float64Array(points.length),simple=this.pt===Mesh.prototype.pt,frame=simple?null:LandlordMeshBudget.affineFrame(v=>this.pt(v)),base=frame?frame.o:this.pt([0,0,0]);
  for(let k=0;k<points.length;k+=3){
   const px=x+rx*points[k],py=y+ry*points[k+1],pz=z+rz*points[k+2];
   let nx=points[k]/rx,ny=points[k+1]/ry,nz=points[k+2]/rz;
   const nlen=Math.hypot(nx,ny,nz)||1;nx/=nlen;ny/=nlen;nz/=nlen;
   if(simple){pos[k]=this.ox+px*this.c+pz*this.s;pos[k+1]=this.oy+py;pos[k+2]=this.oz-px*this.s+pz*this.c;normal[k]=nx*this.c+nz*this.s;normal[k+1]=ny;normal[k+2]=-nx*this.s+nz*this.c;}
+  else if(frame){const {o,x,y,z,nx:ax,ny:ay,nz:az}=frame;for(let j=0;j<3;j++){pos[k+j]=o[j]+x[j]*px+y[j]*py+z[j]*pz;normal[k+j]=ax[j]*nx+ay[j]*ny+az[j]*nz;}const n=Math.hypot(normal[k],normal[k+1],normal[k+2])||1;normal[k]/=n;normal[k+1]/=n;normal[k+2]/=n;}
   else{const p=this.pt([px,py,pz]),n=norm(sub(this.pt([nx,ny,nz]),base));pos.set(p,k);normal.set(n,k);}
  }
  for(const i of faces){const k=i*3;data.push(pos[k],pos[k+1],pos[k+2],normal[k],normal[k+1],normal[k+2],col[0],col[1],col[2],em);}
@@ -1573,10 +1574,7 @@ function update(dt){
  player.angle+=turn*(1-Math.exp(-dt*(player.dashTime>0?27:18)));
  player.lean=mix(player.lean,clamp(turn*3.3,-.34,.34)*player.motion,Math.min(1,dt*8));
  if(player.dashTime>0&&Math.random()<.40){const col=game.flying?[.39,.90,1]:regions[game.zone].accent;burst(player.x-player.dashVX*.75,player.y+1.2,player.z-player.dashVZ*.75,col,game.flying?3:2,.17);}
- if(player.grounded&&!game.flying&&actualSpeed>4&&Math.floor(player.gait/Math.PI)!==Math.floor((player.gait-actualSpeed*.79*dt)/Math.PI)){
-   let fx=player.x+Math.sin(player.angle+.5)*.34,fz=player.z+Math.cos(player.angle+.5)*.3;
-   burst(fx,height(fx,fz)+.13,fz,tint(regions[game.zone].ground,1.4),quality==='low'?2:5,.12);
- }
+ // Footstep particles are emitted by actual rig contact events below.
  // Sweep movement with substeps and axis sliding. Obstacles are registered from static props,
  // so rocks, crystalline spikes, trees, columns and gateposts now physically block the hero.
  let wantX=player.x-previousX,wantZ=player.z-previousZ;
@@ -1811,7 +1809,7 @@ function playerModel(m){
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
  const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights,body=heroRig.body;
  const rootTransform=m.pt.bind(m),flightPitch=body.flightLean;
- m.pt=v=>rootTransform(LandlordHeroRig.rotatePitch(v,flightPitch));
+ if(Math.abs(flightPitch)>.001)m.pt=v=>rootTransform(LandlordHeroRig.rotatePitch(v,flightPitch));
  const bob=p.grounded?Math.cos(heroRig.phase*2)*.055*rig.run*(1-attackBlend*.65):0;
  const landing=Math.sin(Math.PI*clamp((p.landPulse||0)/.42,0,1))*.16;
  const hips=1.12+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50;

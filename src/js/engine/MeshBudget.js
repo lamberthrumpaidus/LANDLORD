@@ -20,6 +20,15 @@ function eligible(entity,player,planes,visible,{range=68,radius=4,height=7,shado
  if(!planes||Math.hypot(dx,dz)<shadow)return true;
  return visible({min:[entity.x-radius,(entity.y||0)-2,entity.z-radius],max:[entity.x+radius,(entity.y||0)+height,entity.z+radius]},planes);
 }
-const api={sphereGrid,detail,eligible};
+// Four evaluations recover the affine pose once, instead of repeating trigonometry per vertex.
+function affineFrame(transform){
+ const o=transform([0,0,0]),axis=i=>transform([+(i===0),+(i===1),+(i===2)]).map((v,j)=>v-o[j]),x=axis(0),y=axis(1),z=axis(2);
+ const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+ const nx=cross(y,z),ny=cross(z,x),nz=cross(x,y),det=x[0]*nx[0]+x[1]*nx[1]+x[2]*nx[2];
+ if(Math.abs(det)<1e-9)return null;
+ const sign=det<0?-1:1;
+ return {o,x,y,z,nx:nx.map(v=>v*sign),ny:ny.map(v=>v*sign),nz:nz.map(v=>v*sign)};
+}
+const api={sphereGrid,detail,eligible,affineFrame};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LandlordMeshBudget=api;
 })(globalThis);

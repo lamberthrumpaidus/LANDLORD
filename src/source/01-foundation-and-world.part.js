@@ -181,12 +181,13 @@ function tower(m,x,z,c,seed){let y=height(x,z),h=10+hash(seed)*12,r=2.2+hash(see
 Mesh.prototype.ellipsoid=function(x,y,z,rx,ry,rz,col,emit=0,rings=9,sides=13){
  rings=Math.max(3,Math.round(rings*this.detail));sides=Math.max(5,Math.round(sides*this.detail));
  const {points,faces}=LandlordMeshBudget.sphereGrid(rings,sides),data=this.d,em=emit+(this.material||0)*16;
- const pos=new Float64Array(points.length),normal=new Float64Array(points.length),base=this.pt([0,0,0]),simple=this.pt===Mesh.prototype.pt;
+ const pos=new Float64Array(points.length),normal=new Float64Array(points.length),simple=this.pt===Mesh.prototype.pt,frame=simple?null:LandlordMeshBudget.affineFrame(v=>this.pt(v)),base=frame?frame.o:this.pt([0,0,0]);
  for(let k=0;k<points.length;k+=3){
   const px=x+rx*points[k],py=y+ry*points[k+1],pz=z+rz*points[k+2];
   let nx=points[k]/rx,ny=points[k+1]/ry,nz=points[k+2]/rz;
   const nlen=Math.hypot(nx,ny,nz)||1;nx/=nlen;ny/=nlen;nz/=nlen;
   if(simple){pos[k]=this.ox+px*this.c+pz*this.s;pos[k+1]=this.oy+py;pos[k+2]=this.oz-px*this.s+pz*this.c;normal[k]=nx*this.c+nz*this.s;normal[k+1]=ny;normal[k+2]=-nx*this.s+nz*this.c;}
+  else if(frame){const {o,x,y,z,nx:ax,ny:ay,nz:az}=frame;for(let j=0;j<3;j++){pos[k+j]=o[j]+x[j]*px+y[j]*py+z[j]*pz;normal[k+j]=ax[j]*nx+ay[j]*ny+az[j]*nz;}const n=Math.hypot(normal[k],normal[k+1],normal[k+2])||1;normal[k]/=n;normal[k+1]/=n;normal[k+2]/=n;}
   else{const p=this.pt([px,py,pz]),n=norm(sub(this.pt([nx,ny,nz]),base));pos.set(p,k);normal.set(n,k);}
  }
  for(const i of faces){const k=i*3;data.push(pos[k],pos[k+1],pos[k+2],normal[k],normal[k+1],normal[k+2],col[0],col[1],col[2],em);}

@@ -94,10 +94,7 @@ function update(dt){
  player.angle+=turn*(1-Math.exp(-dt*(player.dashTime>0?27:18)));
  player.lean=mix(player.lean,clamp(turn*3.3,-.34,.34)*player.motion,Math.min(1,dt*8));
  if(player.dashTime>0&&Math.random()<.40){const col=game.flying?[.39,.90,1]:regions[game.zone].accent;burst(player.x-player.dashVX*.75,player.y+1.2,player.z-player.dashVZ*.75,col,game.flying?3:2,.17);}
- if(player.grounded&&!game.flying&&actualSpeed>4&&Math.floor(player.gait/Math.PI)!==Math.floor((player.gait-actualSpeed*.79*dt)/Math.PI)){
-   let fx=player.x+Math.sin(player.angle+.5)*.34,fz=player.z+Math.cos(player.angle+.5)*.3;
-   burst(fx,height(fx,fz)+.13,fz,tint(regions[game.zone].ground,1.4),quality==='low'?2:5,.12);
- }
+ // Footstep particles are emitted by actual rig contact events below.
  // Sweep movement with substeps and axis sliding. Obstacles are registered from static props,
  // so rocks, crystalline spikes, trees, columns and gateposts now physically block the hero.
  let wantX=player.x-previousX,wantZ=player.z-previousZ;
@@ -332,7 +329,7 @@ function playerModel(m){
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
  const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights,body=heroRig.body;
  const rootTransform=m.pt.bind(m),flightPitch=body.flightLean;
- m.pt=v=>rootTransform(LandlordHeroRig.rotatePitch(v,flightPitch));
+ if(Math.abs(flightPitch)>.001)m.pt=v=>rootTransform(LandlordHeroRig.rotatePitch(v,flightPitch));
  const bob=p.grounded?Math.cos(heroRig.phase*2)*.055*rig.run*(1-attackBlend*.65):0;
  const landing=Math.sin(Math.PI*clamp((p.landPulse||0)/.42,0,1))*.16;
  const hips=1.12+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50;

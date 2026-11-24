@@ -116,3 +116,6 @@ Fixed the HIGH vegetation sampler to cover both shoulders. Settings shows actual
 
 ## Checkpoint 27 — full-body motion and aerial choreography
 Checkpoint 26 passed CI 45418702856 and main was fast-forwarded to it without force. Animation pass: directional stance/swing foot targets, toe roll, contact-based footstep particles, continuous spherical weapon rotation, hip/spine inertia, upper-body counterrotation, full-body forward flight pitch, streamlined sword carry and temporal 3D dash/flight ribbons. Fixed animation capture expanded to 60 actual frames including sideways travel and triple-jump flight. Existing hit windows, speed, key bindings, map orientation and seven-world progression retained. Three additional animation tests. Pending CI, no aesthetic parity claim.
+
+## Checkpoint 28 — animation cadence and pose transform optimization
+Sprint visual cadence capped at 2.65 cycles/s with speed-adaptive stance fraction; movement speed is unchanged. Removed duplicate procedural footstep dust, retaining actual rig contact events. Affine basis and inverse-transpose normals are computed once per ellipsoid, rather than reevaluating articulated transforms for every vertex. Added cadence and affine correctness tests. Pending CI; no measured performance claim.

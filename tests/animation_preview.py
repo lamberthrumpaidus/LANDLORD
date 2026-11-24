@@ -32,7 +32,7 @@ def capture():
         js("Landlord3D.setGraphicsQuality('balanced')")
         # Each image is an actual rendered frame from the same game and same camera.
         # Fixed 1/12 simulation second per frame avoids confusing slow headless software GL with animation timing.
-        for i in range(36):
+        for i in range(60):
             if i==0:key('keydown','KeyW')
             if i==9:key('keyup','KeyW')
             if i==11:js('Landlord3D.attack()')
@@ -40,6 +40,12 @@ def capture():
             if i==18:js('Landlord3D.attack()')
             if i==24:js('Landlord3D.jump()')
             if i==29:js('Landlord3D.dash()')
+            if i==35:key('keydown','KeyD')
+            if i==40:key('keyup','KeyD')
+            if i==41:js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
+            if i==43:key('keydown','KeyW')
+            if i==48:js('Landlord3D.dash()')
+            if i==56:key('keyup','KeyW')
             state=js('return Landlord3D.visualCapture.step(1/12)')
             assert state and state['state']['frames']>0,state
             assert not js('return Landlord3D.gpuErrors()')
@@ -49,6 +55,8 @@ def capture():
         assert any(x['state']['mode']=='run' for x in report), 'No actual run pose captured'
         assert any(x['attack']['progress']>0 for x in report), 'No actual attack pose captured'
         assert any(x['state']['mode'] in ('rise','fall','dash') for x in report), 'No actual air/dash pose captured'
+        assert any(x['state']['mode']=='flight' and x['state']['body']['flightLean']>.5 for x in report), 'No forward flight pose captured'
+        assert any(x['state']['dashTrail']>1 for x in report), 'No temporal dash ribbon captured'
         js('Landlord3D.visualCapture.end()')
     if shutil.which('ffmpeg'):
         def pixels(preset):

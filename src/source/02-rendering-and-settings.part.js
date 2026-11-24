@@ -442,7 +442,7 @@ function sampleAttackPose(p){
  const k0=seq[Math.max(0,i-1)],k1=seq[i],k2=seq[i+1],k3=seq[Math.min(i+2,seq.length-1)],t=clamp((u-k1.t)/(k2.t-k1.t),0,1);
  const val=(field,j=-1)=>catmull(j<0?k0[field]:k0[field][j],j<0?k1[field]:k1[field][j],j<0?k2[field]:k2[field][j],j<0?k3[field]:k3[field][j],t);
  const active=COMBOS[p.combo].active,s=(u-active[0])/(active[1]-active[0]);
- const pose={hand:[0,1,2].map(j=>val('hand',j)),blade:norm([0,1,2].map(j=>val('blade',j))),twist:val('twist'),crouch:val('crouch'),lunge:val('lunge'),progress:u,active:u>=active[0]&&u<=active[1]?Math.pow(Math.sin(Math.PI*s),.45):0};
+ const pose={hand:[0,1,2].map(j=>val('hand',j)),blade:LandlordHeroRig.slerpDirection(k1.blade,k2.blade,t*t*(3-2*t)),twist:val('twist'),crouch:val('crouch'),lunge:val('lunge'),progress:u,active:u>=active[0]&&u<=active[1]?Math.pow(Math.sin(Math.PI*s),.45):0};
  return p.attackBlendFrom&&u<.24?LandlordHeroRig.blendPose(p.attackBlendFrom,pose,u/.24):pose;
 }
 let hitFlashes=[];
@@ -504,7 +504,7 @@ function swordWhoosh(index){
 function startAttack(index){
  const prior=player.attackTime>0?sampleAttackPose(player):null;
  const spec=COMBOS[index];player.attackBlendFrom=prior;player.combo=index;player.attackDuration=spec.duration;player.attackTime=spec.duration;player.attackClock=0;player.attackHitReady=true;player.attackQueued=false;
- player.comboTime=.90;player.attackCooldown=0;player.attackBuffer=0;player.swordTrail=[];
+ player.comboTime=.90;player.attackCooldown=0;player.attackBuffer=0;player.swordTrail=player.swordTrail.filter(s=>s.life>.05);
  player.cameraKick=Math.max(player.cameraKick,.025);player.lastSwordStamp=-1;
  pulseSfx(index===2?190:155+index*38,.16,index===2?'sawtooth':'triangle',.038);swordWhoosh(index);
  ldx.parryT=.24;ldx.noise=Math.max(ldx.noise,16);if(ldx.fireBuff>0)ldx.flameSlash();

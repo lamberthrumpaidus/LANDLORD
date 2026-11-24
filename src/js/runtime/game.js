@@ -1204,7 +1204,7 @@ function sampleAttackPose(p){
  const k0=seq[Math.max(0,i-1)],k1=seq[i],k2=seq[i+1],k3=seq[Math.min(i+2,seq.length-1)],t=clamp((u-k1.t)/(k2.t-k1.t),0,1);
  const val=(field,j=-1)=>catmull(j<0?k0[field]:k0[field][j],j<0?k1[field]:k1[field][j],j<0?k2[field]:k2[field][j],j<0?k3[field]:k3[field][j],t);
  const active=COMBOS[p.combo].active,s=(u-active[0])/(active[1]-active[0]);
- const pose={hand:[0,1,2].map(j=>val('hand',j)),blade:norm([0,1,2].map(j=>val('blade',j))),twist:val('twist'),crouch:val('crouch'),lunge:val('lunge'),progress:u,active:u>=active[0]&&u<=active[1]?Math.pow(Math.sin(Math.PI*s),.45):0};
+ const pose={hand:[0,1,2].map(j=>val('hand',j)),blade:LandlordHeroRig.slerpDirection(k1.blade,k2.blade,t*t*(3-2*t)),twist:val('twist'),crouch:val('crouch'),lunge:val('lunge'),progress:u,active:u>=active[0]&&u<=active[1]?Math.pow(Math.sin(Math.PI*s),.45):0};
  return p.attackBlendFrom&&u<.24?LandlordHeroRig.blendPose(p.attackBlendFrom,pose,u/.24):pose;
 }
 let hitFlashes=[];
@@ -1266,7 +1266,7 @@ function swordWhoosh(index){
 function startAttack(index){
  const prior=player.attackTime>0?sampleAttackPose(player):null;
  const spec=COMBOS[index];player.attackBlendFrom=prior;player.combo=index;player.attackDuration=spec.duration;player.attackTime=spec.duration;player.attackClock=0;player.attackHitReady=true;player.attackQueued=false;
- player.comboTime=.90;player.attackCooldown=0;player.attackBuffer=0;player.swordTrail=[];
+ player.comboTime=.90;player.attackCooldown=0;player.attackBuffer=0;player.swordTrail=player.swordTrail.filter(s=>s.life>.05);
  player.cameraKick=Math.max(player.cameraKick,.025);player.lastSwordStamp=-1;
  pulseSfx(index===2?190:155+index*38,.16,index===2?'sawtooth':'triangle',.038);swordWhoosh(index);
  ldx.parryT=.24;ldx.noise=Math.max(ldx.noise,16);if(ldx.fireBuff>0)ldx.flameSlash();
@@ -1618,6 +1618,7 @@ function update(dt){
  else player.grounded=false;}
  player.landPulse=Math.max(0,(player.landPulse||0)-dt);
  heroRig.tick(player,game.flying,dt,height);
+ for(const event of heroRig.drainEvents()){if(event.kind==='step'){burst(event.x,event.y+.08,event.z,tint(regions[game.zone].ground,1.65),quality==='low'?2:5,.10);}else if(event.kind==='land'){spectacleFX.spawn('dash',event.x,event.y+.15,event.z,tint(regions[game.zone].accent,.45));}}
  if(checkVictory())return;
  player.mp=Math.min(100,player.mp+18*dt);
  for(let e of enemies){
@@ -1808,24 +1809,28 @@ const heroRig=new LandlordHeroRig.HeroMotion(),spectacleFX=new LandlordSpectacle
 function playerModel(m){
  const p=player,steel=[.24,.32,.39],polish=[.40,.49,.55],iron=[.075,.105,.145],gold=[.56,.39,.18],leather=[.10,.07,.08],royal=[.20,.045,.065],magic=[.28,.78,.90];
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
- const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights;
+ const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights,body=heroRig.body;
+ const rootTransform=m.pt.bind(m),flightPitch=body.flightLean;
+ m.pt=v=>rootTransform(LandlordHeroRig.rotatePitch(v,flightPitch));
  const bob=p.grounded?Math.cos(heroRig.phase*2)*.055*rig.run*(1-attackBlend*.65):0;
  const landing=Math.sin(Math.PI*clamp((p.landPulse||0)/.42,0,1))*.16;
- const hips=1.12+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10;
+ const hips=1.12+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50;
  const breath=!attack&&!airborne?Math.sin(clock*2.05)*.032:0;
- const chest=2.21+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13;
+ const chest=2.21+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13-body.compression*.38;
  // Upper and lower body do not rotate together. Feet plant while the torso winds up.
  for(const side of [-1,1]){
     const hip=[side*.36,hips,0],leg=heroRig.leg(p,side,hip,attackBlend,height),knee=leg.joint,ankle=leg.tip;
     limb(m,hip,knee,.24,.18,steel,0,9);m.ellipsoid(...knee,.23,.22,.24,polish,0,5,9);
     limb(m,knee,ankle,.19,.15,tint(iron,1.13),0,9);
+    const legRoot=m.pt,fp=leg.footPitch;
+    m.pt=v=>{const offset=[v[0]-ankle[0],v[1]-ankle[1],v[2]-ankle[2]],q=LandlordHeroRig.rotatePitch(offset,fp,0);return legRoot(add(ankle,q));};
     m.ellipsoid(ankle[0],ankle[1]+.05,ankle[2]+.16,.30,.20,.50,iron,0,6,9);
-    m.box(ankle[0],ankle[1]+.15,ankle[2]+.28,.38,.21,.32,gold);
+    m.box(ankle[0],ankle[1]+.15,ankle[2]+.28,.38,.21,.32,gold);m.pt=legRoot;
     m.box(knee[0],knee[1],knee[2]+.15,.24,.36,.10,polish);
  }
- const oldPt=m.pt.bind(m),c=Math.cos(pose.twist),s=Math.sin(pose.twist);
+ const oldPt=m.pt.bind(m),c=Math.cos(pose.twist+body.yaw*(1-attackBlend)),s=Math.sin(pose.twist+body.yaw*(1-attackBlend));
  const twistLocal=(v)=>{
-    let x=v[0],y=v[1]-hips,z=v[2];z-=rig.hurt*y*.14;z+=rig.dash*y*.19;
+    let x=v[0],y=v[1]-hips,z=v[2];z+=body.pitch*y; x+=body.roll*y;
     let xx=x*c+z*s,zz=-x*s+z*c;
     return [xx+(p.lean*.22)*(y+1.5),hips+y+.055*Math.sin(pose.progress*Math.PI),zz+pose.lunge*.28];
  };
@@ -1844,7 +1849,8 @@ function playerModel(m){
    const armSwing=Math.sin(heroRig.phase+(side===1?Math.PI:0))*.48*rig.run*(1-attackBlend);
    let hand,elbow;
    if(side===1){
-     hand=[pose.hand[0]+rig.dash*.10,pose.hand[1]+(chest-2.21)+rig.run*.10*(1-attackBlend),pose.hand[2]+armSwing*.50];
+     const travel=rig.run*(1-attackBlend),flight=rig.flight*(1-attackBlend);
+     hand=[pose.hand[0]+rig.dash*.10+flight*.40,pose.hand[1]+(chest-2.21)+travel*.10-flight*.20,pose.hand[2]+armSwing*.85-travel*.24-flight*.85];
      elbow=[.91+(hand[0]-.91)*.50+.12,chest+.03+(hand[1]-chest)*.41,hand[2]*.48-.14];
    } else {
      const cast=clamp((p.fireCast||0)/.39,0,1),lift=Math.sin(Math.PI*(1-cast));
@@ -1859,7 +1865,7 @@ function playerModel(m){
    limb(m,elbow,hand,.21,.15,iron,0,9);
    m.ellipsoid(...hand,.20,.19,.26,polish,0,5,8);
    if(side===1){
-     const direction=pose.blade,grip=add(hand,scale(direction,-.17)),bladeBase=add(hand,scale(direction,.60)),bladeTip=add(bladeBase,scale(direction,2.75));
+     const carry=rig.flight*.70+rig.dash*.50+rig.run*.20,direction=LandlordHeroRig.slerpDirection(pose.blade,[.30,.12,-.95],clamp(carry*(1-attackBlend),0,1)),grip=add(hand,scale(direction,-.17)),bladeBase=add(hand,scale(direction,.60)),bladeTip=add(bladeBase,scale(direction,2.75));
      limb(m,grip,bladeBase,.115,.13,leather,.1,8);
      // Crossguard is perpendicular to the sword axis, so it rotates with the attack.
      let guardAxis=norm(cross(direction,Math.abs(direction[1])>.92?[0,0,1]:[0,1,0]));
@@ -1888,7 +1894,7 @@ function playerModel(m){
  // Woven emblem on the back of the cape follows the same cloth displacement.
  const insignia=(x,t)=>[x*(1+.34*t)+heroRig.cloth(t).x+p.lean*t*.45+Math.sin(pose.progress*TAU)*pose.twist*.22*t,chest+.48-t*2.43,-.485+heroRig.cloth(t).z-.10*Math.cos(x*15)*(.35+t)-.09*Math.sin(clock*3.1+t*4+x*2)*t-.14*flutter*t-pose.lunge*t*.39];
  const mark=[insignia(0,.22),insignia(-.21,.39),insignia(0,.58),insignia(.21,.39)];m.quad(...mark,tint(gold,.73));m.quad(insignia(0,.30),insignia(-.11,.39),insignia(0,.49),insignia(.11,.39),royal);
- m.pt=oldPt;
+ m.pt=rootTransform;
  // Sword history is updated AFTER calculating actual world-space joint positions.
  if(p.swordTip&&p.swordBase&&attack&&pose.active>.012&&clock-p.lastSwordStamp>.012){
    const last=p.swordTrail[p.swordTrail.length-1];
@@ -2089,7 +2095,14 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
  }
  for(let j=Math.max(0,game.zone-1);j<=Math.min(6,game.zone+1);j++){let p=relicPos(j);if(Math.abs(player.z-p[1])<74){let rm=new Mesh();relicModel(rm,j);appendVertices(mesh.d,rm.d)}}
  discoveryMesh(mesh);spectacleFX.draw(mesh,height,quality);
- if(game.flying){let skyAura=new Mesh();skyAura.ring(player.x,player.y-.45,player.z,3.6,.28,[.32,.96,.86],.9);skyAura.ring(player.x,player.y-.55,player.z,4.3,.09,[.55,.88,1],.65);skyAura.spike(player.x,player.y-1.2+Math.sin(clock*4)*.2,player.z,.7,1.6,[.45,1,1],.42);appendVertices(mesh.d,skyAura.d)}
+ // Temporal movement ribbons are sampled during simulation, not fabricated from current facing.
+ if(heroRig.dashTrail.length>1){const fx=new Mesh(),trail=heroRig.dashTrail;
+  for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i];if(Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>5)continue;const fade=Math.min(a.life,b.life)/.30,col=b.flight?[.32,.85,1]:regions[game.zone].accent;
+   for(const side of [-1,1]){const p=(q,offset,yy)=>[q.x+Math.cos(q.angle)*side*offset,q.y+yy,q.z-Math.sin(q.angle)*side*offset];
+    fx.quad(p(a,.74,.70),p(a,.74+.16*fade,1.24),p(b,.74+.16*fade,1.24),p(b,.74,.70),tint(col,.35+.60*fade),.3+fade*1.1);}
+  }appendVertices(mesh.d,fx.d);
+ }
+ if(game.flying&&heroRig.speed<9){let skyAura=new Mesh();skyAura.ring(player.x,player.y-.45,player.z,1.8,.14,[.32,.96,.86],.62);appendVertices(mesh.d,skyAura.d)}
  for(const a of attacks){
   const am=new Mesh();
   if(a.kind==='fire'){
@@ -2123,6 +2136,7 @@ function computeCamera(dt){
  let horizontal=orbit,dist=10.8+(player.attackTime>0?-.45*Math.sin(Math.PI*clamp(player.attackClock/player.attackDuration,0,1)):0),pitch=orbitPitch;
  if(game.state==='playing'){
    dist+=clamp(Math.hypot(player.vx,player.vz)-9,0,10)*.13;
+   dist+=heroRig.body.flightLean*.80;
    if(player.dashTime>0)dist+=game.flying?1.4:.75;
  }
  // Portrait phone framing pulls back to keep the full hero and nearby enemies visible.
@@ -2788,7 +2802,7 @@ function loop(now){requestAnimationFrame(loop);if(captureMode)return;const wallD
    for(let i=0;i<slices&&game.state==='playing';i++)update(tick);
    adaptPerformance(Math.min(wallDT,.5));
    updateUI();
- }else if(game.state==='title'){clock+=dt;player.y=height(player.x,player.z);player.move+=dt*.18;heroRig.tick(player,false,dt,height)}
+ }else if(game.state==='title'){clock+=dt;player.y=height(player.x,player.z);player.move+=dt*.18;heroRig.tick(player,false,dt,height);heroRig.drainEvents()}
  else{clock+=dt*.15;}
  // Keep controls and menus responsive while avoiding full GPU work behind overlays.
  const budget=game.state==='playing'?0:game.state==='title'&&!settingsOpen?33:250;

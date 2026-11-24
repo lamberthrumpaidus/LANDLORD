@@ -15,7 +15,7 @@ function loop(now){requestAnimationFrame(loop);if(captureMode)return;const wallD
    for(let i=0;i<slices&&game.state==='playing';i++)update(tick);
    adaptPerformance(Math.min(wallDT,.5));
    updateUI();
- }else if(game.state==='title'){clock+=dt;player.y=height(player.x,player.z);player.move+=dt*.18;heroRig.tick(player,false,dt,height)}
+ }else if(game.state==='title'){clock+=dt;player.y=height(player.x,player.z);player.move+=dt*.18;heroRig.tick(player,false,dt,height);heroRig.drainEvents()}
  else{clock+=dt*.15;}
  // Keep controls and menus responsive while avoiding full GPU work behind overlays.
  const budget=game.state==='playing'?0:game.state==='title'&&!settingsOpen?33:250;

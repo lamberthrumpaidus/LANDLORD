@@ -8,7 +8,7 @@ const $=id=>document.getElementById(id);
 function initialize(){
  if(ctx)return true;if(!AC)return false;
  try{
-  ctx=new AC();master=ctx.createGain();master.gain.value=volume*.46;
+  ctx=new AC();master=ctx.createGain();master.gain.value=enabled?volume*.46:0;
   const comp=ctx.createDynamicsCompressor();comp.threshold.value=-22;comp.knee.value=18;comp.ratio.value=5;comp.attack.value=.004;comp.release.value=.17;
   sfxBus=ctx.createGain();musicBus=ctx.createGain();ambientBus=ctx.createGain();
   sfxBus.gain.value=.82;musicBus.gain.value=.27;ambientBus.gain.value=.15;
@@ -103,7 +103,7 @@ function music(){
  step++;notes++;window.LANDLORD_AUDIO_STATS.musicNotes=notes;
 }
 function begin(){unlock();if(!musicTimer)musicTimer=setInterval(music,460);}
-function setVolume(value){volume=Math.max(0,Math.min(1,Number(value)||0));if(master)master.gain.setTargetAtTime(volume*.46,ctx.currentTime,.04);try{localStorage.setItem('landlord_volume',String(volume))}catch{}}
+function setVolume(value){volume=Math.max(0,Math.min(1,Number(value)||0));if(master)master.gain.setTargetAtTime(enabled?volume*.46:0,ctx.currentTime,.04);try{localStorage.setItem('landlord_volume',String(volume))}catch{}}
 function setMute(v){enabled=!v;if(master)master.gain.setTargetAtTime(enabled?volume*.46:0,ctx.currentTime,.04);try{localStorage.setItem('landlord_mute',String(v))}catch{}}
 function wireStatus(){
  let prev=null;

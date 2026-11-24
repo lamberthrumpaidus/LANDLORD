@@ -18,3 +18,6 @@ Pending: review CI results; full PBR texture pipeline, glTF assets, animation ov
 - HRTF audio for combat events, one master audio bus, haptic feedback toggle, removed M-key audio conflict.
 - Offline navigation uses the active version cache to avoid mixing HTML and JavaScript across releases.
 - Browser and hardware verification pending.
+
+## Test runner optimization
+Use Chrome and ChromeDriver preinstalled on GitHub Ubuntu 24.04, eliminating external npm/browser installation. Fixed master mute handling. Browser test still needs a passing run.

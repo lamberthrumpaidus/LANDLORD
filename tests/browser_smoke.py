@@ -79,7 +79,7 @@ def run(mobile):
         assert status['submittedTriangles']>0,status
         assert status['particleInstancing'],status
         assert js('return typeof LandlordEnemyModels.skeleton===\'function\'')
-        wait(lambda:js('return Landlord3D.getStatus().materialTextures===2'),60)
+        wait(lambda:js('return Landlord3D.getStatus().materialTextures===5'),60)
         wait(lambda:js('return Landlord3D.getStatus().postFX.frames>0'),60)
         assert not js('return Landlord3D.gpuErrors()'),'WebGL error after post-processing'
         # Capture the actual rendered game after the chapter intro has cleared.

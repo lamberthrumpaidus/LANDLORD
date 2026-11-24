@@ -4,7 +4,9 @@
 class MaterialLibrary{
  constructor(gl){
   this.gl=gl;this.ready=0;this.failed=0;
-  this.entries=[this.create('assets/textures/ground_moss_1p5k.png'),this.create('assets/textures/stone_path_1p5k.png')];
+  this.extended=typeof WebGL2RenderingContext!=='undefined'&&gl instanceof WebGL2RenderingContext;
+  this.paths=['ground_moss_1p5k.png','stone_path_1p5k.png',...(this.extended?['bamboo_bark_1p5k.png','bamboo_leaves_1p5k.png','water_soft_1p5k.png']:[])];
+  this.entries=this.paths.map(path=>this.create('assets/textures/'+path));
  }
  create(path){
   const g=this.gl,tex=g.createTexture();
@@ -25,8 +27,9 @@ class MaterialLibrary{
   image.onerror=()=>{this.failed++;};image.src=path;return tex;
  }
  bind(loc,quality){
-  const g=this.gl;for(let i=0;i<2;i++){g.activeTexture(g.TEXTURE4+i);g.bindTexture(g.TEXTURE_2D,this.entries[i]);g.uniform1i(i?loc.stoneMap:loc.mossMap,4+i);}
-  g.uniform1f(loc.materialDetail,quality==='low'?0:this.ready===2?1:0);g.activeTexture(g.TEXTURE0);
+  const g=this.gl,slots=[4,5,7,8,9],uniforms=[loc.mossMap,loc.stoneMap,loc.barkMap,loc.leafMap,loc.waterMap];
+  for(let i=0;i<this.entries.length;i++){g.activeTexture(g.TEXTURE0+slots[i]);g.bindTexture(g.TEXTURE_2D,this.entries[i]);g.uniform1i(uniforms[i],slots[i]);}
+  g.uniform1f(loc.materialDetail,quality==='low'?0:this.ready===this.entries.length?1:0);g.activeTexture(g.TEXTURE0);
  }
 }
 root.LandlordMaterialLibrary=MaterialLibrary;

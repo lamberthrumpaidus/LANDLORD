@@ -720,7 +720,7 @@ function paintCPU(dynamicData){const W=canvas.width,H=canvas.height,c=regions[ga
  let faces=[],maxFaces=quality==='low'?2400:quality==='balanced'?4500:7500;
  const submit=(data,step=1,start=0,end=data.length/30)=>{let count=Math.min(data.length/30,end);for(let j=start;j<count;j+=step){let i=j*30,p=proj(data[i],data[i+1],data[i+2]),q=proj(data[i+10],data[i+11],data[i+12]),r=proj(data[i+20],data[i+21],data[i+22]);if(!p||!q||!r)continue;
  let minx=Math.min(p[0],q[0],r[0]),maxx=Math.max(p[0],q[0],r[0]),miny=Math.min(p[1],q[1],r[1]),maxy=Math.max(p[1],q[1],r[1]);if(maxx<0||minx>W||maxy<0||miny>H)continue;
- let normal=[data[i+3],data[i+4],data[i+5]],color=[data[i+6],data[i+7],data[i+8]],em=data[i+9];let f=.41+.66*Math.max(0,dot(normal,[-.42,.86,.34])),fog=clamp(((p[2]+q[2]+r[2])/3-26)/133,0,.93),col=color.map((v,k)=>clamp(mix(v*f+v*em*1.6,c.fog[k],fog),0,1));let rgb=col.map(v=>Math.round(Math.pow(v,.82)*255));
+ let normal=[data[i+3],data[i+4],data[i+5]],color=[data[i+6],data[i+7],data[i+8]],em=data[i+9]%16;let f=.41+.66*Math.max(0,dot(normal,[-.42,.86,.34])),fog=clamp(((p[2]+q[2]+r[2])/3-26)/133,0,.93),col=color.map((v,k)=>clamp(mix(v*f+v*em*1.6,c.fog[k],fog),0,1));let rgb=col.map(v=>Math.round(Math.pow(v,.82)*255));
  faces.push({p,q,r,z:(p[2]+q[2]+r[2])/3,col:`rgb(${rgb.join(',')})`});}
  };
  const k=zoneOf(player.z);for(let j=Math.max(0,k-1);j<=Math.min(6,k+1);j++){

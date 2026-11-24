@@ -56,3 +56,6 @@ Checkpoint 05 run 45328984390 failed waiting for visible geometry. Detailed mesh
 
 ## Checkpoint 08 — visual revision from real screenshots
 The verified screenshot showed cartoon-like skeletons with oversized glowing eyes and repetitive cobbles. Replaced the skeleton with articulated bone anatomy, rib cage, hollow eye sockets, corroded weapon, remnants of armor and distance-dependent detail. Added continuous compacted foundation to the road and reduced emission clipping with height-dependent valley fog. Added screenshot capture for all six remaining realms to the desktop CI route. Pending verification.
+
+## Checkpoint 09 — explicit environment materials
+Used the original repository's bamboo bark, leaf and water texture maps in the WebGL2 renderer, in addition to moss and stone. Static mesh vertices encode a material identifier in the existing emission attribute without increasing stride. Bamboo stems and leaf fans use distinct sampling; wetland water uses animated dual flow sampling, roughness and grazing-angle highlights. Software rendering decodes emission separately and WebGL1 retains the two-texture fallback. Five-texture loading is required by the WebGL2 regression suite. Pending CI.

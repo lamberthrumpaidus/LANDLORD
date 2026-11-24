@@ -105,9 +105,9 @@ function appendVertices(target,source){for(let i=0;i<source.length;i++)target.pu
 class Mesh{
  constructor(x=0,y=0,z=0,rot=0){this.d=[];this.ox=x;this.oy=y;this.oz=z;this.c=Math.cos(rot);this.s=Math.sin(rot)}
  pt(p){return [this.ox+p[0]*this.c+p[2]*this.s,this.oy+p[1],this.oz-p[0]*this.s+p[2]*this.c]}
- tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit)}
+ tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit+(this.material||0)*16)}
  quad(a,b,c,d,col,emit=0){this.tri(a,b,c,col,emit);this.tri(a,c,d,col,emit)}
- smoothTri(points,normals,col,emit=0){const origin=this.pt([0,0,0]);for(let i=0;i<3;i++){const p=this.pt(points[i]),n=norm(sub(this.pt(normals[i]),origin));this.d.push(...p,...n,...col,emit);}}
+ smoothTri(points,normals,col,emit=0){const origin=this.pt([0,0,0]);for(let i=0;i<3;i++){const p=this.pt(points[i]),n=norm(sub(this.pt(normals[i]),origin));this.d.push(...p,...n,...col,emit+(this.material||0)*16);}}
  smoothQuad(p,n,col,emit=0){this.smoothTri([p[0],p[1],p[2]],[n[0],n[1],n[2]],col,emit);this.smoothTri([p[0],p[2],p[3]],[n[0],n[2],n[3]],col,emit);}
  slab(x,z,w,d,thickness,col,rot=0){
   const ca=Math.cos(rot),sa=Math.sin(rot),corners=[[-1,1],[1,1],[1,-1],[-1,-1]];
@@ -337,13 +337,13 @@ function vistaStructures(m,idx){
 function bambooCluster(m,xx,zz,seed,deep=false){
  const y=height(xx,zz),h=(deep?13:9)+hash(seed+7)*8,r=.14+hash(seed+14)*.08;
  const stem=[.12+.08*hash(seed+4),.26+.10*hash(seed+6),.15+.065*hash(seed+17)];
- const old=m.solidWorld;m.solidWorld=false;
+ const old=m.solidWorld,previousMaterial=m.material;m.solidWorld=false;
  const steps=7;for(let j=0;j<steps;j++){
   const a=j/steps,b=(j+1)/steps;
   const flex=Math.sin(seed*.35+j*.44)*.19;
-  m.cone(xx+flex*.4,y+h*a,zz+flex*.2,r*(1-a*.25),h/steps,tint(stem,.73+.22*j/steps),7,r*(1-b*.25),0);
+  m.material=1;m.cone(xx+flex*.4,y+h*a,zz+flex*.2,r*(1-a*.25),h/steps,tint(stem,.73+.22*j/steps),7,r*(1-b*.25),0);
   m.ring(xx+flex*.4,y+h*b,zz+flex*.2,r*(1-a*.22)*1.25,.028,[.44,.43,.18],.02);
-  if(j>=3&&j<=6){
+  if(j>=3&&j<=6){m.material=2;
    const ang=seed*1.14+j*2.399;
    const fx=Math.cos(ang),fz=Math.sin(ang),Y=y+h*b;
    const len=(1.15+hash(seed+j)*2)*(deep?1.25:1);
@@ -359,7 +359,7 @@ function bambooCluster(m,xx,zz,seed,deep=false){
    }
   }
  }
- m.solidWorld=old;
+ m.solidWorld=old;m.material=previousMaterial;
 }
 function monumentalTorii(m,cx,zz,seed=0,theme=0){
  const y=height(cx,zz),width=17+hash(seed)*2.5,col=theme===1?[.35,.21,.17]:[.43,.13,.12];
@@ -413,6 +413,7 @@ function ancientRailing(m,centerZ,side,startZ,endZ,offset=10.8){
  }
 }
 function wetlandWater(m,xx,zz,seed=1){
+ const previousMaterial=m.material;m.material=3;
  const rx=6+hash(seed+1)*4,rz=9+hash(seed+2)*5,sy=height(xx,zz)+.055;
  const col=[.067,.21,.23],foam=[.17,.44,.43];let n=28;
  for(let i=0;i<n;i++){
@@ -421,6 +422,7 @@ function wetlandWater(m,xx,zz,seed=1){
   m.tri([xx,sy,zz],p(a,.97),p(b,.97),col,.095);
   if(i%2===0)m.tri(p(a,.82),p(b,.88),p(b,.96),tint(col,1.28),.14);
  }
+ m.material=previousMaterial;
  for(let i=0;i<4;i++){
   let x=xx+(hash(seed+i*17)-.5)*rx*1.5,z=zz+(hash(seed+i*31)-.5)*rz*1.4;
   m.ring(x,sy+.035,z,.42+i*.2,.018,foam,.075);
@@ -748,9 +750,9 @@ function initRenderer(){
  try{gl=canvas.getContext('webgl2',{alpha:true,antialias:true,powerPreference:'high-performance'})||canvas.getContext('webgl',{alpha:true,antialias:true,powerPreference:'high-performance'});}catch{}
  if(!gl){mode='cpu';ctx=canvas.getContext('2d',{alpha:true});if(!ctx)throw Error('Canvas 2D unavailable');return;}
  try{
- const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
- void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vEm=aEmit;vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
- const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;varying vec4 vShadow;
+ const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
+ void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vMaterial=floor(aEmit/16.);vEm=mod(aEmit,16.);vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
+ const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying float vMaterial;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;uniform sampler2D uBarkMap;uniform sampler2D uLeafMap;uniform sampler2D uWaterMap;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  void main(){
@@ -771,6 +773,22 @@ function initRenderer(){
    vec3 mossTex=texture2D(uMossMap,vWorld.xz*.20).rgb;
    textureTone=mix(dot(stone,vec3(.299,.587,.114)),dot(mossTex,vec3(.299,.587,.114)),ground*.75);
    base*=mix(.68,1.38,textureTone);
+   #if __VERSION__ >= 300
+   if(vMaterial>.5&&vMaterial<1.5){
+    vec2 barkUV=vec2((vWorld.x+vWorld.z)*.70,vWorld.y*.13);
+    vec3 bark=texture2D(uBarkMap,barkUV).rgb;
+    textureTone=dot(bark,vec3(.299,.587,.114));base=mix(vColor*.55,vColor*1.45,textureTone);
+   }else if(vMaterial>1.5&&vMaterial<2.5){
+    vec3 leaf=texture2D(uLeafMap,vWorld.xz*.65).rgb;
+    textureTone=dot(leaf,vec3(.299,.587,.114));base=mix(vColor*.70,vColor*1.62,textureTone);
+    base+=vColor*.12*max(0.,-dot(N,L));
+   }else if(vMaterial>2.5){
+    vec2 flow=vWorld.xz*.13;vec3 waterA=texture2D(uWaterMap,flow+vec2(uTime*.012,-uTime*.008)).rgb;
+    vec3 waterB=texture2D(uWaterMap,flow*.62+vec2(-uTime*.009,uTime*.011)).rgb;
+    textureTone=dot((waterA+waterB)*.5,vec3(.299,.587,.114));base=mix(vec3(.025,.065,.085),vec3(.10,.31,.33),textureTone);
+    wetness=1.;ground=1.;
+   }
+   #endif
   }
   #if __VERSION__ >= 300
   vec3 px=dFdx(vWorld),py=dFdy(vWorld);
@@ -821,6 +839,7 @@ function initRenderer(){
   // Glossy highlights on wet exposed stone; kept subtle to avoid plastic appearance.
   float facing=pow(1.-max(0.,dot(N,V)),3.);
   color+=vec3(.24,.34,.35)*wetness*ground*facing*.19;
+  if(vMaterial>2.5)color+=mix(uFogColor,vec3(.26,.43,.49),.52)*facing*.48;
   // Subtle directional mineral sheen, biome materials stay differentiated.
   float mineral=smoothstep(.77,.96,noise3(vWorld*4.1+vec3(17.)));
   color+=base*mineral*.065*(.45+.55*visibility);
@@ -835,7 +854,7 @@ function initRenderer(){
   gl_FragColor=vec4(color,1.0);
  }`;
  let p=gl.createProgram();gl.attachShader(p,compileShader(gl.VERTEX_SHADER,vertex));gl.attachShader(p,compileShader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error('Program: '+gl.getProgramInfoLog(p));glP=p;
- gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface')};
+ gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface'),barkMap:gl.getUniformLocation(p,'uBarkMap'),leafMap:gl.getUniformLocation(p,'uLeafMap'),waterMap:gl.getUniformLocation(p,'uWaterMap')};
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{materialLibrary=new LandlordMaterialLibrary(gl);}catch(ex){console.warn('Material fallback',ex);}
@@ -2153,7 +2172,7 @@ function paintCPU(dynamicData){const W=canvas.width,H=canvas.height,c=regions[ga
  let faces=[],maxFaces=quality==='low'?2400:quality==='balanced'?4500:7500;
  const submit=(data,step=1,start=0,end=data.length/30)=>{let count=Math.min(data.length/30,end);for(let j=start;j<count;j+=step){let i=j*30,p=proj(data[i],data[i+1],data[i+2]),q=proj(data[i+10],data[i+11],data[i+12]),r=proj(data[i+20],data[i+21],data[i+22]);if(!p||!q||!r)continue;
  let minx=Math.min(p[0],q[0],r[0]),maxx=Math.max(p[0],q[0],r[0]),miny=Math.min(p[1],q[1],r[1]),maxy=Math.max(p[1],q[1],r[1]);if(maxx<0||minx>W||maxy<0||miny>H)continue;
- let normal=[data[i+3],data[i+4],data[i+5]],color=[data[i+6],data[i+7],data[i+8]],em=data[i+9];let f=.41+.66*Math.max(0,dot(normal,[-.42,.86,.34])),fog=clamp(((p[2]+q[2]+r[2])/3-26)/133,0,.93),col=color.map((v,k)=>clamp(mix(v*f+v*em*1.6,c.fog[k],fog),0,1));let rgb=col.map(v=>Math.round(Math.pow(v,.82)*255));
+ let normal=[data[i+3],data[i+4],data[i+5]],color=[data[i+6],data[i+7],data[i+8]],em=data[i+9]%16;let f=.41+.66*Math.max(0,dot(normal,[-.42,.86,.34])),fog=clamp(((p[2]+q[2]+r[2])/3-26)/133,0,.93),col=color.map((v,k)=>clamp(mix(v*f+v*em*1.6,c.fog[k],fog),0,1));let rgb=col.map(v=>Math.round(Math.pow(v,.82)*255));
  faces.push({p,q,r,z:(p[2]+q[2]+r[2])/3,col:`rgb(${rgb.join(',')})`});}
  };
  const k=zoneOf(player.z);for(let j=Math.max(0,k-1);j<=Math.min(6,k+1);j++){

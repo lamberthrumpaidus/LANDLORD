@@ -104,9 +104,9 @@ function appendVertices(target,source){for(let i=0;i<source.length;i++)target.pu
 class Mesh{
  constructor(x=0,y=0,z=0,rot=0){this.d=[];this.ox=x;this.oy=y;this.oz=z;this.c=Math.cos(rot);this.s=Math.sin(rot)}
  pt(p){return [this.ox+p[0]*this.c+p[2]*this.s,this.oy+p[1],this.oz-p[0]*this.s+p[2]*this.c]}
- tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit)}
+ tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit+(this.material||0)*16)}
  quad(a,b,c,d,col,emit=0){this.tri(a,b,c,col,emit);this.tri(a,c,d,col,emit)}
- smoothTri(points,normals,col,emit=0){const origin=this.pt([0,0,0]);for(let i=0;i<3;i++){const p=this.pt(points[i]),n=norm(sub(this.pt(normals[i]),origin));this.d.push(...p,...n,...col,emit);}}
+ smoothTri(points,normals,col,emit=0){const origin=this.pt([0,0,0]);for(let i=0;i<3;i++){const p=this.pt(points[i]),n=norm(sub(this.pt(normals[i]),origin));this.d.push(...p,...n,...col,emit+(this.material||0)*16);}}
  smoothQuad(p,n,col,emit=0){this.smoothTri([p[0],p[1],p[2]],[n[0],n[1],n[2]],col,emit);this.smoothTri([p[0],p[2],p[3]],[n[0],n[2],n[3]],col,emit);}
  slab(x,z,w,d,thickness,col,rot=0){
   const ca=Math.cos(rot),sa=Math.sin(rot),corners=[[-1,1],[1,1],[1,-1],[-1,-1]];
@@ -336,13 +336,13 @@ function vistaStructures(m,idx){
 function bambooCluster(m,xx,zz,seed,deep=false){
  const y=height(xx,zz),h=(deep?13:9)+hash(seed+7)*8,r=.14+hash(seed+14)*.08;
  const stem=[.12+.08*hash(seed+4),.26+.10*hash(seed+6),.15+.065*hash(seed+17)];
- const old=m.solidWorld;m.solidWorld=false;
+ const old=m.solidWorld,previousMaterial=m.material;m.solidWorld=false;
  const steps=7;for(let j=0;j<steps;j++){
   const a=j/steps,b=(j+1)/steps;
   const flex=Math.sin(seed*.35+j*.44)*.19;
-  m.cone(xx+flex*.4,y+h*a,zz+flex*.2,r*(1-a*.25),h/steps,tint(stem,.73+.22*j/steps),7,r*(1-b*.25),0);
+  m.material=1;m.cone(xx+flex*.4,y+h*a,zz+flex*.2,r*(1-a*.25),h/steps,tint(stem,.73+.22*j/steps),7,r*(1-b*.25),0);
   m.ring(xx+flex*.4,y+h*b,zz+flex*.2,r*(1-a*.22)*1.25,.028,[.44,.43,.18],.02);
-  if(j>=3&&j<=6){
+  if(j>=3&&j<=6){m.material=2;
    const ang=seed*1.14+j*2.399;
    const fx=Math.cos(ang),fz=Math.sin(ang),Y=y+h*b;
    const len=(1.15+hash(seed+j)*2)*(deep?1.25:1);
@@ -358,7 +358,7 @@ function bambooCluster(m,xx,zz,seed,deep=false){
    }
   }
  }
- m.solidWorld=old;
+ m.solidWorld=old;m.material=previousMaterial;
 }
 function monumentalTorii(m,cx,zz,seed=0,theme=0){
  const y=height(cx,zz),width=17+hash(seed)*2.5,col=theme===1?[.35,.21,.17]:[.43,.13,.12];
@@ -412,6 +412,7 @@ function ancientRailing(m,centerZ,side,startZ,endZ,offset=10.8){
  }
 }
 function wetlandWater(m,xx,zz,seed=1){
+ const previousMaterial=m.material;m.material=3;
  const rx=6+hash(seed+1)*4,rz=9+hash(seed+2)*5,sy=height(xx,zz)+.055;
  const col=[.067,.21,.23],foam=[.17,.44,.43];let n=28;
  for(let i=0;i<n;i++){
@@ -420,6 +421,7 @@ function wetlandWater(m,xx,zz,seed=1){
   m.tri([xx,sy,zz],p(a,.97),p(b,.97),col,.095);
   if(i%2===0)m.tri(p(a,.82),p(b,.88),p(b,.96),tint(col,1.28),.14);
  }
+ m.material=previousMaterial;
  for(let i=0;i<4;i++){
   let x=xx+(hash(seed+i*17)-.5)*rx*1.5,z=zz+(hash(seed+i*31)-.5)*rz*1.4;
   m.ring(x,sy+.035,z,.42+i*.2,.018,foam,.075);

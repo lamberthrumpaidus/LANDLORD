@@ -716,4 +716,10 @@ $('resetKeys').addEventListener('click',()=>{keybinds={...DEFAULT_KEYS};bindingP
 function isBound(action,code){return keybinds[action]===code}
 updateSettingsUI();
 let shadowState=null,shadowMatrix=null,shadowTick=0;let gl=null,glP=null,ctx=null,mode='gpu',res=1,vbo=null,staticBuffers=[],indexLocations={},drawCalls=0,clock=0,viewProj=null;
-function compileShader(type,source){let s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error('Shader: '+gl.getShaderInfoLog(s));return s}
+function compileShader(type,source){
+ // WebGL2 uses explicit GLSL ES 3.00 inputs/outputs; retain WebGL1 fallback.
+ if(typeof WebGL2RenderingContext!=='undefined'&&gl instanceof WebGL2RenderingContext){
+  if(type===gl.VERTEX_SHADER)source='#version 300 es\n'+source.replace(/\battribute\b/g,'in').replace(/\bvarying\b/g,'out');
+  else source='#version 300 es\n'+source.replace(/\bvarying\b/g,'in').replace(/\btexture2D\b/g,'texture').replace(/\bgl_FragColor\b/g,'landlordFragColor').replace(/precision highp float;/,'precision highp float;\nout vec4 landlordFragColor;');
+ }
+ let s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error('Shader: '+gl.getShaderInfoLog(s));return s}

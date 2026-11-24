@@ -5,7 +5,7 @@ function initRenderer(){
  try{
  const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
  void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vEm=aEmit;vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
- const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;varying vec4 vShadow;
+ const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  void main(){
@@ -30,7 +30,7 @@ function initRenderer(){
       float bias=.0015+(.0045*(1.-diffuse));
       float occluded=0.;
       for(int xx=-1;xx<=1;xx++)for(int yy=-1;yy<=1;yy++){
-        float nearest=texture2D(uShadow,sc.xy+vec2(float(xx),float(yy))*.00118).r;
+        float nearest=texture2D(uShadow,sc.xy+vec2(float(xx),float(yy))*uShadowTexel).r;
         occluded+=step(nearest+bias,sc.z);
       }
       visibility=1.-occluded/9.*.69;
@@ -65,7 +65,7 @@ function initRenderer(){
   gl_FragColor=vec4(color,1.0);
  }`;
  let p=gl.createProgram();gl.attachShader(p,compileShader(gl.VERTEX_SHADER,vertex));gl.attachShader(p,compileShader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error('Program: '+gl.getProgramInfoLog(p));glP=p;
- gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows')};
+ gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel')};
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{initShadows()}catch(ex){console.warn('Shadow mapping unsupported',ex);shadowState=null;}
@@ -95,7 +95,8 @@ function multiply(a,b){let r=new Float32Array(16);for(let c=0;c<4;c++)for(let ro
 function ortho(l,r,b,t,n,f){return new Float32Array([2/(r-l),0,0,0,0,2/(t-b),0,0,0,0,-2/(f-n),0,-(r+l)/(r-l),-(t+b)/(t-b),-(f+n)/(f-n),1])}
 function initShadows(){
  if(!gl||!(gl instanceof WebGL2RenderingContext))return;
- const sz=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),quality==='cinematic'?2048:quality==='high'?1536:1024);
+ if(quality==='low')return;
+ const sz=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),quality==='cinematic'?2048:quality==='high'?1024:512);
  const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);
  gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,sz,sz,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
@@ -110,6 +111,14 @@ function initShadows(){
  const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vert));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,frag));gl.linkProgram(prog);
  if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('Shadow link: '+gl.getProgramInfoLog(prog));
  shadowState={tex,fb,sz,prog,pos:gl.getAttribLocation(prog,'aPos'),vp:gl.getUniformLocation(prog,'uLightVP')};
+}
+let appliedShadowQuality=quality;
+function syncShadowQuality(){
+ if(!gl||appliedShadowQuality===quality)return;
+ appliedShadowQuality=quality;
+ if(shadowState){gl.deleteTexture(shadowState.tex);gl.deleteFramebuffer(shadowState.fb);gl.deleteProgram(shadowState.prog);}
+ shadowState=null;shadowMatrix=null;shadowTick=0;
+ try{initShadows()}catch(ex){console.warn('Shadow quality fallback',ex);}
 }
 function paintShadowMap(dynamicData){
  if(!shadowState||quality==='low')return;
@@ -127,7 +136,7 @@ function paintShadowMap(dynamicData){
 }
 
 let lastViewportW=0,lastViewportH=0;
-function resize(){res=quality==='cinematic'?Math.max(1.1,Math.min(1.75,(devicePixelRatio||1)*1.16)):quality==='high'?Math.min(devicePixelRatio||1,1.45):quality==='balanced'?Math.min(devicePixelRatio||1,1.0):.65;
+function resize(){syncShadowQuality();res=quality==='cinematic'?Math.max(1.1,Math.min(1.75,(devicePixelRatio||1)*1.16)):quality==='high'?Math.min(devicePixelRatio||1,1.45):quality==='balanced'?Math.min(devicePixelRatio||1,1.0):.65;
  res=Math.min(res,(innerWidth*innerHeight>1250000?1.05:2));
  let w=Math.max(2,Math.round(innerWidth*res)),h=Math.max(2,Math.round(innerHeight*res));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}}
 let cpuMeshes=[];

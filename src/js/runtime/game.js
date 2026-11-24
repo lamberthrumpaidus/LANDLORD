@@ -717,7 +717,13 @@ $('resetKeys').addEventListener('click',()=>{keybinds={...DEFAULT_KEYS};bindingP
 function isBound(action,code){return keybinds[action]===code}
 updateSettingsUI();
 let shadowState=null,shadowMatrix=null,shadowTick=0;let gl=null,glP=null,ctx=null,mode='gpu',res=1,vbo=null,staticBuffers=[],indexLocations={},drawCalls=0,clock=0,viewProj=null;
-function compileShader(type,source){let s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error('Shader: '+gl.getShaderInfoLog(s));return s}
+function compileShader(type,source){
+ // WebGL2 uses explicit GLSL ES 3.00 inputs/outputs; retain WebGL1 fallback.
+ if(typeof WebGL2RenderingContext!=='undefined'&&gl instanceof WebGL2RenderingContext){
+  if(type===gl.VERTEX_SHADER)source='#version 300 es\n'+source.replace(/\battribute\b/g,'in').replace(/\bvarying\b/g,'out');
+  else source='#version 300 es\n'+source.replace(/\bvarying\b/g,'in').replace(/\btexture2D\b/g,'texture').replace(/\bgl_FragColor\b/g,'landlordFragColor').replace(/precision highp float;/,'precision highp float;\nout vec4 landlordFragColor;');
+ }
+ let s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error('Shader: '+gl.getShaderInfoLog(s));return s}
 // Create by LamberthRumpaidus
 function initRenderer(){
  try{gl=canvas.getContext('webgl2',{alpha:true,antialias:true,powerPreference:'high-performance'})||canvas.getContext('webgl',{alpha:true,antialias:true,powerPreference:'high-performance'});}catch{}
@@ -725,7 +731,7 @@ function initRenderer(){
  try{
  const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
  void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vEm=aEmit;vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
- const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;varying vec4 vShadow;
+ const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  void main(){
@@ -750,7 +756,7 @@ function initRenderer(){
       float bias=.0015+(.0045*(1.-diffuse));
       float occluded=0.;
       for(int xx=-1;xx<=1;xx++)for(int yy=-1;yy<=1;yy++){
-        float nearest=texture2D(uShadow,sc.xy+vec2(float(xx),float(yy))*.00118).r;
+        float nearest=texture2D(uShadow,sc.xy+vec2(float(xx),float(yy))*uShadowTexel).r;
         occluded+=step(nearest+bias,sc.z);
       }
       visibility=1.-occluded/9.*.69;
@@ -785,7 +791,7 @@ function initRenderer(){
   gl_FragColor=vec4(color,1.0);
  }`;
  let p=gl.createProgram();gl.attachShader(p,compileShader(gl.VERTEX_SHADER,vertex));gl.attachShader(p,compileShader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error('Program: '+gl.getProgramInfoLog(p));glP=p;
- gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows')};
+ gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel')};
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{initShadows()}catch(ex){console.warn('Shadow mapping unsupported',ex);shadowState=null;}
@@ -815,7 +821,8 @@ function multiply(a,b){let r=new Float32Array(16);for(let c=0;c<4;c++)for(let ro
 function ortho(l,r,b,t,n,f){return new Float32Array([2/(r-l),0,0,0,0,2/(t-b),0,0,0,0,-2/(f-n),0,-(r+l)/(r-l),-(t+b)/(t-b),-(f+n)/(f-n),1])}
 function initShadows(){
  if(!gl||!(gl instanceof WebGL2RenderingContext))return;
- const sz=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),quality==='cinematic'?2048:quality==='high'?1536:1024);
+ if(quality==='low')return;
+ const sz=Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE),quality==='cinematic'?2048:quality==='high'?1024:512);
  const tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,tex);
  gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,sz,sz,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
@@ -830,6 +837,14 @@ function initShadows(){
  const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vert));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,frag));gl.linkProgram(prog);
  if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('Shadow link: '+gl.getProgramInfoLog(prog));
  shadowState={tex,fb,sz,prog,pos:gl.getAttribLocation(prog,'aPos'),vp:gl.getUniformLocation(prog,'uLightVP')};
+}
+let appliedShadowQuality=quality;
+function syncShadowQuality(){
+ if(!gl||appliedShadowQuality===quality)return;
+ appliedShadowQuality=quality;
+ if(shadowState){gl.deleteTexture(shadowState.tex);gl.deleteFramebuffer(shadowState.fb);gl.deleteProgram(shadowState.prog);}
+ shadowState=null;shadowMatrix=null;shadowTick=0;
+ try{initShadows()}catch(ex){console.warn('Shadow quality fallback',ex);}
 }
 function paintShadowMap(dynamicData){
  if(!shadowState||quality==='low')return;
@@ -847,7 +862,7 @@ function paintShadowMap(dynamicData){
 }
 
 let lastViewportW=0,lastViewportH=0;
-function resize(){res=quality==='cinematic'?Math.max(1.1,Math.min(1.75,(devicePixelRatio||1)*1.16)):quality==='high'?Math.min(devicePixelRatio||1,1.45):quality==='balanced'?Math.min(devicePixelRatio||1,1.0):.65;
+function resize(){syncShadowQuality();res=quality==='cinematic'?Math.max(1.1,Math.min(1.75,(devicePixelRatio||1)*1.16)):quality==='high'?Math.min(devicePixelRatio||1,1.45):quality==='balanced'?Math.min(devicePixelRatio||1,1.0):.65;
  res=Math.min(res,(innerWidth*innerHeight>1250000?1.05:2));
  let w=Math.max(2,Math.round(innerWidth*res)),h=Math.max(2,Math.round(innerHeight*res));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}if(gl&&(lastViewportW!==w||lastViewportH!==h)){gl.viewport(0,0,w,h);lastViewportW=w;lastViewportH=h}}
 let cpuMeshes=[];
@@ -2014,8 +2029,19 @@ function computeCamera(dt){
  let target=[x+Math.sin(horizontal)*lookAhead,y+1.85-lookAhead*Math.tan(pitch),z+Math.cos(horizontal)*lookAhead];
  let eye=[x-Math.sin(horizontal)*dist*Math.cos(pitch),y+2.05+dist*Math.sin(pitch),z-Math.cos(horizontal)*dist*Math.cos(pitch)];
  if(viewMode==='fpp'&&game.state==='playing'){eye=[x,y+2.55,z];target=[x+Math.sin(horizontal)*16*Math.cos(pitch),y+2.55-16*Math.sin(pitch),z+Math.cos(horizontal)*16*Math.cos(pitch)];}
+ // Sweep a small camera volume from the hero to the desired camera position.
+ if(viewMode!=='fpp'||game.state!=='playing'){
+  const anchor=[x,y+2.05,z],delta=eye.map((v,i)=>v-anchor[i]);
+  const len=Math.hypot(...delta),steps=Math.max(1,Math.ceil(len/.25));let clear=0;
+  for(let i=1;i<=steps;i++){
+   const t=i/steps,px=anchor[0]+delta[0]*t,py=anchor[1]+delta[1]*t,pz=anchor[2]+delta[2]*t;
+   if(blocking(px,pz,.32,py-.32,.64)||py<height(px,pz)+.35)break;
+   clear=t;
+  }
+  if(clear<1){const safe=Math.max(0,clear-.2/Math.max(len,.2));eye=anchor.map((v,i)=>v+delta[i]*safe);}
+ }
  // Prevent camera clipping below elevated terrain.
- if(viewMode!=='fpp'||game.state!=='playing')eye[1]=Math.max(eye[1],height(eye[0],eye[2])+2.1);
+ if(viewMode!=='fpp'||game.state!=='playing')eye[1]=Math.max(eye[1],height(eye[0],eye[2])+.35);
  if(shake>0){let amount=shake*.6;eye[0]+=(Math.random()-.5)*amount;eye[1]+=(Math.random()-.5)*amount}
  if(player.cameraKick>0){eye[1]+=player.cameraKick*.41;target[1]-=player.cameraKick*.33;}
  camEye=eye;camFocus=target;
@@ -2033,7 +2059,7 @@ function paintWebGL(dynamicData){if(shadowState&&quality!=='low'&&shadowTick++%2
  gl.uniform4f(a.torch0,x0,height(x0,z0)+1.8,z0,16);
  gl.uniform4f(a.torch1,x1,height(x1,z1)+1.8,z1,16);
  gl.uniform3f(a.torchColor,.99,.57,.22);
- gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);
+ gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);gl.uniform1f(a.shadowTexel,shadowState?1/shadowState.sz:1/1024);
  if(shadowState){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shadowState.tex);gl.uniform1i(a.shadow,0);}
  let k=zoneOf(player.z),range=quality==='low'?1:1;
  for(let j=Math.max(0,k-range);j<=Math.min(6,k+range);j++){
@@ -2620,7 +2646,7 @@ try{
  if(saved){$('play').textContent=T('start')}
  // Show the rendered 3D world in the title, too.
  requestAnimationFrame(loop);
- window.Landlord3D={getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,quality,state:game.state}),start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
+ window.Landlord3D={getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,quality,shadowResolution:shadowState?.sz||0,state:game.state}),start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
  collisionAt:(x,z,y,r=.72)=>{const a=blocking(x,z,r,y,2.65);return a?{kind:a.kind,minY:a.minY,maxY:a.maxY,x:a.x,z:a.z}:null},
  setPlayerAltitude:(y)=>{player.y=y;player.grounded=false;return player.y},
  getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:true,x:player.x,z:player.z}),

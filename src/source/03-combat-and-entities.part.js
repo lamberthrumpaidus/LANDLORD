@@ -651,8 +651,19 @@ function computeCamera(dt){
  let target=[x+Math.sin(horizontal)*lookAhead,y+1.85-lookAhead*Math.tan(pitch),z+Math.cos(horizontal)*lookAhead];
  let eye=[x-Math.sin(horizontal)*dist*Math.cos(pitch),y+2.05+dist*Math.sin(pitch),z-Math.cos(horizontal)*dist*Math.cos(pitch)];
  if(viewMode==='fpp'&&game.state==='playing'){eye=[x,y+2.55,z];target=[x+Math.sin(horizontal)*16*Math.cos(pitch),y+2.55-16*Math.sin(pitch),z+Math.cos(horizontal)*16*Math.cos(pitch)];}
+ // Sweep a small camera volume from the hero to the desired camera position.
+ if(viewMode!=='fpp'||game.state!=='playing'){
+  const anchor=[x,y+2.05,z],delta=eye.map((v,i)=>v-anchor[i]);
+  const len=Math.hypot(...delta),steps=Math.max(1,Math.ceil(len/.25));let clear=0;
+  for(let i=1;i<=steps;i++){
+   const t=i/steps,px=anchor[0]+delta[0]*t,py=anchor[1]+delta[1]*t,pz=anchor[2]+delta[2]*t;
+   if(blocking(px,pz,.32,py-.32,.64)||py<height(px,pz)+.35)break;
+   clear=t;
+  }
+  if(clear<1){const safe=Math.max(0,clear-.2/Math.max(len,.2));eye=anchor.map((v,i)=>v+delta[i]*safe);}
+ }
  // Prevent camera clipping below elevated terrain.
- if(viewMode!=='fpp'||game.state!=='playing')eye[1]=Math.max(eye[1],height(eye[0],eye[2])+2.1);
+ if(viewMode!=='fpp'||game.state!=='playing')eye[1]=Math.max(eye[1],height(eye[0],eye[2])+.35);
  if(shake>0){let amount=shake*.6;eye[0]+=(Math.random()-.5)*amount;eye[1]+=(Math.random()-.5)*amount}
  if(player.cameraKick>0){eye[1]+=player.cameraKick*.41;target[1]-=player.cameraKick*.33;}
  camEye=eye;camFocus=target;
@@ -670,7 +681,7 @@ function paintWebGL(dynamicData){if(shadowState&&quality!=='low'&&shadowTick++%2
  gl.uniform4f(a.torch0,x0,height(x0,z0)+1.8,z0,16);
  gl.uniform4f(a.torch1,x1,height(x1,z1)+1.8,z1,16);
  gl.uniform3f(a.torchColor,.99,.57,.22);
- gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);
+ gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);gl.uniform1f(a.shadowTexel,shadowState?1/shadowState.sz:1/1024);
  if(shadowState){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shadowState.tex);gl.uniform1i(a.shadow,0);}
  let k=zoneOf(player.z),range=quality==='low'?1:1;
  for(let j=Math.max(0,k-range);j<=Math.min(6,k+range);j++){

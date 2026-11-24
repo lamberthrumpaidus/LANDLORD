@@ -71,3 +71,6 @@ Enemy attack direction is locked at wind-up. Shared combat geometry rules reject
 
 ## Checkpoint 13 — realm identity art pass
 Added seven actual world-space landmarks: ferryman watchtower, heartroot tree, colossal rib remains, funeral bell towers, Cinder Citadel, suspended islands, and eclipse crown. Added distinct sky treatments for every realm and preserve the original road and portals. New geometry is counted and checked during real Chrome startup. Realm screenshots now wait for the intro title to clear. These are handcrafted procedural models, not imported AAA assets. Pending CI.
+
+## Atlas visual polish
+Reviewed actual desktop and mobile screenshots from successful run 45330774866. Replaced the unsupported recenter glyph with a native inline SVG crosshair. Keep fog-of-war intact.

@@ -7,3 +7,5 @@
 #atlasZoomValue{font:600 11px system-ui;color:#e0d5bf;min-width:40px}
 #realmJump:not([hidden])~#atlasTools{bottom:92px}
 @media(max-width:600px){#atlasTools{right:14px;bottom:20px}#atlasTools button{width:38px;height:38px}#realmJump:not([hidden])~#atlasTools{bottom:116px}}
+
+#atlasCenter{display:grid;place-items:center}#atlasCenter svg{display:block;pointer-events:none}

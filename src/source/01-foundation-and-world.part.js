@@ -104,6 +104,15 @@ class Mesh{
  pt(p){return [this.ox+p[0]*this.c+p[2]*this.s,this.oy+p[1],this.oz-p[0]*this.s+p[2]*this.c]}
  tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit)}
  quad(a,b,c,d,col,emit=0){this.tri(a,b,c,col,emit);this.tri(a,c,d,col,emit)}
+ smoothTri(points,normals,col,emit=0){const origin=this.pt([0,0,0]);for(let i=0;i<3;i++){const p=this.pt(points[i]),n=norm(sub(this.pt(normals[i]),origin));this.d.push(...p,...n,...col,emit);}}
+ smoothQuad(p,n,col,emit=0){this.smoothTri([p[0],p[1],p[2]],[n[0],n[1],n[2]],col,emit);this.smoothTri([p[0],p[2],p[3]],[n[0],n[2],n[3]],col,emit);}
+ slab(x,z,w,d,thickness,col,rot=0){
+  const ca=Math.cos(rot),sa=Math.sin(rot),corners=[[-1,1],[1,1],[1,-1],[-1,-1]];
+  const ring=(inset,dy)=>corners.map(([u,v])=>{const dx=u*(w*.5-inset),dz=v*(d*.5-inset),xx=x+ca*dx+sa*dz,zz=z-sa*dx+ca*dz;return [xx,height(xx,zz)+dy,zz]});
+  const top=ring(.065,thickness),edge=ring(0,thickness-.052),bottom=ring(0,-.055);
+  this.quad(...top,col);
+  for(let i=0;i<4;i++){let j=(i+1)%4;this.quad(bottom[j],bottom[i],edge[i],edge[j],tint(col,.64));this.quad(edge[j],edge[i],top[i],top[j],tint(col,.84));}
+ }
  box(x,y,z,w,h,d,col,emit=0,ry=0){
  if(this.solidWorld&&h>=.9&&w>.35&&d>.35){
   const center=this.pt([x,0,z]),angle=Math.atan2(this.s,this.c)+ry;
@@ -120,11 +129,11 @@ class Mesh{
  }
  cone(x,y,z,r,h,col,n=7,top=0,emit=0){
  if(this.solidWorld&&h>1.7&&r>.24){let p=this.pt([x,0,z]);addSolid(p[0],p[2],Math.min(2.1,r*.44),this.oy+y-.25,this.oy+y+h);}
- const base=[],upper=[];for(let i=0;i<n;i++){let a=i/n*TAU;base.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);upper.push([x+Math.cos(a)*top,y+h,z+Math.sin(a)*top]);}for(let i=0;i<n;i++){let q=(i+1)%n;this.quad(base[i],base[q],upper[q],upper[i],tint(col,.88+.17*hash(i+z)),emit)}for(let i=1;i<n-1;i++){this.tri(upper[0],upper[i],upper[i+1],tint(col,1.13),emit);this.tri(base[0],base[i+1],base[i],col,emit)}}
+ const base=[],upper=[];for(let i=0;i<n;i++){let a=i/n*TAU;base.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);upper.push([x+Math.cos(a)*top,y+h,z+Math.sin(a)*top]);}for(let i=0;i<n;i++){let q=(i+1)%n;this.quad(base[q],base[i],upper[i],upper[q],tint(col,.91+.09*hash(i+z)),emit)}for(let i=1;i<n-1;i++){this.tri(upper[0],upper[i+1],upper[i],tint(col,1.13),emit);this.tri(base[0],base[i],base[i+1],col,emit)}}
  sphere(x,y,z,r,col,rings=5,sides=8,emit=0){for(let j=0;j<rings;j++){let v0=j/rings*Math.PI,v1=(j+1)/rings*Math.PI;for(let i=0;i<sides;i++){let u0=i/sides*TAU,u1=(i+1)/sides*TAU;let p=(u,v)=>[x+Math.cos(u)*Math.sin(v)*r,y+Math.cos(v)*r,z+Math.sin(u)*Math.sin(v)*r];this.quad(p(u0,v0),p(u1,v0),p(u1,v1),p(u0,v1),tint(col,.93+.13*Math.sin(u0)),emit)}}}
  spike(x,y,z,r,h,col,emit=.35){
  if(this.solidWorld&&h>=1.4&&r>.35){let p=this.pt([x,0,z]);addSolid(p[0],p[2],r*.63,this.oy+y-.1,this.oy+y+h);}
- let v=8,lower=[],middle=[],tip=[x,y+h,z];for(let i=0;i<v;i++){let a=i*TAU/v;lower.push([x+Math.cos(a)*r*.43,y,z+Math.sin(a)*r*.43]);middle.push([x+Math.cos(a)*r,y+h*.38,z+Math.sin(a)*r])}for(let i=0;i<v;i++){let k=(i+1)%v;this.quad(lower[i],lower[k],middle[k],middle[i],tint(col,.74+.1*hash(i)),emit);this.tri(middle[i],middle[k],tip,tint(col,.9+.22*hash(i+5)),emit)}}
+ let v=8,lower=[],middle=[],tip=[x,y+h,z];for(let i=0;i<v;i++){let a=i*TAU/v;lower.push([x+Math.cos(a)*r*.43,y,z+Math.sin(a)*r*.43]);middle.push([x+Math.cos(a)*r,y+h*.38,z+Math.sin(a)*r])}for(let i=0;i<v;i++){let k=(i+1)%v;this.quad(lower[k],lower[i],middle[i],middle[k],tint(col,.74+.1*hash(i)),emit);this.tri(middle[k],middle[i],tip,tint(col,.9+.22*hash(i+5)),emit)}}
  rock(x,y,z,r,col,seed=1){
  if(this.solidWorld&&r>.55){let p=this.pt([x,0,z]);addSolid(p[0],p[2],r*.78,this.oy+y-.2,this.oy+y+r*1.6);}
  let n=7;let points=[];for(let i=0;i<n;i++){let a=i*TAU/n;points.push([x+Math.cos(a)*r*(.8+.4*hash(seed+i)),y,z+Math.sin(a)*r*(.7+.4*hash(seed+i+18))]);}let tip=[x+(hash(seed+99)-.5)*r*.5,y+r*(.7+hash(seed+50)*.8),z+(hash(seed+59)-.5)*r*.5];for(let i=0;i<n;i++)this.tri(points[i],points[(i+1)%n],tip,tint(col,.7+hash(seed+i+8)*.46))}
@@ -171,7 +180,8 @@ Mesh.prototype.ellipsoid=function(x,y,z,rx,ry,rz,col,emit=0,rings=9,sides=13){
   for(let j=0;j<rings;j++){const a=j*Math.PI/rings,b=(j+1)*Math.PI/rings;
     for(let i=0;i<sides;i++){const c=i*TAU/sides,d=(i+1)*TAU/sides;
       const p=(u,v)=>[x+rx*Math.cos(u)*Math.sin(v),y+ry*Math.cos(v),z+rz*Math.sin(u)*Math.sin(v)];
-      this.quad(p(c,a),p(d,a),p(d,b),p(c,b),tint(col,.94+.06*Math.sin(c*2)),emit);
+      const n=(u,v)=>norm([Math.cos(u)*Math.sin(v)/rx,Math.cos(v)/ry,Math.sin(u)*Math.sin(v)/rz]);
+      this.smoothQuad([p(c,a),p(d,a),p(d,b),p(c,b)],[n(c,a),n(d,a),n(d,b),n(c,b)],col,emit);
     }
   }
 };
@@ -250,7 +260,7 @@ function carvedRoad(m,idx){
    let xx=center+lane*1.38+(row%2?.36:0)+(hash(seed+3)-.5)*.12;
    const y=height(xx,z),w=1.16+hash(seed+7)*.20,d=1.05+hash(seed+17)*.17;
    let factor=.58+hash(seed+26)*.25,roadColor=tint(col,factor+(lane%3===0?.08:0));
-   m.box(xx,y+.045,z,w,.12+hash(seed+9)*.09,d,roadColor,0,(hash(seed+35)-.5)*.12);
+   m.slab(xx,z,w,d,.09+hash(seed+9)*.035,roadColor,(hash(seed+35)-.5)*.12);
    if(hash(seed+41)>.962)m.spike(xx,y+.13,z,.18,.2,reg.accent,.15);
   }
  }
@@ -651,7 +661,7 @@ function groundMesh(index){let m=new Mesh();m.solidWorld=true;let c=regions[inde
  let z0=st+j*LEN/rows,z1=st+(j+1)*LEN/rows;
  let a=[x0,height(x0,z0),z0],b=[x1,height(x1,z0),z0],d=[x0,height(x0,z1),z1],cc=[x1,height(x1,z1),z1];
  let fleck=.86+rand2(i+index*29,j)*.24;
- let road=Math.max(0,1-Math.abs((x0+x1)*.5)/15);
+ let road=Math.max(0,1-Math.abs((x0+x1)*.5-roadCenter((z0+z1)*.5))/15);
  let col=tint(c.ground,fleck*(1-road*.12));
  m.tri(a,cc,b,col);m.tri(a,d,cc,tint(col,.94));
  // geological strata on terrain outer limits, real vertical sides.

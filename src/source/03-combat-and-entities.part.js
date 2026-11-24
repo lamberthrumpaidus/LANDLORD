@@ -305,7 +305,8 @@ function limb(m,a,b,ra,rb,col,emit=0,sides=7){
  let axis=norm(sub(b,a)),ref=Math.abs(axis[1])>.92?[0,0,1]:[0,1,0],right=norm(cross(axis,ref)),up=norm(cross(right,axis));
  for(let i=0;i<sides;i++){let t=i*TAU/sides,u=(i+1)*TAU/sides;
    const point=(ctr,r,k)=>add(ctr,add(scale(right,Math.cos(k)*r),scale(up,Math.sin(k)*r)));
-   m.quad(point(a,ra,t),point(a,ra,u),point(b,rb,u),point(b,rb,t),tint(col,.84+.18*Math.cos(t)),emit);
+   const n=k=>norm(add(scale(right,Math.cos(k)),scale(up,Math.sin(k))));
+   m.smoothQuad([point(a,ra,u),point(a,ra,t),point(b,rb,t),point(b,rb,u)],[n(u),n(t),n(t),n(u)],col,emit);
  }
 }
 // LANDLORD VI / BLADE DANCE — full-body pose blending with articulated arms, sword and cloth.
@@ -322,7 +323,7 @@ function bladeSteel(m,base,tip,steel,glow){
  limb(m,add(base,scale(v,.15)),add(tip,scale(v,-.19)),.025,.012,glow,.77,5);
 }
 function playerModel(m){
- const p=player,steel=[.37,.46,.55],polish=[.71,.79,.86],iron=[.19,.26,.34],gold=[.86,.63,.36],leather=[.23,.14,.16],royal=[.25,.12,.18],magic=[.49,.86,1];
+ const p=player,steel=[.24,.32,.39],polish=[.40,.49,.55],iron=[.075,.105,.145],gold=[.56,.39,.18],leather=[.10,.07,.08],royal=[.20,.045,.065],magic=[.28,.78,.90];
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
  const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0;
  const bob=p.grounded?Math.sin(phase*2)*.047*activity*(1-attackBlend*.65):0;
@@ -364,15 +365,17 @@ function playerModel(m){
  for(let j=-2;j<=2;j++)m.box(j*.25,hips-.26,.24-Math.abs(j)*.05,.22,.48,.29,tint(steel,.78+j*.025),0,j*.08);
  // Neck, visor, head, crest; subtly pitch into each attack for weight.
  m.ellipsoid(0,chest+.75,0,.32,.29,.30,iron,0,6,9);
- m.ellipsoid(0,chest+1.08,.02,.43,.52,.40,polish,0,9,12);
- m.ellipsoid(0,chest+1.24,.26,.37,.25,.20,steel,0,6,11);
- m.box(0,chest+1.05,.40,.71,.16,.15,[.06,.1,.15]);
+ m.ellipsoid(0,chest+1.06,.02,.37,.48,.36,steel,0,12,18);
+ m.ellipsoid(0,chest+1.36,-.05,.28,.16,.30,polish,0,8,14);
+ m.ellipsoid(0,chest+1.22,.25,.32,.21,.18,iron,0,8,14);
+ m.box(0,chest+1.07,.36,.60,.10,.15,[.018,.025,.036]);
  m.box(0,chest+.96,.37,.6,.11,.17,[.06,.11,.15]);
  for(const side of [-1,1]){
-   m.ellipsoid(side*.18,chest+1.1,.49,.11,.07,.04,magic,1,4,7);
-   m.spike(side*.3,chest+1.46,0,.22,.68,gold,.13);
+   m.ellipsoid(side*.14,chest+1.08,.435,.085,.025,.024,magic,.42,4,8);
+   m.box(side*.34,chest+1.14,-.02,.075,.42,.30,tint(gold,.77),0,side*.04);
  }
- m.spike(0,chest+1.54,-.16,.3,.93,tint(royal,1.6),0);
+ m.ellipsoid(0,chest+1.53,-.13,.11,.15,.35,tint(royal,1.4),0,7,13);
+ for(let i=0;i<5;i++)m.box(0,chest+.91+i*.08,-.325,.12,.027,.035,gold);
  m.box(0,chest+.65,-.01,1.28,.21,.70,tint(steel,.9));
  // Joint chain: shoulders -> elbows -> wrists, with independently posed hands.
  for(const side of [-1,1]){
@@ -388,8 +391,9 @@ function playerModel(m){
      elbow=[-1.10+cast*.24,chest-.14+cast*.50,armSwing*.4+attackBlend*.18+cast*.22];
    }
    if(airborne){hand[1]+=.25;elbow[1]+=.18;}if(game.flying){hand[0]+=side*.37;hand[1]+=.21;elbow[0]+=side*.25;}
-   m.ellipsoid(side*.79,chest+.38,-.04,.45,.31,.49,polish,0,6,9);
-   m.spike(side*.85,chest+.53,-.1,.19,.45,gold,.1);
+   m.ellipsoid(side*.79,chest+.34,-.04,.43,.28,.46,iron,0,9,14);
+   for(let plate=0;plate<3;plate++){const shift=plate*.095;m.ellipsoid(side*(.74+shift),chest+.46-plate*.135,-.055,.36-plate*.035,.12,.40-plate*.018,plate===0?polish:steel,0,7,14);}
+   m.box(side*.85,chest+.50,-.33,.17,.07,.08,gold);
    limb(m,shoulder,elbow,.25,.20,steel,0,9);
    m.ellipsoid(...elbow,.23,.23,.23,gold,0,5,8);
    limb(m,elbow,hand,.21,.15,iron,0,9);
@@ -415,9 +419,10 @@ function playerModel(m){
      const a=j/7,b=(j+1)/7;
      const fx=(x,t)=>x*(1+.34*t)+p.lean*t*.55+Math.sin(pose.progress*TAU)*pose.twist*.22*t;
      const fy=t=>chest+.48-t*2.43;
-     const fz=(x,t)=>-.41-t*(.2+.55*activity)-.28*Math.sin(clock*3.1+t*4+strip*.32)*t-.34*flutter*t-pose.lunge*t*.39;
+     const fz=(x,t)=>-.46-t*(.18+.55*activity)-.10*Math.cos(x*15)*(.35+t)-.18*Math.sin(clock*3.1+t*4+x*2)*t-.34*flutter*t-pose.lunge*t*.39;
      m.quad([fx(x0,a),fy(a),fz(x0,a)],[fx(x1,a),fy(a),fz(x1,a)],
-            [fx(x1,b),fy(b),fz(x1,b)],[fx(x0,b),fy(b),fz(x0,b)],tint(royal,.65+strip*.025+j*.021));
+            [fx(x1,b),fy(b),fz(x1,b)],[fx(x0,b),fy(b),fz(x0,b)],tint(royal,(strip===0||strip===10)?.67:.83+.12*Math.cos(strip*1.9)+j*.018));
+     if(strip===0||strip===10){const x=strip===0?x0:x1,dx=strip===0?.045:-.045;const p0=[fx(x,a),fy(a),fz(x,a)-.014],p1=[fx(x+dx,a),fy(a),fz(x+dx,a)-.014],p2=[fx(x+dx,b),fy(b),fz(x+dx,b)-.014],p3=[fx(x,b),fy(b),fz(x,b)-.014];m.quad(p0,p1,p2,p3,tint(gold,.78));}
    }
  }
  m.pt=oldPt;
@@ -685,11 +690,11 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  gl.uniform3f(a.torchColor,.99,.57,.22);
  gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);gl.uniform1f(a.shadowTexel,shadowState?1/shadowState.sz:1/1024);
  if(shadowState){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shadowState.tex);gl.uniform1i(a.shadow,0);}
- let k=zoneOf(player.z),range=1,frustum=LandlordGeometry.planes(viewProj);
+ gl.uniform1f(a.worldSurface,1);let k=zoneOf(player.z),range=1,frustum=LandlordGeometry.planes(viewProj);
  for(let j=Math.max(0,k-range);j<=Math.min(6,k+range);j++){
  let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);for(const chunk of r.chunks){if(!LandlordGeometry.visible(chunk,frustum))continue;gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;visibleChunks++;submittedTriangles+=chunk.count/3;}
  }
- gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
+ gl.uniform1f(a.worldSurface,0);gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
  drawCalls+=cinematicPipeline?.end()||0;
 }
 function paintCPU(dynamicData){const W=canvas.width,H=canvas.height,c=regions[game.zone],dpr=W/innerWidth;

@@ -1,5 +1,5 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-nextgen-20261124-04';
+const CACHE='landlord-nextgen-20261124-05';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
@@ -24,6 +24,7 @@ const CORE=[
   "src/css/brand-menu.css",
   "src/css/final.css",
   "src/css/sonic-hd.css",
+  "src/css/nextgen-hud.css",
   "src/js/audio/soundscape.js",
   "src/js/runtime/game.js",
   "src/js/ui/mobile-safe-area.js",

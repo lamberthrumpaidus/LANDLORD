@@ -75,7 +75,9 @@ def run(mobile):
         wait(lambda:js('return Landlord3D.getStatus().materialTextures===2'),60)
         wait(lambda:js('return Landlord3D.getStatus().postFX.frames>0'),60)
         assert not js('return Landlord3D.gpuErrors()'),'WebGL error after post-processing'
-        # Capture the actual rendered game, not a design mockup.
+        # Capture the actual rendered game after the chapter intro has cleared.
+        wait(lambda:js('return Landlord3D.getStatus().splashTime<=0'),45)
+        assert js("return getComputedStyle(document.getElementById('hpText')).display!=='none'&&document.getElementById('bones').getBoundingClientRect().width>0")
         out=ROOT/'test-results'
         out.mkdir(exist_ok=True)
         (out/('mobile.png' if mobile else 'desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))

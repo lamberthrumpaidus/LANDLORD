@@ -30,3 +30,10 @@ Previous verified baseline: 5c111222, run 45328001276 passed desktop/mobile WebG
 - Localized sword-animation hit-stop without delaying dash, movement or physics; directional camera impact; melee vertical/obstacle checks.
 - Particle budgets and adaptive internal resolution keep the user's selected graphics preset; graphics changes no longer regenerate the world or reset destructibles.
 - Expanded real Chrome regression checks for four quality presets, persistent destructibles, dash, attack, triple jump, air dash and emulated three-finger input.
+
+## Checkpoint 05 — visual iteration after screenshot review
+- Reviewed actual checkpoint 03 screenshots (run 45328542646): faceted bright armor, tiled road and hidden numeric HUD needed improvement.
+- Smooth vertex normals on ellipsoids and articulated limbs; corrected cone and crystal side normals; darker layered armor, helmet, cape stitching; bevelled terrain-conforming cobblestones.
+- Lower overexposure and lantern intensity; separate world texture influence from character materials.
+- Compact HUD now displays HP, mana, Essence, level, Seals and Relics, with reduced-motion support.
+- Capture browser screenshots after chapter splash is gone; browser verification pending.

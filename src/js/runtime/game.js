@@ -105,6 +105,15 @@ class Mesh{
  pt(p){return [this.ox+p[0]*this.c+p[2]*this.s,this.oy+p[1],this.oz-p[0]*this.s+p[2]*this.c]}
  tri(a,b,c,col,emit=0){a=this.pt(a);b=this.pt(b);c=this.pt(c);const n=norm(cross(sub(b,a),sub(c,a)));for(const p of [a,b,c])this.d.push(...p,...n,...col,emit)}
  quad(a,b,c,d,col,emit=0){this.tri(a,b,c,col,emit);this.tri(a,c,d,col,emit)}
+ smoothTri(points,normals,col,emit=0){const origin=this.pt([0,0,0]);for(let i=0;i<3;i++){const p=this.pt(points[i]),n=norm(sub(this.pt(normals[i]),origin));this.d.push(...p,...n,...col,emit);}}
+ smoothQuad(p,n,col,emit=0){this.smoothTri([p[0],p[1],p[2]],[n[0],n[1],n[2]],col,emit);this.smoothTri([p[0],p[2],p[3]],[n[0],n[2],n[3]],col,emit);}
+ slab(x,z,w,d,thickness,col,rot=0){
+  const ca=Math.cos(rot),sa=Math.sin(rot),corners=[[-1,1],[1,1],[1,-1],[-1,-1]];
+  const ring=(inset,dy)=>corners.map(([u,v])=>{const dx=u*(w*.5-inset),dz=v*(d*.5-inset),xx=x+ca*dx+sa*dz,zz=z-sa*dx+ca*dz;return [xx,height(xx,zz)+dy,zz]});
+  const top=ring(.065,thickness),edge=ring(0,thickness-.052),bottom=ring(0,-.055);
+  this.quad(...top,col);
+  for(let i=0;i<4;i++){let j=(i+1)%4;this.quad(bottom[j],bottom[i],edge[i],edge[j],tint(col,.64));this.quad(edge[j],edge[i],top[i],top[j],tint(col,.84));}
+ }
  box(x,y,z,w,h,d,col,emit=0,ry=0){
  if(this.solidWorld&&h>=.9&&w>.35&&d>.35){
   const center=this.pt([x,0,z]),angle=Math.atan2(this.s,this.c)+ry;
@@ -121,11 +130,11 @@ class Mesh{
  }
  cone(x,y,z,r,h,col,n=7,top=0,emit=0){
  if(this.solidWorld&&h>1.7&&r>.24){let p=this.pt([x,0,z]);addSolid(p[0],p[2],Math.min(2.1,r*.44),this.oy+y-.25,this.oy+y+h);}
- const base=[],upper=[];for(let i=0;i<n;i++){let a=i/n*TAU;base.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);upper.push([x+Math.cos(a)*top,y+h,z+Math.sin(a)*top]);}for(let i=0;i<n;i++){let q=(i+1)%n;this.quad(base[i],base[q],upper[q],upper[i],tint(col,.88+.17*hash(i+z)),emit)}for(let i=1;i<n-1;i++){this.tri(upper[0],upper[i],upper[i+1],tint(col,1.13),emit);this.tri(base[0],base[i+1],base[i],col,emit)}}
+ const base=[],upper=[];for(let i=0;i<n;i++){let a=i/n*TAU;base.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);upper.push([x+Math.cos(a)*top,y+h,z+Math.sin(a)*top]);}for(let i=0;i<n;i++){let q=(i+1)%n;this.quad(base[q],base[i],upper[i],upper[q],tint(col,.91+.09*hash(i+z)),emit)}for(let i=1;i<n-1;i++){this.tri(upper[0],upper[i+1],upper[i],tint(col,1.13),emit);this.tri(base[0],base[i],base[i+1],col,emit)}}
  sphere(x,y,z,r,col,rings=5,sides=8,emit=0){for(let j=0;j<rings;j++){let v0=j/rings*Math.PI,v1=(j+1)/rings*Math.PI;for(let i=0;i<sides;i++){let u0=i/sides*TAU,u1=(i+1)/sides*TAU;let p=(u,v)=>[x+Math.cos(u)*Math.sin(v)*r,y+Math.cos(v)*r,z+Math.sin(u)*Math.sin(v)*r];this.quad(p(u0,v0),p(u1,v0),p(u1,v1),p(u0,v1),tint(col,.93+.13*Math.sin(u0)),emit)}}}
  spike(x,y,z,r,h,col,emit=.35){
  if(this.solidWorld&&h>=1.4&&r>.35){let p=this.pt([x,0,z]);addSolid(p[0],p[2],r*.63,this.oy+y-.1,this.oy+y+h);}
- let v=8,lower=[],middle=[],tip=[x,y+h,z];for(let i=0;i<v;i++){let a=i*TAU/v;lower.push([x+Math.cos(a)*r*.43,y,z+Math.sin(a)*r*.43]);middle.push([x+Math.cos(a)*r,y+h*.38,z+Math.sin(a)*r])}for(let i=0;i<v;i++){let k=(i+1)%v;this.quad(lower[i],lower[k],middle[k],middle[i],tint(col,.74+.1*hash(i)),emit);this.tri(middle[i],middle[k],tip,tint(col,.9+.22*hash(i+5)),emit)}}
+ let v=8,lower=[],middle=[],tip=[x,y+h,z];for(let i=0;i<v;i++){let a=i*TAU/v;lower.push([x+Math.cos(a)*r*.43,y,z+Math.sin(a)*r*.43]);middle.push([x+Math.cos(a)*r,y+h*.38,z+Math.sin(a)*r])}for(let i=0;i<v;i++){let k=(i+1)%v;this.quad(lower[k],lower[i],middle[i],middle[k],tint(col,.74+.1*hash(i)),emit);this.tri(middle[k],middle[i],tip,tint(col,.9+.22*hash(i+5)),emit)}}
  rock(x,y,z,r,col,seed=1){
  if(this.solidWorld&&r>.55){let p=this.pt([x,0,z]);addSolid(p[0],p[2],r*.78,this.oy+y-.2,this.oy+y+r*1.6);}
  let n=7;let points=[];for(let i=0;i<n;i++){let a=i*TAU/n;points.push([x+Math.cos(a)*r*(.8+.4*hash(seed+i)),y,z+Math.sin(a)*r*(.7+.4*hash(seed+i+18))]);}let tip=[x+(hash(seed+99)-.5)*r*.5,y+r*(.7+hash(seed+50)*.8),z+(hash(seed+59)-.5)*r*.5];for(let i=0;i<n;i++)this.tri(points[i],points[(i+1)%n],tip,tint(col,.7+hash(seed+i+8)*.46))}
@@ -172,7 +181,8 @@ Mesh.prototype.ellipsoid=function(x,y,z,rx,ry,rz,col,emit=0,rings=9,sides=13){
   for(let j=0;j<rings;j++){const a=j*Math.PI/rings,b=(j+1)*Math.PI/rings;
     for(let i=0;i<sides;i++){const c=i*TAU/sides,d=(i+1)*TAU/sides;
       const p=(u,v)=>[x+rx*Math.cos(u)*Math.sin(v),y+ry*Math.cos(v),z+rz*Math.sin(u)*Math.sin(v)];
-      this.quad(p(c,a),p(d,a),p(d,b),p(c,b),tint(col,.94+.06*Math.sin(c*2)),emit);
+      const n=(u,v)=>norm([Math.cos(u)*Math.sin(v)/rx,Math.cos(v)/ry,Math.sin(u)*Math.sin(v)/rz]);
+      this.smoothQuad([p(c,a),p(d,a),p(d,b),p(c,b)],[n(c,a),n(d,a),n(d,b),n(c,b)],col,emit);
     }
   }
 };
@@ -251,7 +261,7 @@ function carvedRoad(m,idx){
    let xx=center+lane*1.38+(row%2?.36:0)+(hash(seed+3)-.5)*.12;
    const y=height(xx,z),w=1.16+hash(seed+7)*.20,d=1.05+hash(seed+17)*.17;
    let factor=.58+hash(seed+26)*.25,roadColor=tint(col,factor+(lane%3===0?.08:0));
-   m.box(xx,y+.045,z,w,.12+hash(seed+9)*.09,d,roadColor,0,(hash(seed+35)-.5)*.12);
+   m.slab(xx,z,w,d,.09+hash(seed+9)*.035,roadColor,(hash(seed+35)-.5)*.12);
    if(hash(seed+41)>.962)m.spike(xx,y+.13,z,.18,.2,reg.accent,.15);
   }
  }
@@ -652,7 +662,7 @@ function groundMesh(index){let m=new Mesh();m.solidWorld=true;let c=regions[inde
  let z0=st+j*LEN/rows,z1=st+(j+1)*LEN/rows;
  let a=[x0,height(x0,z0),z0],b=[x1,height(x1,z0),z0],d=[x0,height(x0,z1),z1],cc=[x1,height(x1,z1),z1];
  let fleck=.86+rand2(i+index*29,j)*.24;
- let road=Math.max(0,1-Math.abs((x0+x1)*.5)/15);
+ let road=Math.max(0,1-Math.abs((x0+x1)*.5-roadCenter((z0+z1)*.5))/15);
  let col=tint(c.ground,fleck*(1-road*.12));
  m.tri(a,cc,b,col);m.tri(a,d,cc,tint(col,.94));
  // geological strata on terrain outer limits, real vertical sides.
@@ -732,7 +742,7 @@ function initRenderer(){
  try{
  const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
  void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vEm=aEmit;vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
- const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;varying vec4 vShadow;
+ const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  void main(){
@@ -746,15 +756,15 @@ function initRenderer(){
   vec3 base=vColor*(.83+rough)*grunge;
   base=mix(base,base*vec3(.72,.79,.68),ground*max(0.,moss-.63)*.9);
   // World-space texture projections, blended by surface orientation.
-  if(uMaterialDetail>.5){
+  if(uMaterialDetail>.5&&uWorldSurface>.5){
    vec3 weights=pow(abs(N),vec3(4.));weights/=max(.001,weights.x+weights.y+weights.z);
    vec3 stone=texture2D(uStoneMap,vWorld.zy*.24).rgb*weights.x+texture2D(uStoneMap,vWorld.xz*.24).rgb*weights.y+texture2D(uStoneMap,vWorld.xy*.24).rgb*weights.z;
    vec3 mossTex=texture2D(uMossMap,vWorld.xz*.20).rgb;
    float textureTone=mix(dot(stone,vec3(.299,.587,.114)),dot(mossTex,vec3(.299,.587,.114)),ground*.75);
    base*=mix(.68,1.38,textureTone);
   }
-  float diffuse=max(0.,dot(N,L)),lambert=.23+.88*diffuse;
-  float hemi=.19+.26*max(N.y,0.);
+  float diffuse=max(0.,dot(N,L)),lambert=.15+.82*diffuse;
+  float hemi=.17+.17*max(N.y,0.);
   // GGX microfacet specular with procedural roughness. No claim of authored PBR maps.
   float roughness=mix(.83,.33,wetness)*(ground*.18+.82),alpha=roughness*roughness,a2=alpha*alpha;
   float nh=max(.001,dot(N,H)),nv=max(.03,dot(N,V)),nl=max(.001,dot(N,L));
@@ -762,7 +772,7 @@ function initRenderer(){
   float k=pow(roughness+1.,2.)*.125;
   float geometry=nv/(nv*(1.-k)+k)*nl/(nl*(1.-k)+k);
   float fresnel=.04+.96*pow(1.-max(0.,dot(H,V)),5.);
-  float spec=min(.9,distribution*geometry*fresnel/max(.01,4.*nv*nl)*nl);
+  float spec=min(.28,distribution*geometry*fresnel/max(.01,4.*nv*nl)*nl)*(uWorldSurface>.5?.46:.90);
   float edgeLight=pow(1.-abs(dot(N,V)),5.)*.095;
   float rim=pow(max(0.,1.-dot(N,V)),3.2)*.18;
   float visibility=1.;
@@ -789,7 +799,7 @@ function initRenderer(){
   float torch0=pow(max(0.,1.-distance(vWorld,uTorch0.xyz)/max(1.,uTorch0.w)),2.0);
   float torch1=pow(max(0.,1.-distance(vWorld,uTorch1.xyz)/max(1.,uTorch1.w)),2.0);
   float warm=(torch0+torch1)*(0.91+0.09*sin(uTime*7.+vWorld.z*1.7));
-  color+=base*uTorchColor*warm*1.68;
+  color+=base*uTorchColor*warm*.85;
   // Glossy highlights on wet exposed stone; kept subtle to avoid plastic appearance.
   float facing=pow(1.-max(0.,dot(N,V)),3.);
   color+=vec3(.24,.34,.35)*wetness*ground*facing*.19;
@@ -802,12 +812,12 @@ function initRenderer(){
   fog=clamp(fog+max(0.,vWorld.y-13.)*.002,0.,.84);
   color=mix(color,uFogColor*vec3(1.12,1.06,1.01),fog);
   // ACES-filmic-inspired tonemap, retaining metal highlights and atmosphere.
-  color=max(color,vec3(0.));color=(color*(2.51*color+.03))/(color*(2.43*color+.59)+.14);
+  color=max(color,vec3(0.))*.86;color=(color*(2.51*color+.03))/(color*(2.43*color+.59)+.14);
   color=pow(clamp(color,0.,1.),vec3(.87));
   gl_FragColor=vec4(color,1.0);
  }`;
  let p=gl.createProgram();gl.attachShader(p,compileShader(gl.VERTEX_SHADER,vertex));gl.attachShader(p,compileShader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error('Program: '+gl.getProgramInfoLog(p));glP=p;
- gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail')};
+ gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface')};
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{materialLibrary=new LandlordMaterialLibrary(gl);}catch(ex){console.warn('Material fallback',ex);}
@@ -1709,7 +1719,8 @@ function limb(m,a,b,ra,rb,col,emit=0,sides=7){
  let axis=norm(sub(b,a)),ref=Math.abs(axis[1])>.92?[0,0,1]:[0,1,0],right=norm(cross(axis,ref)),up=norm(cross(right,axis));
  for(let i=0;i<sides;i++){let t=i*TAU/sides,u=(i+1)*TAU/sides;
    const point=(ctr,r,k)=>add(ctr,add(scale(right,Math.cos(k)*r),scale(up,Math.sin(k)*r)));
-   m.quad(point(a,ra,t),point(a,ra,u),point(b,rb,u),point(b,rb,t),tint(col,.84+.18*Math.cos(t)),emit);
+   const n=k=>norm(add(scale(right,Math.cos(k)),scale(up,Math.sin(k))));
+   m.smoothQuad([point(a,ra,u),point(a,ra,t),point(b,rb,t),point(b,rb,u)],[n(u),n(t),n(t),n(u)],col,emit);
  }
 }
 // LANDLORD VI / BLADE DANCE — full-body pose blending with articulated arms, sword and cloth.
@@ -1726,7 +1737,7 @@ function bladeSteel(m,base,tip,steel,glow){
  limb(m,add(base,scale(v,.15)),add(tip,scale(v,-.19)),.025,.012,glow,.77,5);
 }
 function playerModel(m){
- const p=player,steel=[.37,.46,.55],polish=[.71,.79,.86],iron=[.19,.26,.34],gold=[.86,.63,.36],leather=[.23,.14,.16],royal=[.25,.12,.18],magic=[.49,.86,1];
+ const p=player,steel=[.24,.32,.39],polish=[.40,.49,.55],iron=[.075,.105,.145],gold=[.56,.39,.18],leather=[.10,.07,.08],royal=[.20,.045,.065],magic=[.28,.78,.90];
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
  const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0;
  const bob=p.grounded?Math.sin(phase*2)*.047*activity*(1-attackBlend*.65):0;
@@ -1768,15 +1779,17 @@ function playerModel(m){
  for(let j=-2;j<=2;j++)m.box(j*.25,hips-.26,.24-Math.abs(j)*.05,.22,.48,.29,tint(steel,.78+j*.025),0,j*.08);
  // Neck, visor, head, crest; subtly pitch into each attack for weight.
  m.ellipsoid(0,chest+.75,0,.32,.29,.30,iron,0,6,9);
- m.ellipsoid(0,chest+1.08,.02,.43,.52,.40,polish,0,9,12);
- m.ellipsoid(0,chest+1.24,.26,.37,.25,.20,steel,0,6,11);
- m.box(0,chest+1.05,.40,.71,.16,.15,[.06,.1,.15]);
+ m.ellipsoid(0,chest+1.06,.02,.37,.48,.36,steel,0,12,18);
+ m.ellipsoid(0,chest+1.36,-.05,.28,.16,.30,polish,0,8,14);
+ m.ellipsoid(0,chest+1.22,.25,.32,.21,.18,iron,0,8,14);
+ m.box(0,chest+1.07,.36,.60,.10,.15,[.018,.025,.036]);
  m.box(0,chest+.96,.37,.6,.11,.17,[.06,.11,.15]);
  for(const side of [-1,1]){
-   m.ellipsoid(side*.18,chest+1.1,.49,.11,.07,.04,magic,1,4,7);
-   m.spike(side*.3,chest+1.46,0,.22,.68,gold,.13);
+   m.ellipsoid(side*.14,chest+1.08,.435,.085,.025,.024,magic,.42,4,8);
+   m.box(side*.34,chest+1.14,-.02,.075,.42,.30,tint(gold,.77),0,side*.04);
  }
- m.spike(0,chest+1.54,-.16,.3,.93,tint(royal,1.6),0);
+ m.ellipsoid(0,chest+1.53,-.13,.11,.15,.35,tint(royal,1.4),0,7,13);
+ for(let i=0;i<5;i++)m.box(0,chest+.91+i*.08,-.325,.12,.027,.035,gold);
  m.box(0,chest+.65,-.01,1.28,.21,.70,tint(steel,.9));
  // Joint chain: shoulders -> elbows -> wrists, with independently posed hands.
  for(const side of [-1,1]){
@@ -1792,8 +1805,9 @@ function playerModel(m){
      elbow=[-1.10+cast*.24,chest-.14+cast*.50,armSwing*.4+attackBlend*.18+cast*.22];
    }
    if(airborne){hand[1]+=.25;elbow[1]+=.18;}if(game.flying){hand[0]+=side*.37;hand[1]+=.21;elbow[0]+=side*.25;}
-   m.ellipsoid(side*.79,chest+.38,-.04,.45,.31,.49,polish,0,6,9);
-   m.spike(side*.85,chest+.53,-.1,.19,.45,gold,.1);
+   m.ellipsoid(side*.79,chest+.34,-.04,.43,.28,.46,iron,0,9,14);
+   for(let plate=0;plate<3;plate++){const shift=plate*.095;m.ellipsoid(side*(.74+shift),chest+.46-plate*.135,-.055,.36-plate*.035,.12,.40-plate*.018,plate===0?polish:steel,0,7,14);}
+   m.box(side*.85,chest+.50,-.33,.17,.07,.08,gold);
    limb(m,shoulder,elbow,.25,.20,steel,0,9);
    m.ellipsoid(...elbow,.23,.23,.23,gold,0,5,8);
    limb(m,elbow,hand,.21,.15,iron,0,9);
@@ -1819,9 +1833,10 @@ function playerModel(m){
      const a=j/7,b=(j+1)/7;
      const fx=(x,t)=>x*(1+.34*t)+p.lean*t*.55+Math.sin(pose.progress*TAU)*pose.twist*.22*t;
      const fy=t=>chest+.48-t*2.43;
-     const fz=(x,t)=>-.41-t*(.2+.55*activity)-.28*Math.sin(clock*3.1+t*4+strip*.32)*t-.34*flutter*t-pose.lunge*t*.39;
+     const fz=(x,t)=>-.46-t*(.18+.55*activity)-.10*Math.cos(x*15)*(.35+t)-.18*Math.sin(clock*3.1+t*4+x*2)*t-.34*flutter*t-pose.lunge*t*.39;
      m.quad([fx(x0,a),fy(a),fz(x0,a)],[fx(x1,a),fy(a),fz(x1,a)],
-            [fx(x1,b),fy(b),fz(x1,b)],[fx(x0,b),fy(b),fz(x0,b)],tint(royal,.65+strip*.025+j*.021));
+            [fx(x1,b),fy(b),fz(x1,b)],[fx(x0,b),fy(b),fz(x0,b)],tint(royal,(strip===0||strip===10)?.67:.83+.12*Math.cos(strip*1.9)+j*.018));
+     if(strip===0||strip===10){const x=strip===0?x0:x1,dx=strip===0?.045:-.045;const p0=[fx(x,a),fy(a),fz(x,a)-.014],p1=[fx(x+dx,a),fy(a),fz(x+dx,a)-.014],p2=[fx(x+dx,b),fy(b),fz(x+dx,b)-.014],p3=[fx(x,b),fy(b),fz(x,b)-.014];m.quad(p0,p1,p2,p3,tint(gold,.78));}
    }
  }
  m.pt=oldPt;
@@ -2089,11 +2104,11 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  gl.uniform3f(a.torchColor,.99,.57,.22);
  gl.uniformMatrix4fv(a.sVP,false,shadowMatrix||new Float32Array(16));gl.uniform1f(a.shadows,shadowState&&quality!=='low'?1:0);gl.uniform1f(a.shadowTexel,shadowState?1/shadowState.sz:1/1024);
  if(shadowState){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,shadowState.tex);gl.uniform1i(a.shadow,0);}
- let k=zoneOf(player.z),range=1,frustum=LandlordGeometry.planes(viewProj);
+ gl.uniform1f(a.worldSurface,1);let k=zoneOf(player.z),range=1,frustum=LandlordGeometry.planes(viewProj);
  for(let j=Math.max(0,k-range);j<=Math.min(6,k+range);j++){
  let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);for(const chunk of r.chunks){if(!LandlordGeometry.visible(chunk,frustum))continue;gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;visibleChunks++;submittedTriangles+=chunk.count/3;}
  }
- gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
+ gl.uniform1f(a.worldSurface,0);gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,dynamicData,gl.DYNAMIC_DRAW);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
  drawCalls+=cinematicPipeline?.end()||0;
 }
 function paintCPU(dynamicData){const W=canvas.width,H=canvas.height,c=regions[game.zone],dpr=W/innerWidth;

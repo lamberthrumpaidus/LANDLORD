@@ -1,0 +1,9 @@
+/* ALL Create by LamberthRumpaidus */
+#status .amount{display:block;color:#e9dfcc;font:600 10px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+#status .track{flex:1;min-width:20px;height:7px}
+#status .fill{transition:width .16s ease-out}
+#status #bones{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;margin:1px 0 0;font:500 10px/1.1 system-ui,sans-serif;color:#dbcda9}
+#status #bones b{font-weight:650;color:#fff4d8}
+#status{background:linear-gradient(135deg,#08101de8,#101c28c0);border-color:#bda97a40}
+@media(max-width:600px){#status{gap:5px;padding:7px 8px;width:min(162px,40vw)}#status .amount{font-size:9px;min-width:37px}#status .measure{gap:4px}#status #bones{font-size:8px;gap:3px}#status .track{height:5px}}
+@media(prefers-reduced-motion:reduce){#status .fill{transition:none}}

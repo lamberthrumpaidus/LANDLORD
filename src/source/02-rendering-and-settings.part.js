@@ -6,7 +6,7 @@ function initRenderer(){
  try{
  const vertex=`attribute vec3 aPos;attribute vec3 aNormal;attribute vec3 aColor;attribute float aEmit;uniform mat4 uVP;uniform vec3 uCam;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;varying vec4 vShadow;uniform mat4 uShadowVP;
  void main(){vShadow=uShadowVP*vec4(aPos,1.);vColor=aColor;vNormal=aNormal;vEm=aEmit;vWorld=aPos;vFog=distance(aPos,uCam);gl_Position=uVP*vec4(aPos,1.0);}`;
- const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;varying vec4 vShadow;
+ const fragment=`precision highp float;varying vec3 vColor;varying vec3 vNormal;varying float vFog;varying float vEm;varying vec3 vWorld;uniform vec3 uCam;uniform vec3 uFogColor;uniform vec3 uLight;uniform float uTime;uniform vec4 uTorch0;uniform vec4 uTorch1;uniform vec3 uTorchColor;uniform sampler2D uShadow;uniform float uShadows;uniform float uShadowTexel;uniform sampler2D uMossMap;uniform sampler2D uStoneMap;uniform float uMaterialDetail;uniform float uWorldSurface;varying vec4 vShadow;
  float hash3(vec3 p){p=fract(p*.1031);p+=dot(p,p.yxz+33.33);return fract((p.x+p.y)*p.z);}
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  void main(){
@@ -20,15 +20,15 @@ function initRenderer(){
   vec3 base=vColor*(.83+rough)*grunge;
   base=mix(base,base*vec3(.72,.79,.68),ground*max(0.,moss-.63)*.9);
   // World-space texture projections, blended by surface orientation.
-  if(uMaterialDetail>.5){
+  if(uMaterialDetail>.5&&uWorldSurface>.5){
    vec3 weights=pow(abs(N),vec3(4.));weights/=max(.001,weights.x+weights.y+weights.z);
    vec3 stone=texture2D(uStoneMap,vWorld.zy*.24).rgb*weights.x+texture2D(uStoneMap,vWorld.xz*.24).rgb*weights.y+texture2D(uStoneMap,vWorld.xy*.24).rgb*weights.z;
    vec3 mossTex=texture2D(uMossMap,vWorld.xz*.20).rgb;
    float textureTone=mix(dot(stone,vec3(.299,.587,.114)),dot(mossTex,vec3(.299,.587,.114)),ground*.75);
    base*=mix(.68,1.38,textureTone);
   }
-  float diffuse=max(0.,dot(N,L)),lambert=.23+.88*diffuse;
-  float hemi=.19+.26*max(N.y,0.);
+  float diffuse=max(0.,dot(N,L)),lambert=.15+.82*diffuse;
+  float hemi=.17+.17*max(N.y,0.);
   // GGX microfacet specular with procedural roughness. No claim of authored PBR maps.
   float roughness=mix(.83,.33,wetness)*(ground*.18+.82),alpha=roughness*roughness,a2=alpha*alpha;
   float nh=max(.001,dot(N,H)),nv=max(.03,dot(N,V)),nl=max(.001,dot(N,L));
@@ -36,7 +36,7 @@ function initRenderer(){
   float k=pow(roughness+1.,2.)*.125;
   float geometry=nv/(nv*(1.-k)+k)*nl/(nl*(1.-k)+k);
   float fresnel=.04+.96*pow(1.-max(0.,dot(H,V)),5.);
-  float spec=min(.9,distribution*geometry*fresnel/max(.01,4.*nv*nl)*nl);
+  float spec=min(.28,distribution*geometry*fresnel/max(.01,4.*nv*nl)*nl)*(uWorldSurface>.5?.46:.90);
   float edgeLight=pow(1.-abs(dot(N,V)),5.)*.095;
   float rim=pow(max(0.,1.-dot(N,V)),3.2)*.18;
   float visibility=1.;
@@ -63,7 +63,7 @@ function initRenderer(){
   float torch0=pow(max(0.,1.-distance(vWorld,uTorch0.xyz)/max(1.,uTorch0.w)),2.0);
   float torch1=pow(max(0.,1.-distance(vWorld,uTorch1.xyz)/max(1.,uTorch1.w)),2.0);
   float warm=(torch0+torch1)*(0.91+0.09*sin(uTime*7.+vWorld.z*1.7));
-  color+=base*uTorchColor*warm*1.68;
+  color+=base*uTorchColor*warm*.85;
   // Glossy highlights on wet exposed stone; kept subtle to avoid plastic appearance.
   float facing=pow(1.-max(0.,dot(N,V)),3.);
   color+=vec3(.24,.34,.35)*wetness*ground*facing*.19;
@@ -76,12 +76,12 @@ function initRenderer(){
   fog=clamp(fog+max(0.,vWorld.y-13.)*.002,0.,.84);
   color=mix(color,uFogColor*vec3(1.12,1.06,1.01),fog);
   // ACES-filmic-inspired tonemap, retaining metal highlights and atmosphere.
-  color=max(color,vec3(0.));color=(color*(2.51*color+.03))/(color*(2.43*color+.59)+.14);
+  color=max(color,vec3(0.))*.86;color=(color*(2.51*color+.03))/(color*(2.43*color+.59)+.14);
   color=pow(clamp(color,0.,1.),vec3(.87));
   gl_FragColor=vec4(color,1.0);
  }`;
  let p=gl.createProgram();gl.attachShader(p,compileShader(gl.VERTEX_SHADER,vertex));gl.attachShader(p,compileShader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error('Program: '+gl.getProgramInfoLog(p));glP=p;
- gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail')};
+ gl.useProgram(p);indexLocations={pos:gl.getAttribLocation(p,'aPos'),normal:gl.getAttribLocation(p,'aNormal'),color:gl.getAttribLocation(p,'aColor'),emit:gl.getAttribLocation(p,'aEmit'),vp:gl.getUniformLocation(p,'uVP'),cam:gl.getUniformLocation(p,'uCam'),fog:gl.getUniformLocation(p,'uFogColor'),light:gl.getUniformLocation(p,'uLight'),time:gl.getUniformLocation(p,'uTime'),torch0:gl.getUniformLocation(p,'uTorch0'),torch1:gl.getUniformLocation(p,'uTorch1'),torchColor:gl.getUniformLocation(p,'uTorchColor'),sVP:gl.getUniformLocation(p,'uShadowVP'),shadow:gl.getUniformLocation(p,'uShadow'),shadows:gl.getUniformLocation(p,'uShadows'),shadowTexel:gl.getUniformLocation(p,'uShadowTexel'),mossMap:gl.getUniformLocation(p,'uMossMap'),stoneMap:gl.getUniformLocation(p,'uStoneMap'),materialDetail:gl.getUniformLocation(p,'uMaterialDetail'),worldSurface:gl.getUniformLocation(p,'uWorldSurface')};
  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);
  vbo=gl.createBuffer();
  try{materialLibrary=new LandlordMaterialLibrary(gl);}catch(ex){console.warn('Material fallback',ex);}

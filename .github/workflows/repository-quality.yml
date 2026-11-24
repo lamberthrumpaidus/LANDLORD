@@ -97,3 +97,27 @@ jobs:
           name: landlord-browser-screenshots
           path: test-results/*.png
           if-no-files-found: ignore
+
+  preview:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture actual game animation at controlled simulation intervals
+        run: python3 tests/animation_preview.py
+      - name: Package playable static build
+        run: python3 tools/package_preview.py
+      - name: Publish animation frames and replay
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: landlord-animation-preview
+          path: animation-preview/
+          if-no-files-found: ignore
+      - name: Publish playable preview ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: landlord-playable-preview
+          path: preview-dist/LANDLORD-playable-preview.zip
+          if-no-files-found: error

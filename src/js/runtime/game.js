@@ -2751,8 +2751,11 @@ function adaptPerformance(dt){
 }
 // Create by LamberthRumpaidus
 const frameProfiler=new LandlordFrameProfiler();
+// Deterministic visual capture is available only from a local test server.
+const visualCapture=['127.0.0.1','localhost'].includes(location.hostname)&&new URLSearchParams(location.search).get('visual-test')==='1';
+let captureMode=false;
 let lastRenderTime=-Infinity,lastRenderState='',lastRenderQuality='',renderedFrames=0,lastMiniYaw=NaN;
-function loop(now){requestAnimationFrame(loop);const wallDT=lastFrame?Math.max(0,(now-lastFrame)/1000):1/60;lastFrame=now;
+function loop(now){requestAnimationFrame(loop);if(captureMode)return;const wallDT=lastFrame?Math.max(0,(now-lastFrame)/1000):1/60;lastFrame=now;
  if(document.hidden)return;
  const rawDT=Math.min(wallDT,.085),startCPU=performance.now();
  // Semi-fixed simulation: prevent fast dashes and combat hits from tunneling on 30 FPS devices.
@@ -2792,6 +2795,7 @@ try{
  getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:!worldAtlas?.cameraUp,x:player.x,z:player.z,heading:LandlordMapProjection.heading(player.angle,orbit),drawn:minimapDrawState,viewport:worldAtlas?.state()}),mapProject:(dx,dz,atlas=false)=>LandlordMapProjection.project(dx,dz,atlas?worldAtlas?.view.yaw||0:orbit),
  setCameraPitch:v=>{orbitPitch=clamp(v,-1.10,1.10)},
  runRealmChecks:()=>regions.map((r,j)=>{const p=portalPoint(j),s=shrinePoint(j);return {world:j+1,name:r.name,gate:p,altar:s,gatePostLeft:!!blocking(p.x-12,p.z,.1,height(p.x-12,p.z),2.8),gatePostRight:!!blocking(p.x+12,p.z,.1,height(p.x+12,p.z),2.8),middlePassable:!blocking(p.x,p.z,.2,height(p.x,p.z),2.8),roofSolid:!!blocking(p.x,p.z,.2,height(p.x,p.z)+12.6,1),roadWidth:17}}),treasureSpots:()=>cacheSpots.map(q=>({...q,taken:chestTaken[q.id]})),wellSpots:()=>healingWells.map(q=>({...q})),hazardSpots:()=>riftTraps.map(q=>({...q})),inspect:()=>({wildlife:wildlife.map(b=>({kind:b.kind,x:b.x,z:b.z,dead:b.dead})),player:{...player},camera:{eye:[...camEye],focus:[...camFocus]},enemies:enemies.map(e=>({x:e.x,y:e.y,z:e.z,zone:e.zone,boss:e.boss,dead:e.dead,hp:e.hp,windup:e.windup,attack:e.attack}))})};
+ if(visualCapture)window.Landlord3D.visualCapture={begin:()=>{captureMode=true;releaseGameplayInput();},step:(seconds=1/12)=>{if(!captureMode||game.state!=='playing')return null;const dt=clamp(seconds,0,.1),n=Math.max(1,Math.ceil(dt*60));for(let i=0;i<n;i++)update(dt/n);updateUI();drawWorld(dt);mapDraw(mini,false);if(gl)gl.finish();return {state:heroRig.status(),attack:sampleAttackPose(player),x:player.x,y:player.y,z:player.z};},end:()=>{captureMode=false;lastFrame=0;lastRenderTime=-Infinity;releaseGameplayInput();}};
  window.Rubaka3D=window.Landlord3D;console.info(`LANDLORD — ${mode==='gpu'?'WebGL':'3D software renderer'} / 7 biomes / Blade Dance combat / offline`);
 }catch(error){console.error('LANDLORD 3D initialization error:',error);$('error').style.display='flex';$('error').querySelector('p').textContent='Renderer tidak dapat dimulai: '+error.message+' — Harap laporkan pesan error ini untuk perbaikan.'}
 })();

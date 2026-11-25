@@ -128,3 +128,6 @@ Visual review of checkpoint 27 actual browser frames showed that the long cape c
 
 ## Checkpoint 31 — full-body combat choreography
 Three authored procedural full-body attack tracks add hip shift, body drop, torso pitch and roll, foot placement and independent guard-hand targets to the existing sword curves. Buffered combos blend from the previous whole-body pose. Contact timing, damage, movement speed and input responsiveness remain unchanged. Unit tests verify continuity and distinct contact poses. Pending CI.
+
+## Checkpoint 32 — enemy and wildlife locomotion
+Distance-driven enemy and wildlife gait advances from actual collision-resolved movement, blends toward idle when stationary, adds two-bone foot placement to humanoids and guardians, diagonal quadruped stepping, articulated bat wing joints, spider alternating legs and attack lunge poses. Gameplay AI, enemy counts and attack timing unchanged. Added movement/idle gait unit test. Pending CI.

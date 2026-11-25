@@ -7,7 +7,7 @@ function skeleton(m,e,c,u){
  const near=distance<25&&quality!=='low',rings=near?6:4,sides=near?10:6;
  const bone=[.48,.44,.36],edge=[.64,.58,.46],dark=[.07,.055,.045],iron=[.12,.135,.145],cloth=[.12,.055,.045];
  const wind=e.windup>0?clamp(1-e.windup/.57,0,1):0,pose=LandlordEnemyMotion.sample(e),hit=Math.sin(Math.PI*clamp((e.hitRecoil||0)/.53,0,1))*.15;
- const phase=e.animation,activity=e.stagger>0?0:Math.min(1,Math.abs(e.speed||2)/3),bob=Math.sin(phase*2)*.045*activity;
+ const move=LandlordEnemyMotion.gait(e,-1),bob=move.bob*.065;
  const pelvis=1.0+bob,sternum=1.72+bob-hit,head=2.53+bob-hit*.6;
  const ell=(x,y,z,rx,ry,rz,col,emit=0)=>m.ellipsoid(x,y,z,rx,ry,rz,col,emit,rings,sides);
  ell(0,pelvis,0,.34,.22,.23,bone);
@@ -21,12 +21,12 @@ function skeleton(m,e,c,u){
  }
  ell(0,sternum+.08,.27,.085,.39,.075,bone);
  for(const side of [-1,1]){
-  const stride=Math.sin(phase+(side>0?0:Math.PI))*.38*activity;
-  const hip=[side*.25,pelvis-.07,0],knee=[side*.27,.53+bob,stride*.60+.08],foot=[side*.28,.09+Math.max(0,stride)*.22,-stride];
+  const step=LandlordEnemyMotion.gait(e,side),hip=[side*.25,pelvis-.07,0],goal=[side*.28+step.x*.25,.09+step.lift*.28,step.z*.48];
+  const leg=LandlordHeroRig.solveTwoBone(hip,goal,[side*.09,0,1],.49,.48),knee=leg.joint,foot=leg.tip;
   limb(m,hip,knee,.105,.075,bone,0,sides);ell(...knee,.105,.09,.10,edge);limb(m,knee,foot,.075,.055,bone,0,sides);
   if(near)limb(m,[knee[0]+side*.07,knee[1],knee[2]],[foot[0]+side*.045,foot[1],foot[2]],.04,.032,tint(bone,.78),0,5);
   ell(foot[0],foot[1]+.02,foot[2]+.14,.12,.08,.25,bone);
-  const shoulder=[side*.43,sternum+.30,-.015],target=[side*.52+(side===1?pose.x:-pose.x*.4),sternum-.45+pose.y,.25+pose.z];
+  const shoulder=[side*.43,sternum+.30,-.015],target=[side*.52+(side===1?pose.x:-pose.x*.4),sternum-.45+pose.y+step.lift*.10,.25+pose.z-step.z*.31*(pose.active?.12:1)];
   const arm=LandlordHeroRig.solveTwoBone(shoulder,target,[side*.6,-.3,-.7],.45,.44),elbow=arm.joint,hand=arm.tip;
   ell(...shoulder,.16,.15,.16,iron);limb(m,shoulder,elbow,.10,.07,bone,0,sides);ell(...elbow,.10,.09,.095,bone);limb(m,elbow,hand,.073,.055,bone,0,sides);
   ell(...hand,.09,.10,.13,edge);

@@ -13,15 +13,15 @@ const themes=[
 function draw(m,e,c,util){
  const {limb,tint,clamp,clock,quality,distance}=util,T=themes[e.zone]||themes[0],accent=c.accent;
  const high=distance<32&&quality!=='low',sides=high?12:7,rings=high?8:4;
- const S=e.stagger>0?0:Math.sin(e.animation)*.18,wind=e.windup>0?clamp(1-e.windup/(e.p2?.78:.96),0,1):0,pose=LandlordEnemyMotion.sample(e);
+ const walk=LandlordEnemyMotion.gait(e,1),S=walk.bob*.14,wind=e.windup>0?clamp(1-e.windup/(e.p2?.78:.96),0,1):0,pose=LandlordEnemyMotion.sample(e);
  const recoil=Math.sin(Math.PI*clamp((e.hitRecoil||0)/.53,0,1))*.32;
  const sphere=(x,y,z,rx,ry,rz,col,em=0)=>m.ellipsoid(x,y,z,rx,ry,rz,col,em,rings,sides);
  if(T.kind==='weaver'){
   sphere(0,2.15+pose.y*.45,-.55+pose.lean*.6,1.5,1.12,1.75,T.metal);
   sphere(0,2.1+pose.y*.35,1.1+pose.lean*.72,1.12,.91,1.05,T.trim);
   for(const side of [-1,1])for(let i=0;i<4;i++){
-   const z=-1.5+i*.92,phase=Math.sin(e.animation+i*1.35+side)*.25;
-   const p0=[side*.8,2.2,z],p1=[side*(2.3+i%2*.20),2.6+phase,z-.35],p2=[side*3.1,.28+Math.abs(phase)+Math.max(0,pose.y)*.35,z+.60+pose.z*.55];
+   const z=-1.5+i*.92,g=LandlordEnemyMotion.gait(e,side,(i%2)*.5);
+   const p0=[side*.8,2.2,z],p1=[side*(2.3+i%2*.20),2.6+g.lift*.45,z-.35+g.z*.45],p2=[side*3.1+g.x*.38,.28+g.lift*.60+Math.max(0,pose.y)*.35,z+.60+pose.z*.55+g.z*.7];
    limb(m,p0,p1,.26,.19,T.metal,0,sides);limb(m,p1,p2,.19,.07,T.trim,0,sides);
    sphere(...p1,.24,.27,.24,T.metal);
   }
@@ -31,7 +31,7 @@ function draw(m,e,c,util){
   return;
  }
  const hover=T.kind==='veil'||T.kind==='storm',y=hover?.42+Math.sin(clock*2+e.phase)*.16:0;
- const hip=2.0+y,chest=3.5+y+pose.y*.12,head=5.05+y+pose.y*.20;
+ const hip=2.0+y+S*.26,chest=3.5+y+pose.y*.12+S*.60,head=5.05+y+pose.y*.20+S*.60;
  const bright=e.hit>0?tint(T.metal,1.55):T.metal;
  sphere(0,hip,-recoil*.15,.94,.78,.66,T.metal);
  sphere(pose.twist*.16,chest,-recoil*.28+pose.lean*.48,1.17,1.22,.73,bright);
@@ -39,16 +39,15 @@ function draw(m,e,c,util){
  m.box(0,head+.03,.49,.86,.13,.16,[.025,.029,.04]);
  for(const side of [-1,1]){
   sphere(side*.25,head+.045,.58,.13,.065,.045,accent,.68);
-  const stride=Math.sin(e.animation+(side===1?Math.PI:0))*.31;
+  const gait=LandlordEnemyMotion.gait(e,side);
   if(!hover){
-   limb(m,[side*.58,hip-.30,0],[side*.64,1.0+y,stride*.4],.35,.26,T.metal,0,sides);
-   limb(m,[side*.64,1+y,stride*.4],[side*.66,.23+y,-stride],.25,.18,T.trim,0,sides);
-   sphere(side*.66,.25+y,-stride+.18,.38,.22,.53,T.metal);
-   sphere(side*.64,1.0+y,stride*.4,.32,.32,.29,T.trim);
+   const h=[side*.58,hip-.30,0],f=[side*.66+gait.x*.45,.23+y+gait.lift*.52,gait.z*.84],leg=LandlordHeroRig.solveTwoBone(h,f,[side*.12,0,1],.92,.88);
+   LandlordHeroSurface.chain(m,h,leg.joint,leg.tip,[.35,.34,.28,.26,.25,.21,.18],T.metal,high?1:.7);LandlordHeroSurface.plate(m,leg.joint,leg.tip,.26,T.metal,T.trim);
+   sphere(leg.tip[0],leg.tip[1],leg.tip[2]+.18,.34,.22,.48,T.metal);
   }else{
    for(let j=0;j<3;j++)m.spike(side*(.4+j*.18),.55+y+j*.27,Math.sin(clock*3+j)*.17,.25,.9,T.cloth,.08);
   }
-  const shoulder=[side*1.24,chest+.6,-.04+pose.lean*.4],target=[side*1.45+(side===1?pose.x:-pose.x*.35),chest-.87+pose.y,.58+pose.z];
+  const shoulder=[side*1.24,chest+.6,-.04+pose.lean*.4],target=[side*1.45+(side===1?pose.x:-pose.x*.35),chest-.87+pose.y+gait.lift*.20,.58+pose.z-gait.z*.45*(pose.active?.12:1)];
   const arm=LandlordHeroRig.solveTwoBone(shoulder,target,[side*.75,-.3,-.9],1.02,.98),elbow=arm.joint,hand=arm.tip;
   sphere(...shoulder,.54,.37,.55,T.trim);limb(m,shoulder,elbow,.31,.25,T.metal,0,sides);limb(m,elbow,hand,.25,.19,T.trim,0,sides);sphere(...hand,.24,.27,.27,T.metal);
   if(high)for(let j=0;j<3;j++)sphere(side*(1.19+j*.12),chest+.83-j*.18,-.06,.42-j*.045,.13,.44,T.metal);

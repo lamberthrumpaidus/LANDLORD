@@ -1622,6 +1622,7 @@ function update(dt){
  player.mp=Math.min(100,player.mp+18*dt);
  for(let e of enemies){
    if(e.dead||Math.abs(e.z-player.z)>92)continue;
+   const gaitX=e.x,gaitZ=e.z;
    e.attack=Math.max(0,e.attack-dt);e.strikeAfter=Math.max(0,(e.strikeAfter||0)-dt);e.hit=Math.max(0,e.hit-dt);e.stagger=Math.max(0,e.stagger-dt);e.hitRecoil=Math.max(0,(e.hitRecoil||0)-dt);
    if(Math.abs(e.knockVX||0)+Math.abs(e.knockVZ||0)>.01){
       const dec=Math.exp(-dt*9.2);moveWithCollision(e,(e.knockVX||0)*dt,(e.knockVZ||0)*dt,e.radius*.64);e.knockVX*=dec;e.knockVZ*=dec;
@@ -1660,7 +1661,7 @@ function update(dt){
           }
           const heading=steerAround(e,gx+flankX+repelX*2.2,gz+flankZ+repelZ*2.2,retreat?sp*1.28:sp,dt,e.radius*.60);
           if(heading!==null)e.angle+=shortestTurn(e.angle,heading)*Math.min(1,dt*4);
-          e.animation+=dt*sp*1.9;
+          // Visual stride advances only from actual collision-resolved travel below.
         } else if(e.attack<=0){e.strikeYaw=e.angle;e.windup=e.boss?(e.p2?.78:.96):.57;e.strikeDuration=e.windup;e.strikeRecovery=e.boss?.48:.32;e.strikeAfter=0;window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'enemy',x:e.x,y:e.y+1.5,z:e.z,boss:!!e.boss}}));e.attack=e.boss?(e.p2?1.5:2.3):1.75;}
       }
       // Ranged bosses wind up recognizable projectiles instead of random instantaneous hits.
@@ -1674,7 +1675,7 @@ function update(dt){
         burst(e.x,e.y+2,e.z,regions[e.zone].accent,14,.5);
       }
    }else{let wobble=Math.sin(clock*.25+e.phase)*dt*.1;moveWithCollision(e,wobble,Math.cos(clock*.28+e.phase)*dt*.1,e.radius*.60)}
-   e.y=height(e.x,e.z);
+   e.y=height(e.x,e.z);e.animation=LandlordEnemyMotion.advance(e,gaitX,gaitZ,dt,e.boss?3:1.5).phase;
  }
  // Haunted wildlife: cursed wolves and crawlers stalk the road, bats wheel overhead.
  for(const beast of wildlife){if(beast.dead||Math.abs(beast.z-player.z)>72)continue;
@@ -1684,6 +1685,7 @@ function update(dt){
     beast.y=height(beast.x,beast.z)+5.8+Math.sin(clock*1.9+beast.phase)*1.5;
     beast.angle=Math.atan2(Math.cos(clock*.82+beast.phase),-Math.sin(clock*.69+beast.phase));continue;
   }
+  const gaitX=beast.x,gaitZ=beast.z;
   beast.hit=Math.max(0,beast.hit-dt);beast.cooldown=Math.max(0,beast.cooldown-dt);
   beast.attackAnim=Math.max(0,beast.attackAnim-dt);
   let dd=Math.hypot(player.x-beast.x,player.z-beast.z);
@@ -1701,7 +1703,7 @@ function update(dt){
     if(enemyStrikeClear(beast,player,2.5))takeHit(beast.kind==='wolf'?9:13);shake=Math.max(shake,.14);
     burst(beast.x,height(beast.x,beast.z)+.8,beast.z,[.77,.15,.29],10,.22);
   }
-  beast.y=height(beast.x,beast.z);
+  beast.y=height(beast.x,beast.z);LandlordEnemyMotion.advance(beast,gaitX,gaitZ,dt,beast.kind==='stag'?2.1:1.6);
  }
  for(const a of attacks){
    a.life-=dt;
@@ -1904,9 +1906,10 @@ function enemyModel(m,e){
    let rear=Math.sin(clock*4+e.phase)*.14;
    m.sphere(0,1.1+rear+motion.y*.24,-motion.lean*.6,.84,[.15,.1,.18],4,9);m.sphere(0,1.26,.72,.57,c.flora,4,8);
    for(let s of [-1,1])for(let i=0;i<4;i++){
-      const z=-.68+i*.48,step=Math.sin(e.animation+i*1.9+s)*.18;
-      limb(m,[s*.6,1,z],[s*1.7,1.15+step,z+.18],.14,.11,c.flora);
-      limb(m,[s*1.7,1.15+step,z+.18],[s*1.93,.16+Math.abs(step),z+.65],.11,.07,tint(c.flora,.77));
+      const z=-.68+i*.48,g=LandlordEnemyMotion.gait(e,s,(i%2)*.5),step=g.z*.53;
+      const knee=[s*1.7,1.15+g.lift*.28,z+.18+step*.42];
+      limb(m,[s*.6,1,z],knee,.14,.11,c.flora);
+      limb(m,knee,[s*1.93+g.x*.21,.16+g.lift*.36,z+.24+step],.11,.07,tint(c.flora,.77));
    }
    m.sphere(-.2,1.5,.98,.13,c.accent,3,6,1);m.sphere(.2,1.5,.98,.13,c.accent,3,6,1);return;
  }
@@ -1921,10 +1924,11 @@ function enemyModel(m,e){
  if(type==='goblin'){for(const side of [-1,1])m.tri([side*.29,h*.91+y,.08],[side*.76,h*1.04+y,-.04],[side*.27,h*1.02+y,.13],tint(base,.9));}
  if(type==='knight'||type==='sentinel'){for(const side of [-1,1])m.ellipsoid(side*.70,h*.77+y,0,.31,.22,.34,tint(base,1.24),0,r,sides);m.box(0,h*.93+y,.45,.63,.11,.09,[.03,.04,.07]);}
  for(let s of [-1,1]){
-    let step=Math.sin(e.animation+(s>0?0:Math.PI))*.3;
-    limb(m,[s*.48*size,h*.32+y,0],[s*.48*size,h*.16+y,step],.2*size,.14*size,tint(base,.68));
-    m.box(s*.48*size,.16+y,step,.38*size,.32,.58*size,tint(base,.48));
-    const shoulder=[s*.81*size,h*.74+y,-motion.lean*.22],target=[s*.85*size+(s===1?motion.x:-motion.x*.4),h*.36+y+motion.y,.26+motion.z];
+    const gait=LandlordEnemyMotion.gait(e,s),hip=[s*.40*size,h*.36+y,0],goal=[s*.40*size+gait.x*.36,.18+y+gait.lift*.30,gait.z*.62];
+    const leg=LandlordHeroRig.solveTwoBone(hip,goal,[s*.15,0,1],h*.20,h*.19);
+    LandlordHeroSurface.chain(m,hip,leg.joint,leg.tip,[.21,.20,.16,.15,.15,.13,.12].map(v=>v*size),tint(base,.72),m.detail);
+    m.ellipsoid(leg.tip[0],leg.tip[1],leg.tip[2]+.13,.18*size,.14,.29*size,tint(base,.48),0,4,7);
+    const shoulder=[s*.81*size,h*.74+y,-motion.lean*.22],target=[s*.85*size+(s===1?motion.x:-motion.x*.4),h*.36+y+motion.y+gait.lift*.11,.26+motion.z-gait.z*.29*(motion.active?.15:1)];
     const arm=LandlordHeroRig.solveTwoBone(shoulder,target,[s*.55,-.2,-.7],.65*size,.66*size),elbow=arm.joint,hand=arm.tip;
     limb(m,shoulder,elbow,.19*size,.14*size,base);
     limb(m,elbow,hand,.17*size,.12*size,tint(base,.83));
@@ -1963,8 +1967,9 @@ function wildlifeModel(mesh,b){
   m.ellipsoid(0,.1,0,.42,.36,.38,dark,.05,5,7);
   m.sphere(0,.16,.26,.25,dark,4,7);
   for(const side of [-1,1]){
-    let flap=Math.sin(phase)*.9;
-    m.quad([side*.22,.2,0],[side*1.25,.46+flap,.2],[side*2.6,.16+flap*1.6,-.1],[side*.60,-.18,-.52],wing,.14);
+    const flap=Math.sin(phase)*.95,fold=.36+.20*Math.cos(phase+.45),shoulder=[side*.20,.18,0],elbow=[side*1.20,.36+flap*.68,.12],wrist=[side*(2.6-fold),.12+Math.sin(phase-.30)*1.42,-.16-fold*.25];
+    limb(m,shoulder,elbow,.09,.055,dark,0,5);limb(m,elbow,wrist,.055,.025,dark,0,5);
+    m.tri(shoulder,elbow,[side*.58,-.16,-.53],wing,.12);m.tri(elbow,wrist,[side*1.36,-.18+flap*.23,-.70],wing,.12);m.tri(elbow,[side*1.36,-.18+flap*.23,-.70],[side*.58,-.16,-.53],wing,.12);
     m.cone(side*.16,.37,.26,.13,.42,dark,4,0,.0);
   }
   for(const x of [-.12,.12])m.sphere(x,.19,.46,.065,[1,.13,.29],3,5,2);
@@ -1972,11 +1977,11 @@ function wildlifeModel(mesh,b){
  }
  const crawler=b.kind==='crawler',stag=b.kind==='stag',f=crawler?1.25:stag?1.45:1,hide=b.hit>0?.25:0;
  const col=stag?[.17,.30,.35]:crawler?[.22,.17,.27]:[.22,.19,.23],bone=[.48,.40,.40],eye=stag?[.35,.91,1]:[1,.18,.28];
- const sway=Math.sin(phase)*.08;
+ const motion=LandlordEnemyMotion.gait(b,-1),sway=motion.bob*.09,attack=(b.attackAnim||0)>0?Math.sin(Math.PI*clamp(b.attackAnim/.52,0,1)):0;
  m.ellipsoid(0,.98*f+sway,.00,1.25*f,.62*f,.55*f,col,.03,6,10);
  for(let i=0;i<5;i++)m.spike(0,1.40*f,(-.81+i*.33)*f,.14*f,.40*f,crawler?[.59,.45,.55]:[.32,.30,.40],.08);
  
- m.ellipsoid(0,1.24*f,.83*f,.55*f,.49*f,.49*f,crawler?bone:col,.05,5,8);
+ m.ellipsoid(0,(1.24+attack*.15)*f,(.83+attack*.34)*f,.55*f,.49*f,.49*f,crawler?bone:col,.05,5,8);
  m.ellipsoid(0,1.08*f,1.27*f,.39*f,.27*f,.54*f,crawler?bone:[.36,.30,.35],.02,5,7);
  for(let q of [-1,1]){
    m.cone(q*.27*f,.94*f,1.45*f,.065*f,.28*f,[.89,.84,.77],4,0,.10);
@@ -1984,11 +1989,10 @@ function wildlifeModel(mesh,b){
  }
  
  for(const side of [-1,1]){
-  const step=Math.sin(phase+ (side<0?0:Math.PI))*.34;
   for(const z of [-.8,.65]){
-    const zp=z+step;
-    limb(m,[side*.63*f,.92*f,z*f],[side*.74*f,.45*f,(z+step)*f],.22*f,.16*f,col,0,5);
-    limb(m,[side*.74*f,.45*f,(z+step)*f],[side*.79*f,.12,(z+step*.8+.06)*f],.15*f,.10*f,bone,.02,5);
+    const gait=LandlordEnemyMotion.gait(b,side,z<0?.5:0),hip=[side*.57*f,(.98+sway)*f,z*f],foot=[side*.68*f+gait.x*.35*f,.10+gait.lift*.34*f,(z+gait.z*.50+(z>0?attack*.26:0))*f];
+    const leg=LandlordHeroRig.solveTwoBone(hip,foot,[side*.20,0,z<0?-1:1],.55*f,.53*f);
+    LandlordHeroSurface.chain(m,hip,leg.joint,leg.tip,[.21,.18,.15,.14,.13,.10,.085].map(v=>v*f),col,.60);
   }
   m.cone(side*.34*f,1.55*f,1.01*f,.21*f,.62*f,col,5,0);
   m.sphere(side*.25*f,1.37*f,1.24*f,.13*f,eye,4,6,2.3+hide);

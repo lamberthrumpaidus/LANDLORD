@@ -23,6 +23,19 @@ function sample(e){
  let p=phase<.70?blend(idle,wind,phase/.70):phase<1?blend(wind,hit,(phase-.70)/.30):blend(hit,idle,(phase-1)/.45);
  return {...p,phase,active:phase<1.45,name:clip.name,stage:phase<.70?'anticipation':phase<1?'strike':phase<1.45?'recovery':'idle'};
 }
-const api={sample,clips};
+function advance(e,oldX,oldZ,dt,stride=1.5){
+ const dx=e.x-oldX,dz=e.z-oldZ,distance=Math.hypot(dx,dz),speed=distance/Math.max(dt,.001),state=e.locomotion||(e.locomotion={phase:0,weight:0,speed:0,side:0,forward:1});
+ const rate=1-Math.exp(-dt*16),target=clamp(speed/(e.boss?2.8:2.4),0,1);
+ state.speed=mix(state.speed,speed,rate);state.weight=mix(state.weight,target,rate);
+ if(distance>.001){state.phase+=Math.min(distance/stride*Math.PI*2,dt*Math.PI*2*2.8);const ca=Math.cos(e.angle||0),sa=Math.sin(e.angle||0);state.side=mix(state.side,(dx*ca-dz*sa)/distance,rate);state.forward=mix(state.forward,(dx*sa+dz*ca)/distance,rate);}
+ return state;
+}
+function gait(e,side=1,offset=0){
+ const s=e.locomotion||{phase:0,weight:0,side:0,forward:1};const t=((s.phase/(Math.PI*2)+(side>0?.5:0)+offset)%1+1)%1,stance=.52-.13*s.weight;
+ let stride,lift;
+ if(t<stance){stride=1-2*t/stance;lift=0;}else{const u=(t-stance)/(1-stance),smooth=u*u*(3-2*u);stride=-1+2*smooth;lift=Math.sin(u*Math.PI);}
+ return {z:stride*s.weight*s.forward,x:stride*s.weight*s.side,lift:lift*s.weight,weight:s.weight,bob:Math.cos(s.phase*2)*s.weight,phase:s.phase};
+}
+const api={sample,clips,advance,gait};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LandlordEnemyMotion=api;
 })(globalThis);

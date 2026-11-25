@@ -1,0 +1,3 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {sample,pose,fields}=require('../src/js/engine/Choreography.js');
+test('three action clips have neutral endpoints and distinct full-body contact poses',()=>{for(let i=0;i<3;i++){assert.ok(Object.values(sample(i,0)).every(v=>v===0));assert.ok(Object.values(sample(i,1)).every(v=>Math.abs(v)<1e-9));for(let j=0;j<100;j++)assert.ok(Object.values(sample(i,j/100)).every(Number.isFinite));}assert.ok(sample(0,.45).shift<0);assert.ok(sample(1,.45).shift>0);assert.ok(sample(2,.59).pitch>.4);});
+test('chained attack begins from exact prior whole-body pose',()=>{const prior=sample(0,.82),next=pose({attackTime:1,attackDuration:1,combo:1,choreoFrom:prior});assert.deepEqual(next,prior);});

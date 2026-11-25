@@ -503,6 +503,7 @@ function swordWhoosh(index){
 }
 function startAttack(index){
  const prior=player.attackTime>0?sampleAttackPose(player):null;
+ player.choreoFrom=player.attackTime>0?LandlordChoreography.pose(player):null;
  const spec=COMBOS[index];player.attackBlendFrom=prior;player.combo=index;player.attackDuration=spec.duration;player.attackTime=spec.duration;player.attackClock=0;player.attackHitReady=true;player.attackQueued=false;
  player.comboTime=.90;player.attackCooldown=0;player.attackBuffer=0;player.swordTrail=player.swordTrail.filter(s=>s.life>.05);
  player.cameraKick=Math.max(player.cameraKick,.025);player.lastSwordStamp=-1;

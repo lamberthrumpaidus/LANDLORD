@@ -101,7 +101,7 @@ class HeroMotion{
   }
   this.frames++;
  }
- leg(p,side,hip,attack,terrain){
+ leg(p,side,hip,attack,terrain,choreo={front:0,rear:0}){
   const i=side<0?0:1,f=this.feet[i],w=this.weights;
   let x=side*.36,z=0,lift=0;
   if(f&&p.grounded&&!p.dashTime){[x,z]=local(p,f.x,f.z);x=clamp(x,side*.36-.48,side*.36+.48);z=clamp(z,-.90,.90);lift=f.lift;}
@@ -109,7 +109,7 @@ class HeroMotion{
   x=mix(x,side*(.34+.16*flight),air*.80);z=mix(z,side*.21+flight*.12,air*.85);
   if(flight>.01){z=mix(z,side===1?-.42:-.16,flight);x=mix(x,side*.28,flight);}
   z=mix(z,side===1?-.90:.51,dash*.92);
-  x+=side*.13*attack;z+=side===1?-.20*attack:.16*attack;
+  x+=side*.13*attack;z+=side===1?-.20*attack+choreo.rear:.16*attack+choreo.front;
   const q=world(p,x,z),offset=p.grounded?clamp(terrain(q[0],q[1])-p.y,-.34,.40):0;
   const styl=this.style;z+=styl.airTuck*(side===1?-.34:.30);z-=styl.airStretch*.16;
   const ankle=[x,.19+offset+lift+air*.19+flight*.10+dash*.11+styl.airTuck*(side===1?.44:.23)-styl.airStretch*.16,z];

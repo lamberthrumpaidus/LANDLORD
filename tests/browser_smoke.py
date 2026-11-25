@@ -111,6 +111,7 @@ def run(mobile):
         assert all(abs(v['upper']-.85)<1e-5 and abs(v['lower']-.80)<1e-5 for v in rig['legs']),rig
         assert 'flightLean' in rig['body'] and 'dashTrail' in rig
         assert rig['surface']=='continuous-limbs-split-mantle'
+        assert len(rig['choreography'])==10,rig
         # Quality changes must not reset destructible objects or the current journey.
         js('Landlord3D.damageCrate(0,100)')
         assert js('return Landlord3D.breakableSpots()[0].dead')

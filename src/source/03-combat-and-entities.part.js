@@ -327,17 +327,17 @@ const heroRig=new LandlordHeroRig.HeroMotion(),spectacleFX=new LandlordSpectacle
 function playerModel(m){
  const p=player,steel=[.24,.32,.39],polish=[.40,.49,.55],iron=[.075,.105,.145],gold=[.56,.39,.18],leather=[.10,.07,.08],royal=[.20,.045,.065],magic=[.28,.78,.90];
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
- const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights,body=heroRig.body,style=heroRig.style;
+ const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights,body=heroRig.body,style=heroRig.style,choreo=LandlordChoreography.pose(p);
  const rootTransform=m.pt.bind(m),flightPitch=body.flightLean,airRoll=rig.flight*style.dashPose*Math.sin(Math.PI*clamp(heroRig.dashAge/.24,0,1))*.72;
  if(Math.abs(flightPitch)+Math.abs(airRoll)>.001)m.pt=v=>{const q=LandlordHeroRig.rotatePitch(v,flightPitch),y=q[1]-1.15,cs=Math.cos(airRoll),sn=Math.sin(airRoll);return rootTransform([q[0]*cs-y*sn,1.15+q[0]*sn+y*cs,q[2]]);};
  const stride=heroRig.locomotion(-1),bob=p.grounded?Math.cos(heroRig.phase*2)*(.055+.055*style.sprint)*rig.run*(1-attackBlend*.65):0;
  const landing=Math.sin(Math.PI*clamp((p.landPulse||0)/.42,0,1))*.16;
- const hips=1.48+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50-style.brake*.13;
+ const hips=1.48+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50-style.brake*.13-choreo.drop*.38;
  const breath=!attack&&!airborne?Math.sin(clock*2.05)*.032:0;
- const chest=2.35+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13-body.compression*.38-style.brake*.09;
+ const chest=2.35+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13-body.compression*.38-style.brake*.09-choreo.drop*.28;
  // Upper and lower body do not rotate together. Feet plant while the torso winds up.
  for(const side of [-1,1]){
-    const hip=[side*.36,hips,0],leg=heroRig.leg(p,side,hip,attackBlend,height),knee=leg.joint,ankle=leg.tip;
+    const hip=[side*.36+choreo.shift,hips,0],leg=heroRig.leg(p,side,hip,attackBlend,height,choreo),knee=leg.joint,ankle=leg.tip;
     LandlordHeroSurface.chain(m,hip,knee,ankle,[.255,.255,.205,.19,.18,.155,.13],steel,m.detail);
     LandlordHeroSurface.plate(m,knee,ankle,.19,iron,polish);
     const legRoot=m.pt.bind(m),fp=leg.footPitch;
@@ -346,11 +346,11 @@ function playerModel(m){
     m.box(ankle[0],ankle[1]+.15,ankle[2]+.28,.38,.21,.32,gold);m.pt=legRoot;
     m.ellipsoid(knee[0],knee[1],knee[2]+.14,.21,.22,.095,polish,0,5,8);
  }
- const oldPt=m.pt.bind(m),c=Math.cos(pose.twist+body.yaw*(1-attackBlend)),s=Math.sin(pose.twist+body.yaw*(1-attackBlend));
+ const oldPt=m.pt.bind(m),c=Math.cos(pose.twist+choreo.turn+body.yaw*(1-attackBlend)),s=Math.sin(pose.twist+choreo.turn+body.yaw*(1-attackBlend));
  const twistLocal=(v)=>{
-    let x=v[0],y=v[1]-hips,z=v[2];z+=(body.pitch+style.sprint*.17-style.brake*.23)*y;x+=(body.roll+stride.pelvis*rig.run*.18)*y;
+    let x=v[0],y=v[1]-hips,z=v[2];z+=(body.pitch+style.sprint*.17-style.brake*.23+choreo.pitch)*y;x+=(body.roll+stride.pelvis*rig.run*.18+choreo.roll)*y;
     let xx=x*c+z*s,zz=-x*s+z*c;
-    return [xx+(p.lean*.22)*(y+1.5),hips+y+.055*Math.sin(pose.progress*Math.PI),zz+pose.lunge*.28];
+    return [xx+choreo.shift+(p.lean*.22)*(y+1.5),hips+y+.055*Math.sin(pose.progress*Math.PI),zz+pose.lunge*.28];
  };
  m.pt=(v)=>oldPt(twistLocal(v));
  LandlordHeroArmor.breastplate(m,chest,hips,m.detail);
@@ -372,7 +372,7 @@ function playerModel(m){
      elbow=[.91+(hand[0]-.91)*.50+.12,chest+.03+(hand[1]-chest)*.41,hand[2]*.48-.14];
    } else {
      const cast=clamp((p.fireCast||0)/.39,0,1),lift=Math.sin(Math.PI*(1-cast));
-     hand=[-.96+cast*.42,chest-.61+cast*1.0+cycle.wristY*motionWeight*.88+style.airTuck*.20,.18+armSwing*1.18+attackBlend*.25+lift*.6];
+     hand=[-.96+cast*.42+choreo.guardX,chest-.61+cast*1.0+cycle.wristY*motionWeight*.88+style.airTuck*.20+choreo.guardY,.18+armSwing*1.18+attackBlend*.25+lift*.6+choreo.guardZ];
      elbow=[-1.10+cast*.24,chest-.14+cast*.50,armSwing*.4+attackBlend*.18+cast*.22];
    }
    hand[1]+=rig.air*.16+rig.flight*.21+style.airStretch*.22;hand[0]+=side*(rig.flight*.37+style.airStretch*.15+style.brake*.13);hand[2]-=rig.dash*.55+rig.hurt*.18;hand[2]+=style.brake*.42;

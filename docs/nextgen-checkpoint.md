@@ -125,3 +125,6 @@ Checkpoint 27 passed complete CI; checkpoint 28 unit tests passed but first rend
 
 ## Checkpoint 30 — visible full-body silhouette and continuous joint surfaces
 Visual review of checkpoint 27 actual browser frames showed that the long cape concealed most leg motion. Replaced disconnected limb cylinder/sphere combinations with a continuous deforming two-bone ring surface and fitted plates, lengthened legs relative to torso, replaced long cape with animated split mantle, brought third-person camera closer with a small lateral offset keeping the camera axes parallel. Collision and movement speeds unchanged. CPU procedural surface deformation, not GPU skinning. Added a mesh continuity test and browser diagnostics. Pending CI. Development limit requested by user: checkpoint 35.
+
+## Checkpoint 31 — full-body combat choreography
+Three authored procedural full-body attack tracks add hip shift, body drop, torso pitch and roll, foot placement and independent guard-hand targets to the existing sword curves. Buffered combos blend from the previous whole-body pose. Contact timing, damage, movement speed and input responsiveness remain unchanged. Unit tests verify continuity and distinct contact poses. Pending CI.

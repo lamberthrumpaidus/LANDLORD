@@ -42,7 +42,20 @@ def capture():
             if i==58:js('Landlord3D.dash()')
             if i==70:key('keydown','KeyD')
             if i==80:key('keyup','KeyD')
-            if i==82:js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
+            if i==82:
+                # Verify actual triple-jump activation before staging a clear
+                # flight corridor for the independent forward-flight clip.
+                js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
+                assert js('return Landlord3D.getFlightReport().flying'), 'Triple jump did not activate flight'
+                corridor=js("""for(const y of [18,25,35,45,55]){
+                    for(const x of [0,-12,12,-24,24]){
+                        const z=30;let clear=true;
+                        for(let d=0;d<=95;d+=.25){if(Landlord3D.collisionAt(x,z+d,y)){clear=false;break;}}
+                        if(clear)return {x,y,z};
+                    }
+                }return null;""")
+                assert corridor, 'No collision-free forward flight capture corridor'
+                js('Landlord3D.visualCapture.placeFlight(arguments[0].x,arguments[0].z,arguments[0].y);Landlord3D.controls.setOrbit(0);Landlord3D.setCameraPitch(.32)',corridor)
             if i==86:key('keydown','KeyW')
             if i==96:js('Landlord3D.dash()')
             if i==112:key('keyup','KeyW')

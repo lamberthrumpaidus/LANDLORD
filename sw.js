@@ -1,5 +1,5 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-nextgen-20261124-31';
+const CACHE='landlord-nextgen-20261124-32';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
@@ -12,6 +12,7 @@ const CORE=[
   "src/js/engine/FrameProfiler.js",
   "src/js/engine/MeshBudget.js",
   "src/js/engine/HeroRig.js",
+  "src/js/engine/HeroSurface.js",
   "src/js/engine/HeroArmor.js",
   "src/js/engine/EnemyMotion.js",
   "src/js/engine/Spectacle.js",

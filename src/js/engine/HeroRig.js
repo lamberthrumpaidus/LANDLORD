@@ -112,8 +112,8 @@ class HeroMotion{
   x+=side*.13*attack;z+=side===1?-.20*attack:.16*attack;
   const q=world(p,x,z),offset=p.grounded?clamp(terrain(q[0],q[1])-p.y,-.34,.40):0;
   const styl=this.style;z+=styl.airTuck*(side===1?-.34:.30);z-=styl.airStretch*.16;
-  const ankle=[x,.18+offset+lift+air*.19+flight*.10+dash*.11+styl.airTuck*(side===1?.44:.23)-styl.airStretch*.16,z];
-  const solved=solveTwoBone(hip,ankle,[side*.12,0,1],.69,.64);
+  const ankle=[x,.19+offset+lift+air*.19+flight*.10+dash*.11+styl.airTuck*(side===1?.44:.23)-styl.airStretch*.16,z];
+  const solved=solveTwoBone(hip,ankle,[side*.12,0,1],.85,.80);
   this.legDiagnostics[i]={upper:len(sub(solved.joint,hip)),lower:len(sub(solved.tip,solved.joint)),planted:!!(f?.stance&&p.grounded&&!p.dashTime),clamped:solved.clamped};
   const cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stanceFraction=.48-.18*w.run,roll=f?.stance?clamp((cycle-stanceFraction*.65)/(stanceFraction*.35),0,1)*.35:-Math.sin(Math.PI*clamp((cycle-stanceFraction)/(1-stanceFraction),0,1))*.60;
   solved.footPitch=clamp(roll*w.run-air*.30-flight*.32-dash*.36,-.85,.65);return solved;

@@ -1812,19 +1812,19 @@ function playerModel(m){
  if(Math.abs(flightPitch)+Math.abs(airRoll)>.001)m.pt=v=>{const q=LandlordHeroRig.rotatePitch(v,flightPitch),y=q[1]-1.15,cs=Math.cos(airRoll),sn=Math.sin(airRoll);return rootTransform([q[0]*cs-y*sn,1.15+q[0]*sn+y*cs,q[2]]);};
  const stride=heroRig.locomotion(-1),bob=p.grounded?Math.cos(heroRig.phase*2)*(.055+.055*style.sprint)*rig.run*(1-attackBlend*.65):0;
  const landing=Math.sin(Math.PI*clamp((p.landPulse||0)/.42,0,1))*.16;
- const hips=1.12+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50-style.brake*.13;
+ const hips=1.48+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50-style.brake*.13;
  const breath=!attack&&!airborne?Math.sin(clock*2.05)*.032:0;
- const chest=2.21+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13-body.compression*.38-style.brake*.09;
+ const chest=2.35+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13-body.compression*.38-style.brake*.09;
  // Upper and lower body do not rotate together. Feet plant while the torso winds up.
  for(const side of [-1,1]){
     const hip=[side*.36,hips,0],leg=heroRig.leg(p,side,hip,attackBlend,height),knee=leg.joint,ankle=leg.tip;
-    limb(m,hip,knee,.24,.18,steel,0,9);m.ellipsoid(...knee,.23,.22,.24,polish,0,5,9);
-    limb(m,knee,ankle,.19,.15,tint(iron,1.13),0,9);
+    LandlordHeroSurface.chain(m,hip,knee,ankle,[.255,.255,.205,.19,.18,.155,.13],steel,m.detail);
+    LandlordHeroSurface.plate(m,knee,ankle,.19,iron,polish);
     const legRoot=m.pt.bind(m),fp=leg.footPitch;
     m.pt=v=>{const offset=[v[0]-ankle[0],v[1]-ankle[1],v[2]-ankle[2]],q=LandlordHeroRig.rotatePitch(offset,fp,0);return legRoot(add(ankle,q));};
     m.ellipsoid(ankle[0],ankle[1]+.05,ankle[2]+.16,.30,.20,.50,iron,0,6,9);
     m.box(ankle[0],ankle[1]+.15,ankle[2]+.28,.38,.21,.32,gold);m.pt=legRoot;
-    m.box(knee[0],knee[1],knee[2]+.15,.24,.36,.10,polish);
+    m.ellipsoid(knee[0],knee[1],knee[2]+.14,.21,.22,.095,polish,0,5,8);
  }
  const oldPt=m.pt.bind(m),c=Math.cos(pose.twist+body.yaw*(1-attackBlend)),s=Math.sin(pose.twist+body.yaw*(1-attackBlend));
  const twistLocal=(v)=>{
@@ -1848,7 +1848,7 @@ function playerModel(m){
    let hand,elbow;
    if(side===1){
      const travel=rig.run*(1-attackBlend),flight=rig.flight*(1-attackBlend);
-     hand=[pose.hand[0]+rig.dash*.10+flight*.40,pose.hand[1]+(chest-2.21)+travel*(.04+cycle.wristY*.55)-flight*.20+style.airTuck*.15,pose.hand[2]+armSwing*.95-travel*.30-flight*.85];
+     hand=[pose.hand[0]+rig.dash*.10+flight*.40,pose.hand[1]+(chest-2.35)+travel*(.04+cycle.wristY*.55)-flight*.20+style.airTuck*.15,pose.hand[2]+armSwing*.95-travel*.30-flight*.85];
      elbow=[.91+(hand[0]-.91)*.50+.12,chest+.03+(hand[1]-chest)*.41,hand[2]*.48-.14];
    } else {
      const cast=clamp((p.fireCast||0)/.39,0,1),lift=Math.sin(Math.PI*(1-cast));
@@ -1860,9 +1860,8 @@ function playerModel(m){
    const torsoPt=m.pt,shoulderTilt=cycle.shoulder*motionWeight*.9+(hand[1]-chest+.6)*.14;
    m.pt=v=>torsoPt(LandlordHeroRig.rotatePitch([v[0],v[1]-shoulder[1],v[2]-shoulder[2]],shoulderTilt,0).map((n,i)=>n+(i===1?shoulder[1]:i===2?shoulder[2]:0)));
    LandlordHeroArmor.pauldron(m,side,chest,m.detail);m.pt=torsoPt;
-   limb(m,shoulder,elbow,.25,.20,steel,0,9);
-   m.ellipsoid(...elbow,.23,.23,.23,gold,0,5,8);
-   limb(m,elbow,hand,.21,.15,iron,0,9);
+   LandlordHeroSurface.chain(m,shoulder,elbow,hand,[.25,.23,.18,.17,.18,.155,.135],steel,m.detail);
+   LandlordHeroSurface.plate(m,elbow,hand,.19,iron,polish);
    m.ellipsoid(...hand,.20,.19,.26,polish,0,5,8);
    if(side===1){
      const carry=rig.flight*.70+rig.dash*.50+rig.run*.20,direction=LandlordHeroRig.slerpDirection(pose.blade,[.30,.12,-.95],clamp(carry*(1-attackBlend),0,1)),grip=add(hand,scale(direction,-.17)),bladeBase=add(hand,scale(direction,.60)),bladeTip=add(bladeBase,scale(direction,2.75));
@@ -1877,23 +1876,8 @@ function playerModel(m){
      p.swordTip=m.pt(bladeTip);
    }
  }
- // Cloth physics-like follow-through: sway, inertia and twist propagate to the hem.
- const flutter=Math.sin(clock*4.7+phase*.6)*(.08+.15*activity+.18*style.sprint)+(airborne?.26:0)+(game.flying?.34:0);
- for(let strip=0;strip<11;strip++){
-   let x0=-.69+strip*1.38/11,x1=-.69+(strip+1)*1.38/11;
-   for(let j=0;j<7;j++){
-     const a=j/7,b=(j+1)/7;
-     const fx=(x,t)=>x*(1+.34*t)+heroRig.cloth(t).x+p.lean*t*.45+Math.sin(pose.progress*TAU)*pose.twist*.22*t;
-     const fy=t=>chest+.48-t*2.43;
-     const fz=(x,t)=>-.46+heroRig.cloth(t).z-.10*Math.cos(x*15)*(.35+t)-.09*Math.sin(clock*3.1+t*4+x*2)*t-.14*flutter*t-pose.lunge*t*.39;
-     m.quad([fx(x0,a),fy(a),fz(x0,a)],[fx(x1,a),fy(a),fz(x1,a)],
-            [fx(x1,b),fy(b),fz(x1,b)],[fx(x0,b),fy(b),fz(x0,b)],tint(royal,(strip===0||strip===10)?.67:.83+.12*Math.cos(strip*1.9)+j*.018));
-     if(strip===0||strip===10){const x=strip===0?x0:x1,dx=strip===0?.045:-.045;const p0=[fx(x,a),fy(a),fz(x,a)-.014],p1=[fx(x+dx,a),fy(a),fz(x+dx,a)-.014],p2=[fx(x+dx,b),fy(b),fz(x+dx,b)-.014],p3=[fx(x,b),fy(b),fz(x,b)-.014];m.quad(p0,p1,p2,p3,tint(gold,.78));}
-   }
- }
- // Woven emblem on the back of the cape follows the same cloth displacement.
- const insignia=(x,t)=>[x*(1+.34*t)+heroRig.cloth(t).x+p.lean*t*.45+Math.sin(pose.progress*TAU)*pose.twist*.22*t,chest+.48-t*2.43,-.485+heroRig.cloth(t).z-.10*Math.cos(x*15)*(.35+t)-.09*Math.sin(clock*3.1+t*4+x*2)*t-.14*flutter*t-pose.lunge*t*.39];
- const mark=[insignia(0,.22),insignia(-.21,.39),insignia(0,.58),insignia(.21,.39)];m.quad(...mark,tint(gold,.73));m.quad(insignia(0,.30),insignia(-.11,.39),insignia(0,.49),insignia(.11,.39),royal);
+ // Two short flowing mantle panels leave the articulated legs visible at all camera angles.
+ LandlordHeroSurface.coat(m,chest,heroRig,body,clock,pose.lunge,p.lean);
  m.pt=rootTransform;
  // Sword history is updated AFTER calculating actual world-space joint positions.
  if(p.swordTip&&p.swordBase&&attack&&pose.active>.012&&clock-p.lastSwordStamp>.012){
@@ -2133,7 +2117,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
 }
 let cameraFov=Math.PI/3.1;
 function computeCamera(dt){
- let horizontal=orbit,dist=10.8+(player.attackTime>0?-.45*Math.sin(Math.PI*clamp(player.attackClock/player.attackDuration,0,1)):0),pitch=orbitPitch;
+ let horizontal=orbit,dist=8.8+(player.attackTime>0?-.45*Math.sin(Math.PI*clamp(player.attackClock/player.attackDuration,0,1)):0),pitch=orbitPitch;
  if(game.state==='playing'){
    dist+=clamp(Math.hypot(player.vx,player.vz)-9,0,10)*.13;
    dist+=heroRig.body.flightLean*.80;
@@ -2150,9 +2134,10 @@ function computeCamera(dt){
  cameraAnchor[1]=mix(cameraAnchor[1],player.y,catchUp);
  cameraAnchor[2]=mix(cameraAnchor[2],player.z,catchUp);
  const x=cameraAnchor[0],z=cameraAnchor[2],y=cameraAnchor[1];
- const lookAhead=5.4-(portraitZoom-1)*1.05;
+ const lookAhead=3.85-(portraitZoom-1)*.75;
  let target=[x+Math.sin(horizontal)*lookAhead,y+1.85-lookAhead*Math.tan(pitch),z+Math.cos(horizontal)*lookAhead];
  let eye=[x-Math.sin(horizontal)*dist*Math.cos(pitch),y+2.05+dist*Math.sin(pitch),z-Math.cos(horizontal)*dist*Math.cos(pitch)];
+ if(game.state==='playing'&&viewMode!=='fpp'&&aspect>1.05){const side=.72;eye[0]-=Math.cos(horizontal)*side;eye[2]+=Math.sin(horizontal)*side;target[0]-=Math.cos(horizontal)*side;target[2]+=Math.sin(horizontal)*side;}
  if(game.state==='title'&&aspect>1.05){target[0]+=3.9;target[1]+=.55;}else if(game.state==='title'){target[1]+=.90;}
  if(viewMode==='fpp'&&game.state==='playing'){eye=[x,y+2.55,z];target=[x+Math.sin(horizontal)*16*Math.cos(pitch),y+2.55-16*Math.sin(pitch),z+Math.cos(horizontal)*16*Math.cos(pitch)];}
  // Sweep a small camera volume from the hero to the desired camera position.
@@ -2825,7 +2810,7 @@ try{
  if(saved){$('play').textContent=T('start')}
  // Show the rendered 3D world in the title, too.
  requestAnimationFrame(loop);
- window.Landlord3D={getGraphicsReport:()=>({quality,renderer:mode,webgl2:!!gl&&gl instanceof WebGL2RenderingContext,viewport:[innerWidth,innerHeight],resolution:[canvas.width,canvas.height],scale:res,adaptiveFactor,locked:quality==='cinematic',grassInstances:vegetation?.count||0,grassFrames:vegetation?.frames||0,shadow:shadowState?.sz||0,postFX:cinematicPipeline?.status()||null}),getSpectacleReport:()=>({entryArt:entryArtStats.map(x=>({...x})),impactCount:spectacleFX.total,activeImpacts:spectacleFX.effects.length,portalShader:!!gl,fov:cameraFov}),getAnimationReport:()=>({...heroRig.status(),attackPose:sampleAttackPose(player),armor:'eclipse-plate',enemyClips:LandlordEnemyMotion.clips.map(c=>c.name),activeEnemies:enemies.filter(x=>!x.dead&&x.zone===game.zone&&(x.windup>0||x.strikeAfter>0)).map(x=>({boss:x.boss,...LandlordEnemyMotion.sample(x)}))}),getPerformanceReport:()=>frameProfiler.report(),getFrameState:()=>({state:game.state,zone:game.zone,quality,ambientPoints:game.zone<2?Array.from({length:4},(_,j)=>{const z=game.zone*LEN+68+j*9,x=roadCenter(z)+33*(j%2?1:-1);return {x,y:height(x,z)+.3,z};}):[],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',landmarks:landmarkStats.map(p=>({...p})),won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,dynamicMesh:{...dynamicStats,uploads:dynamicUploads},renderedFrames,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,particleInstancing:!!particleBatch,particleInstances:particleBatch?.count||0,particleFrames:particleBatch?.frames||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
+ window.Landlord3D={getGraphicsReport:()=>({quality,renderer:mode,webgl2:!!gl&&gl instanceof WebGL2RenderingContext,viewport:[innerWidth,innerHeight],resolution:[canvas.width,canvas.height],scale:res,adaptiveFactor,locked:quality==='cinematic',grassInstances:vegetation?.count||0,grassFrames:vegetation?.frames||0,shadow:shadowState?.sz||0,postFX:cinematicPipeline?.status()||null}),getSpectacleReport:()=>({entryArt:entryArtStats.map(x=>({...x})),impactCount:spectacleFX.total,activeImpacts:spectacleFX.effects.length,portalShader:!!gl,fov:cameraFov}),getAnimationReport:()=>({...heroRig.status(),attackPose:sampleAttackPose(player),armor:'eclipse-plate',surface:'continuous-limbs-split-mantle',enemyClips:LandlordEnemyMotion.clips.map(c=>c.name),activeEnemies:enemies.filter(x=>!x.dead&&x.zone===game.zone&&(x.windup>0||x.strikeAfter>0)).map(x=>({boss:x.boss,...LandlordEnemyMotion.sample(x)}))}),getPerformanceReport:()=>frameProfiler.report(),getFrameState:()=>({state:game.state,zone:game.zone,quality,ambientPoints:game.zone<2?Array.from({length:4},(_,j)=>{const z=game.zone*LEN+68+j*9,x=roadCenter(z)+33*(j%2?1:-1);return {x,y:height(x,z)+.3,z};}):[],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,vx:player.vx,vz:player.vz,grounded:player.grounded},eye:camEye,forward:cameraBasis?.forward||[0,0,1],up:cameraBasis?.up||[0,1,0],seals:game.seals,relics:game.relics}),getGameplayMetrics:()=>({...gameplayStats,damageNumbers:damagePopups.length,enemyWindups:enemies.filter(e=>!e.dead&&e.windup>0).length,nearbyEnemies:enemies.filter(e=>!e.dead&&e.zone===game.zone&&Math.hypot(e.x-player.x,e.z-player.z)<22).length,coyote:player.coyote,jumpBuffer:player.jumpBuffer,counterReady:player.counterReady}),getStatus:()=>({renderer:mode,fps:Math.round(fps),gameTime:Math.round(game.time*10)/10,splashTime:Math.round(splashTime*10)/10,triangles:staticBuffers.map(b=>Math.round((b?.count||0)/3)),zone:game.zone,seals:[...game.seals],bosses:[...game.bosses],player:{x:player.x,y:player.y,z:player.z,hp:player.hp,angle:player.angle,vx:player.vx,vz:player.vz,grounded:player.grounded,motion:player.motion,flying:game.flying},relics:[...game.relics],visited:[...game.visited],exploration:game.explored.map(a=>a.length),skills:{dash:skillUnlocked('dash'),fire:skillUnlocked('fire')},gameName:'LANDLORD',landmarks:landmarkStats.map(p=>({...p})),won:game.missionEnd,checkpoint:{x:game.checkpointX,z:game.checkpoint},cameraYaw:orbit,cameraPitch:orbitPitch,viewMode,enemyCount:enemies.filter(e=>!e.dead).length,autoAimCandidates:livingFireTargets().filter(e=>e.zone===game.zone).length,autoAimSwitches:autoAimSwitchCount,wildlifeCount:wildlife.filter(b=>!b.dead).length,obstacles:solidCount,breakables:breakables.filter(b=>!b.dead).length,brokenCrates:breakables.filter(b=>b.dead).length,gpuRealmsLoaded:staticBuffers.filter(b=>!!b.buffer).length,chests:chestTaken.filter(Boolean).length,chestTotal:cacheSpots.length,shards:shardTaken.filter(Boolean).length,shardTotal:energyShards.length,healingWells:healingWells.length,hazards:riftTraps.length,worldLength:END,altarHold:Math.round(altarHold*100)/100,drawCalls,submittedTriangles,visibleChunks,dynamicMesh:{...dynamicStats,uploads:dynamicUploads},renderedFrames,quality,shadowResolution:shadowState?.sz||0,postFX:cinematicPipeline?.status()||{active:false,frames:0},materialTextures:materialLibrary?.ready||0,particleInstancing:!!particleBatch,particleInstances:particleBatch?.count||0,particleFrames:particleBatch?.frames||0,renderScale:adaptiveFactor,touchContacts:contacts.size,actionContacts:actionPointers.size,state:game.state}),setGraphicsQuality:next=>setGraphicsQuality(next,false),gpuErrors:()=>{if(!gl)return [];let errors=[];for(let i=0;i<16;i++){const err=gl.getError();if(!err)break;errors.push(err);}return errors;},start:newGame,continue:fromSave,interact,attack:doAttack,jump:doJump,travelRealm,openMap:toggleMap,checkVictory,portalPoint,sidePortalPoint,shrinePoint,roadCenter,attackInfo:()=>({combo:player.combo,attackTime:player.attackTime,duration:player.attackDuration,queued:player.attackQueued,trail:player.swordTrail.length,hitFlashes:hitFlashes.length}),fire:doFire,fireAimInfo,breakableSpots:()=>breakables.map(b=>({id:b.id,x:b.x,z:b.z,dead:b.dead,hp:b.hp})),damageCrate:(id,amount=75)=>strikeBreakableById(id,amount),fireAimDebug:()=>attacks.filter(a=>a.kind==='fire').map(a=>({x:a.x,y:a.y,z:a.z,locked:!!a.aimTarget,lockTarget:a.aimTarget?{x:a.aimTarget.x,z:a.aimTarget.z,hp:a.aimTarget.hp}:null,vx:a.vx,vy:a.vy,vz:a.vz})),fireLockStatus:()=>({current:fireLockWindow>0&&currentFireLock?{x:currentFireLock.x,z:currentFireLock.z,dead:currentFireLock.dead,kind:currentFireLock.kind||'enemy'}:null,silent:true,active:fireLockWindow>0,remaining:Math.round(fireLockWindow*1000)/1000,switches:autoAimSwitchCount}),dash:doDash,world:regions,instantState:()=>({flying:game.flying,dashTime:player.dashTime,dashSerial:player.dashSerial,dashCooldown:player.dashCooldown,dashVX:player.dashVX,dashVZ:player.dashVZ,dashVY:player.dashVY,attackTime:player.attackTime,fireCooldown:player.fireCooldown,pulseCooldown:player.pulseCooldown,y:player.y}),controls:{cameraMove,getInput,toggleView,setOrbit:(v)=>{orbit=v},getOrbit:()=>orbit,getBindings:()=>({...keybinds}),setBinding:(act,code)=>{if(!Object.prototype.hasOwnProperty.call(keybinds,act))return false;bindingPending=act;chooseBinding(code);return keybinds[act]===code}},testMove:(dx,dz)=>{const x=player.x,z=player.z;moveWithCollision(player,dx,dz,.72,player.y,2.65);return {x:player.x,z:player.z,blocked:Math.hypot(player.x-x-dx,player.z-z-dz)>.1}},testSetPosition:(x,z)=>{player.x=x;player.z=z;player.y=height(x,z);return {x,z}},solidAt:(x,z,y=height(x,z))=>!!blocking(x,z,.72,y,2.65),
  combatContact:(source,target,reach)=>enemyStrikeClear(source,target,reach),collisionAt:(x,z,y,r=.72)=>{const a=blocking(x,z,r,y,2.65);return a?{kind:a.kind,minY:a.minY,maxY:a.maxY,x:a.x,z:a.z}:null},
  setPlayerAltitude:(y)=>{player.y=y;player.grounded=false;return player.y},
  getMapOrientation:()=>({minimapYaw:orbit,atlasNorthUp:!worldAtlas?.cameraUp,x:player.x,z:player.z,heading:LandlordMapProjection.heading(player.angle,orbit),drawn:minimapDrawState,viewport:worldAtlas?.state()}),mapProject:(dx,dz,atlas=false)=>LandlordMapProjection.project(dx,dz,atlas?worldAtlas?.view.yaw||0:orbit),

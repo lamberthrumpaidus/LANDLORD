@@ -1,0 +1,2 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {chain,coat}=require('../src/js/engine/HeroSurface.js');
+test('continuous joint skin is finite and connected for extended and bent limbs',()=>{for(const j of [[0,1,0],[.4,.7,.4]]){const a=[0,0,0],b=[0,1.6,.3],rows=[];chain({smoothQuad(p,n,c){assert.ok(p.flat().every(Number.isFinite));assert.ok(n.flat().every(Number.isFinite));rows.push(p);}},a,j,b,[.2,.2,.18,.18,.16,.15,.13],[.2,.3,.4]);assert.equal(rows.length,72);assert.deepEqual(rows[0][2],rows[12][3]);}});

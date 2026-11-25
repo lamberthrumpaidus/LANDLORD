@@ -524,30 +524,27 @@ function wildlifeModel(mesh,b){
  m.ring(0,.05,0,1.27*f,.10,[.08,.045,.1],0);
 }
 let dynamicStats={candidates:0,culled:0,triangles:0};
-function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGeometry.planes(viewProj):null;
+let motionFXData=new Float32Array(0),motionFXBuffer=null;
+function buildDynamic(){let mesh=new Mesh(),motionFX=new Mesh();motionFX.material=gl?6:0;const planes=gl&&viewProj?LandlordGeometry.planes(viewProj):null;
  dynamicStats={candidates:0,culled:0,triangles:0};
  const eligible=(e,opts)=>{dynamicStats.candidates++;const yes=LandlordMeshBudget.eligible(e,player,planes,LandlordGeometry.visible,opts);if(!yes)dynamicStats.culled++;return yes;};
  const detail=(e,hero=false)=>LandlordMeshBudget.detail(quality,distance(player,e),hero);
  const near=enemies.filter(e=>!e.dead&&eligible(e,{range:65,radius:e.boss?9:4,height:e.boss?11:5,shadow:24}));
  if(viewMode!=='fpp'){let pm=new Mesh(player.x,player.y,player.z,player.angle);pm.detail=detail(player,true);playerModel(pm);appendVertices(mesh.d,pm.d);}
  // Contact shadow stays on the actual terrain during jumps.
- let shadow=new Mesh();shadow.ring(player.x,height(player.x,player.z)+.025,player.z,1.03+Math.abs(player.y-height(player.x,player.z))*.10,.24,[.045,.055,.075],0);appendVertices(mesh.d,shadow.d);
+ if(!gl||quality==='low'){const shadow=new Mesh(),ground=height(player.x,player.z);shadow.material=gl?6:0;shadow.ring(player.x,ground+.035,player.z,.63,.12,[.04,.055,.07],.25);appendVertices(motionFX.d,shadow.d);}
  // Sword ribbon: geometry follows the REAL sword tip from the articulated arm.
  if(player.swordTrail.length>1){
-   let fx=new Mesh();const trail=player.swordTrail;
+   let fx=motionFX;const trail=player.swordTrail;
    for(let i=1;i<trail.length;i++){
-      let a=trail[i-1],b=trail[i];if(a.combo!==b.combo)continue;let alpha=Math.min(a.life,b.life)/.23;
+      let a=trail[i-1],b=trail[i];if(a.combo!==b.combo||Math.hypot(...sub(a.tip,b.tip))>5.0)continue;let alpha=Math.min(a.life,b.life)/.23;
       const blend=clamp(alpha*(.30+.7*i/trail.length),0,1);
       const blade=(k)=>add(k.base,scale(sub(k.tip,k.base),.84));
       const nearTip=(k)=>add(k.base,scale(sub(k.tip,k.base),.34));
-      const clr=tint(COMBOS[b.combo].color,.16+.48*blend);
-      fx.quad(nearTip(a),blade(a),blade(b),nearTip(b),clr,.23+.85*blend);
-      fx.quad(blade(a),a.tip,b.tip,blade(b),tint(COMBOS[b.combo].color,.23+.79*blend),.48+1.6*blend);
-      if(i%4===0){
-         limb(fx,b.base,b.tip,.042+blend*.045,.009,COMBOS[b.combo].color,.38+blend*1.2,5);
-      }
+      const clr=tint(COMBOS[b.combo].color,.55+.40*blend);
+      fx.quad(nearTip(a),blade(a),blade(b),nearTip(b),clr,.13+.22*blend);
+      fx.quad(blade(a),a.tip,b.tip,blade(b),tint(COMBOS[b.combo].color,.75+.25*blend),.22+.40*blend);
    }
-   appendVertices(mesh.d,fx.d);
  }
 
  for(const b of wildlife){
@@ -602,13 +599,13 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
    appendVertices(mesh.d,portalFX.d);
  }
  for(let j=Math.max(0,game.zone-1);j<=Math.min(6,game.zone+1);j++){let p=relicPos(j);if(Math.abs(player.z-p[1])<74){let rm=new Mesh();relicModel(rm,j);appendVertices(mesh.d,rm.d)}}
- discoveryMesh(mesh);spectacleFX.draw(mesh,height,quality);
+ discoveryMesh(mesh);spectacleFX.draw(motionFX,height,quality);
  // Temporal movement ribbons are sampled during simulation, not fabricated from current facing.
- if(heroRig.dashTrail.length>1){const fx=new Mesh(),trail=heroRig.dashTrail;
+ if(heroRig.dashTrail.length>1){const fx=motionFX,trail=heroRig.dashTrail;
   for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i];if(Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)>5)continue;const fade=Math.min(a.life,b.life)/.30,col=b.flight?[.32,.85,1]:regions[game.zone].accent;
    for(const side of [-1,1]){const p=(q,offset,yy)=>[q.x+Math.cos(q.angle)*side*offset,q.y+yy,q.z-Math.sin(q.angle)*side*offset];
-    fx.quad(p(a,.74,.70),p(a,.74+.16*fade,1.24),p(b,.74+.16*fade,1.24),p(b,.74,.70),tint(col,.35+.60*fade),.3+fade*1.1);}
-  }appendVertices(mesh.d,fx.d);
+    fx.quad(p(a,.74,.70),p(a,.74+.16*fade,1.24),p(b,.74+.16*fade,1.24),p(b,.74,.70),tint(col,.55+.45*fade),.10+fade*.28);}
+  }
  }
  if(game.flying&&heroRig.speed<9){let skyAura=new Mesh();skyAura.ring(player.x,player.y-.45,player.z,1.8,.14,[.32,.96,.86],.62);appendVertices(mesh.d,skyAura.d)}
  for(const a of attacks){
@@ -637,6 +634,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
  // Procedural drifting embers and floating fireflies.
  let n=quality==='low'?8:quality==='balanced'?20:45;for(let j=0;j<n;j++){let phase=hash(j*23)*TAU,x=player.x+Math.sin(j*11.5+clock*.11)*38,z=player.z+Math.cos(j*19.25-clock*.13)*31,y=1.5+hash(j*79)*13+Math.sin(clock*.8+phase)*1.5;
  let pm=new Mesh();pm.box(x,y,z,.06,.09,.06,reg.accent,.9);appendVertices(mesh.d,pm.d)}
+ motionFXData=motionFX.get();if(!gl)appendVertices(mesh.d,motionFX.d);
  dynamicStats.triangles=mesh.d.length/30;return mesh.get();
 }
 let cameraFov=Math.PI/3.1;
@@ -705,6 +703,7 @@ function paintWebGL(dynamicData){drawCalls=0;submittedTriangles=0;visibleChunks=
  let r=ensureGpuRealm(j);if(!r)continue;bindData(r.buffer);for(const chunk of r.chunks){if(!LandlordGeometry.visible(chunk,frustum))continue;gl.drawArrays(gl.TRIANGLES,chunk.first,chunk.count);drawCalls++;visibleChunks++;submittedTriangles+=chunk.count/3;}
  }
  gl.uniform1f(a.worldSurface,0);bindData(vbo);gl.drawArrays(gl.TRIANGLES,0,dynamicData.length/10);drawCalls++;submittedTriangles+=dynamicData.length/30;
+ if(motionFXData.length){if(!motionFXBuffer)motionFXBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,motionFXBuffer);gl.bufferData(gl.ARRAY_BUFFER,motionFXData,gl.DYNAMIC_DRAW);bindData(motionFXBuffer);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ZERO,gl.ONE);gl.depthMask(false);gl.drawArrays(gl.TRIANGLES,0,motionFXData.length/10);gl.depthMask(true);gl.disable(gl.BLEND);drawCalls++;submittedTriangles+=motionFXData.length/30;}
  if(vegetation)drawCalls+=vegetation.draw(game.zone,player,quality,viewProj,camEye,c.fog,clock,LandlordGraphicsProfiles.profiles[quality].grass);
  if(particleBatch&&cameraBasis)drawCalls+=particleBatch.draw(particles,player,quality,viewProj,cameraBasis);
  const gatePoint=portalPoint(game.zone);

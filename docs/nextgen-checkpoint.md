@@ -134,3 +134,6 @@ Distance-driven enemy and wildlife gait advances from actual collision-resolved 
 
 ## Checkpoint 33 — rigid body posing and sprint contact continuity
 Replaced shear-based torso posing with true orthogonal rotation around the pelvis; head counter-rotation responds to camera heading without stretching neck/armor. Shortened sprint stance duty cycle and retained swing endpoint on contact rather than snapping to a new location; overreach clamps continuously. Movement and attack mechanics unchanged. Added rotation-invariance test. Pending CI.
+
+## Checkpoint 34 — depth-tested translucent motion effects
+Visual review of checkpoint 30 browser attack frame showed opaque ribbons and bright rings obscuring the character. Isolated sword/dash/impact trails in a translucent depth-tested pass, excluded from shadow casting, reduced glow intensity and skipped discontinuous sword trail segments. Kept CPU fallback and gameplay telegraphs. Pending browser validation.

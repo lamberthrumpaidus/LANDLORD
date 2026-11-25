@@ -11,6 +11,7 @@ function initRenderer(){
  float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash3(i),hash3(i+vec3(1,0,0)),f.x),mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x),mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x),f.y),f.z);}
  float qualityMetalExponent(){return uQualityTier>=3.?24.:12.;}
  void main(){
+  if(vMaterial>5.5&&vMaterial<6.5){gl_FragColor=vec4(clamp(vColor,0.,1.),clamp(vEm,0.,1.));return;}
   if(vMaterial>3.5&&vMaterial<4.5){vec2 p=(vWorld.xy-uPortalCenter.xy)/vec2(7.6,4.30);float r=length(p),a=atan(p.y,p.x);float waves=.5+.5*sin(19.*r-3.8*uTime+3.*sin(a*5.+uTime));float threads=pow(.5+.5*sin(a*9.+r*18.-uTime*2.3),12.);float rim=pow(clamp(r,0.,1.),9.);float core=exp(-r*r*6.);vec3 light=uPortalColor*(.15+.44*waves+.56*threads+.92*rim)+vec3(.55,.73,.88)*core*.43;gl_FragColor=vec4(clamp(light,0.,1.),1.);return;}
   vec3 N=normalize(vNormal),V=normalize(uCam-vWorld),L=normalize(uLight),H=normalize(L+V);
   float detailFade=1.-smoothstep(38.,105.,vFog);float micro=.5,tiny=.5,moss=.5;

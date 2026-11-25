@@ -60,7 +60,7 @@ def run(mobile):
         wait(lambda:js('return !!window.Landlord3D'))
         title=js('return Landlord3D.getStatus()')
         assert title['renderer']=='gpu',title
-        assert js('return Landlord3D.getBuildInfo().checkpoint')==36
+        assert js('return Landlord3D.getBuildInfo().checkpoint')==37
         assert len(title['seals'])==7,title
         assert len(title['landmarks'])==7 and all(p['triangles']>100 for p in title['landmarks']),title['landmarks']
         spectacle=js('return Landlord3D.getSpectacleReport()')
@@ -248,10 +248,16 @@ def run(mobile):
         ground=js('return Landlord3D.getFlightReport().ground')
         js('Landlord3D.visualCapture.placeFlight(arguments[0],arguments[1],arguments[2])',start['x'],start['z'],ground+12)
         if mobile:
-            js("document.querySelector('.btn-descend').dispatchEvent(new PointerEvent('pointerdown',{pointerId:901,pointerType:'touch',bubbles:true}));document.querySelector('.btn-descend').dispatchEvent(new PointerEvent('pointerup',{pointerId:901,pointerType:'touch',bubbles:true}))")
+            rect=js("const b=document.querySelector('.btn-descend'),r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,visible:!b.hidden,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('.btn-descend')===b}")
+            assert rect['visible'] and rect['hit'],rect
+            cdp('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':rect['x'],'y':rect['y'],'id':91}]})
+            cdp('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
         else:
             js("const code=Landlord3D.controls.getBindings().descend;window.dispatchEvent(new KeyboardEvent('keydown',{code}));window.dispatchEvent(new KeyboardEvent('keyup',{code}))")
         assert js('return Landlord3D.getFlightReport().landing')
+        js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
+        assert js('return Landlord3D.getFlightReport().flying&&!Landlord3D.getFlightReport().landing')
+        js("const code=Landlord3D.controls.getBindings().descend;window.dispatchEvent(new KeyboardEvent('keydown',{code}));window.dispatchEvent(new KeyboardEvent('keyup',{code}))")
         landed=js('return Landlord3D.visualCapture.advance(2)')
         assert not landed['flying'] and landed['grounded'] and landed['reason']=='landing',landed
         gate=js('return Landlord3D.runRealmChecks()[0].gate')
@@ -260,13 +266,19 @@ def run(mobile):
         if(!hit)return null;const y=Math.max(hit.minY+.35,Landlord3D.getFlightReport().ground+1);
         for(let d=3;d<=18;d+=.25){const z=g.z-d;if(!Landlord3D.collisionAt(x,z,y)&&Landlord3D.collisionAt(x,g.z,y))return {x,z,y};}return null;""",gate)
         assert approach,gate
+        roof=js("""const g=arguments[0],x=g.x+12;Landlord3D.testSetPosition(x,g.z);const ground=Landlord3D.getFlightReport().ground;let top=null;for(let y=ground;y<ground+35;y+=.2)if(Landlord3D.collisionAt(x,g.z,y))top=y;return top===null?null:{x,z:g.z,y:top+2,ground};""",gate)
+        assert roof,gate
+        js('Landlord3D.visualCapture.placeFlight(arguments[0].x,arguments[0].z,arguments[0].y)',roof)
+        js("const code=Landlord3D.controls.getBindings().descend;window.dispatchEvent(new KeyboardEvent('keydown',{code}));window.dispatchEvent(new KeyboardEvent('keyup',{code}))")
+        rooftop=js('return Landlord3D.visualCapture.advance(2)')
+        assert rooftop['grounded'] and not rooftop['flying'] and rooftop['y']>roof['ground']+.3,rooftop
         js('Landlord3D.visualCapture.placeFlight(arguments[0].x,arguments[0].z,arguments[0].y);Landlord3D.controls.setOrbit(0);Landlord3D.setCameraPitch(.32);Landlord3D.dash()',approach)
         crash=js('return Landlord3D.visualCapture.advance(.35)')
         assert not crash['flying'] and crash['reason']=='collision' and crash['collisions']>0,crash
         settled=js('return Landlord3D.visualCapture.advance(3)')
         assert settled['grounded'] and not settled['flying'],settled
         js('Landlord3D.visualCapture.end()')
-        print(json.dumps({'flightRegression':'mobile' if mobile else 'desktop','landing':landed,'collision':crash,'settled':settled}),flush=True)
+        print(json.dumps({'flightRegression':'mobile' if mobile else 'desktop','landing':landed,'collision':crash,'settled':settled,'roof':rooftop}),flush=True)
         wait(lambda:js('return LandlordAudio.ambientEmitter'),30)
         js('Landlord3D.openMap()')
         wait(lambda:js("return Landlord3D.getStatus().state==='map'"))

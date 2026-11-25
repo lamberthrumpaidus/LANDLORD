@@ -115,7 +115,7 @@ function update(dt){
  }
  warnTimer=Math.max(0,warnTimer-dt);
  sidePortalCooldown=Math.max(0,sidePortalCooldown-dt);
- if(!game.flying&&sidePortalCooldown<=0){const side=sidePortalPoint(previousZone),sep=Math.hypot(player.x-side.x,player.z-side.z);
+ if(!game.flying&&player.grounded&&!flightWasActive&&sidePortalCooldown<=0){const side=sidePortalPoint(previousZone),sep=Math.hypot(player.x-side.x,player.z-side.z);
   if(sep<3.4){
    sidePortalHold+=dt;
    if(sidePortalHold>=1.15){portalFlash();const destination=side.destination;

@@ -579,7 +579,7 @@ function refreshSkills(){for(const name of ['dash','fire']){let b=document.query
 
  document.body.classList.toggle('is-flying',game.flying);
  const descendButton=document.querySelector('.btn-descend');if(descendButton){descendButton.hidden=!game.flying;descendButton.classList.toggle('landing-active',!!player.flightLanding&&game.flying);descendButton.setAttribute('aria-pressed',String(!!player.flightLanding&&game.flying));}
- const arrow=$('flightGuide');if(arrow){arrow.hidden=!game.flying;if(game.flying){const goal=portalPoint(6),angle=Math.atan2(goal.x-player.x,goal.z-player.z)-orbit;arrow.querySelector('.flight-arrow').style.transform='rotate('+angle+'rad)';arrow.querySelector('.flight-distance').textContent=Math.round(Math.hypot(goal.x-player.x,goal.z-player.z))+'m';}}}
+ const arrow=$('flightGuide');if(arrow){arrow.hidden=!game.flying;if(game.flying){const goal=portalPoint(6),angle=Math.atan2(goal.x-player.x,goal.z-player.z)-orbit;arrow.querySelector('.flight-arrow').style.transform='rotate('+(player.flightLanding?Math.PI:angle)+'rad)';arrow.querySelector('.flight-label').textContent=player.flightLanding?(language==='id'?'TURUN':'LAND'):'VII';arrow.querySelector('.flight-distance').textContent=player.flightLanding?Math.max(0,Math.round(player.y-height(player.x,player.z)))+'m':Math.round(Math.hypot(goal.x-player.x,goal.z-player.z))+'m';}}}
 function checkVictory(){
  // Only touching the terminal gateway in world VII ends the game. Bosses and checkpoints are optional.
  if(game.state!=='playing'||game.missionEnd||game.postWin)return false;
@@ -633,9 +633,10 @@ function doDash(){
  return true;
 }
 function doJump(){if(game.state!=='playing')return;
+ // Flight ascent never enters the ground triple-jump recognizer.
+ if(game.flying){jumpTimes=[];player.flightLanding=false;player.flightRisePulse=.12;burst(player.x,player.y,player.z,[.36,.83,1],8,.5);return}
  const now=performance.now();jumpTimes=jumpTimes.filter(t=>now-t<1650);jumpTimes.push(now);
  if(jumpTimes.length>=3){jumpTimes=[];player.jumpBuffer=0;activateFlight();pulseSfx(840,.4,'sine',.08);return}
- if(game.flying){player.flightLanding=false;player.flightRisePulse=.12;burst(player.x,player.y,player.z,[.36,.83,1],8,.5);return}
  if(player.grounded||player.coyote>0){
   player.vy=10.4;player.grounded=false;player.coyote=0;player.jumpBuffer=0;
   pulseSfx(230,.12,'sine',.016);

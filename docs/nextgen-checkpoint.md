@@ -143,3 +143,6 @@ User's final checkpoint limit reached. Settings has an explicit CP35 build ident
 
 ## Checkpoint 36 — flight landing and crash physics
 CP35 passed full CI 45538402582 and main was advanced without force. User reopened checkpoint limit after identifying flight bugs. Removed eight-unit hover floor and dash altitude teleport. Descend keyboard or touch press latches landing; jump cancels descent; launch does not bypass collision. Horizontal obstacle contact exits flight and initiates gravity; vertical sweep detects ceilings and landable surfaces for air and ground motion. No new HP penalty. Added three physics unit tests and deterministic real-world gate collision and keyboard/mobile button landing checks in Chrome. Flight activation, dash and map travel preserved. Pending CI.
+
+## Checkpoint 37 — flight control state separation and roof landing regression
+Repeated jump while flying always climbs/cancels descent; the triple-jump recognizer only activates flight from non-flight states. The descend button and flight guide reflect landing, and ground-only side portals cannot trigger mid-fall. Regression uses hit-tested Chrome CDP mobile touch coordinates, tests cancel/restart landing with repeated climb taps, and verifies support on an actual gate-post top. Pending CI. CP35 is verified production baseline; do not claim CP36/37 released until full CI passes.

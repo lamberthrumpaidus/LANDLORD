@@ -57,6 +57,7 @@ def capture():
         assert any(x['state']['mode'] in ('rise','fall','dash') for x in report), 'No actual air/dash pose captured'
         assert any(x['state']['mode']=='flight' and x['state']['body']['flightLean']>.5 for x in report), 'No forward flight pose captured'
         assert any(x['state']['dashTrail']>1 for x in report), 'No temporal dash ribbon captured'
+        assert any(x['state']['style']['sprint']>.5 for x in report), 'No expressive sprint pose captured'
         js('Landlord3D.visualCapture.end()')
     if shutil.which('ffmpeg'):
         def pixels(preset):

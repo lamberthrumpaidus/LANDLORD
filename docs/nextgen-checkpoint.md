@@ -119,3 +119,6 @@ Checkpoint 26 passed CI 45418702856 and main was fast-forwarded to it without fo
 
 ## Checkpoint 28 — animation cadence and pose transform optimization
 Sprint visual cadence capped at 2.65 cycles/s with speed-adaptive stance fraction; movement speed is unchanged. Removed duplicate procedural footstep dust, retaining actual rig contact events. Affine basis and inverse-transpose normals are computed once per ellipsoid, rather than reevaluating articulated transforms for every vertex. Added cadence and affine correctness tests. Pending CI; no measured performance claim.
+
+## Checkpoint 29 — stylized action animation and startup repair
+Checkpoint 27 passed complete CI; checkpoint 28 unit tests passed but first rendered frame timed out. Fixed unbound foot transform context and enabled immediate browser error diagnostics. Added original cyclic locomotion keyframe poses, fast sprint/braking/turn blend, jump tuck and falling stretch, articulated shoulder armor, aerial dash banking and distinct sword ribbon boundaries. All gameplay speeds and instant controls unchanged. Pending browser and visual replay validation; style target is expressive action animation, not photorealism or competitor asset reproduction.

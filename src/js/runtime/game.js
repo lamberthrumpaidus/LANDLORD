@@ -1807,20 +1807,20 @@ const heroRig=new LandlordHeroRig.HeroMotion(),spectacleFX=new LandlordSpectacle
 function playerModel(m){
  const p=player,steel=[.24,.32,.39],polish=[.40,.49,.55],iron=[.075,.105,.145],gold=[.56,.39,.18],leather=[.10,.07,.08],royal=[.20,.045,.065],magic=[.28,.78,.90];
  const pose=sampleAttackPose(p),activity=clamp(p.motion,0,1.1),phase=p.gait,airborne=!p.grounded,dash=p.dashTime>0,attack=p.attackTime>0;
- const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights,body=heroRig.body;
- const rootTransform=m.pt.bind(m),flightPitch=body.flightLean;
- if(Math.abs(flightPitch)>.001)m.pt=v=>rootTransform(LandlordHeroRig.rotatePitch(v,flightPitch));
- const bob=p.grounded?Math.cos(heroRig.phase*2)*.055*rig.run*(1-attackBlend*.65):0;
+ const attackBlend=attack?Math.min(1,Math.sin(Math.PI*pose.progress)*1.65):0,rig=heroRig.weights,body=heroRig.body,style=heroRig.style;
+ const rootTransform=m.pt.bind(m),flightPitch=body.flightLean,airRoll=rig.flight*style.dashPose*Math.sin(Math.PI*clamp(heroRig.dashAge/.24,0,1))*.72;
+ if(Math.abs(flightPitch)+Math.abs(airRoll)>.001)m.pt=v=>{const q=LandlordHeroRig.rotatePitch(v,flightPitch),y=q[1]-1.15,cs=Math.cos(airRoll),sn=Math.sin(airRoll);return rootTransform([q[0]*cs-y*sn,1.15+q[0]*sn+y*cs,q[2]]);};
+ const stride=heroRig.locomotion(-1),bob=p.grounded?Math.cos(heroRig.phase*2)*(.055+.055*style.sprint)*rig.run*(1-attackBlend*.65):0;
  const landing=Math.sin(Math.PI*clamp((p.landPulse||0)/.42,0,1))*.16;
- const hips=1.12+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50;
+ const hips=1.12+bob-rig.dash*.29-pose.crouch*.47-landing-rig.flight*.13-rig.hurt*.10-body.compression*.50-style.brake*.13;
  const breath=!attack&&!airborne?Math.sin(clock*2.05)*.032:0;
- const chest=2.21+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13-body.compression*.38;
+ const chest=2.21+bob+breath-rig.dash*.20-pose.crouch*.39-landing*.8+rig.flight*.12-rig.hurt*.13-body.compression*.38-style.brake*.09;
  // Upper and lower body do not rotate together. Feet plant while the torso winds up.
  for(const side of [-1,1]){
     const hip=[side*.36,hips,0],leg=heroRig.leg(p,side,hip,attackBlend,height),knee=leg.joint,ankle=leg.tip;
     limb(m,hip,knee,.24,.18,steel,0,9);m.ellipsoid(...knee,.23,.22,.24,polish,0,5,9);
     limb(m,knee,ankle,.19,.15,tint(iron,1.13),0,9);
-    const legRoot=m.pt,fp=leg.footPitch;
+    const legRoot=m.pt.bind(m),fp=leg.footPitch;
     m.pt=v=>{const offset=[v[0]-ankle[0],v[1]-ankle[1],v[2]-ankle[2]],q=LandlordHeroRig.rotatePitch(offset,fp,0);return legRoot(add(ankle,q));};
     m.ellipsoid(ankle[0],ankle[1]+.05,ankle[2]+.16,.30,.20,.50,iron,0,6,9);
     m.box(ankle[0],ankle[1]+.15,ankle[2]+.28,.38,.21,.32,gold);m.pt=legRoot;
@@ -1828,7 +1828,7 @@ function playerModel(m){
  }
  const oldPt=m.pt.bind(m),c=Math.cos(pose.twist+body.yaw*(1-attackBlend)),s=Math.sin(pose.twist+body.yaw*(1-attackBlend));
  const twistLocal=(v)=>{
-    let x=v[0],y=v[1]-hips,z=v[2];z+=body.pitch*y; x+=body.roll*y;
+    let x=v[0],y=v[1]-hips,z=v[2];z+=(body.pitch+style.sprint*.17-style.brake*.23)*y;x+=(body.roll+stride.pelvis*rig.run*.18)*y;
     let xx=x*c+z*s,zz=-x*s+z*c;
     return [xx+(p.lean*.22)*(y+1.5),hips+y+.055*Math.sin(pose.progress*Math.PI),zz+pose.lunge*.28];
  };
@@ -1844,20 +1844,22 @@ function playerModel(m){
  // Joint chain: shoulders -> elbows -> wrists, with independently posed hands.
  for(const side of [-1,1]){
    const shoulder=[side*.77,chest+.37,-.04];
-   const armSwing=Math.sin(heroRig.phase+(side===1?Math.PI:0))*.48*rig.run*(1-attackBlend);
+   const cycle=heroRig.locomotion(side),motionWeight=rig.run*(1-attackBlend),armSwing=cycle.wristZ*(.52+.32*style.sprint)*motionWeight;
    let hand,elbow;
    if(side===1){
      const travel=rig.run*(1-attackBlend),flight=rig.flight*(1-attackBlend);
-     hand=[pose.hand[0]+rig.dash*.10+flight*.40,pose.hand[1]+(chest-2.21)+travel*.10-flight*.20,pose.hand[2]+armSwing*.85-travel*.24-flight*.85];
+     hand=[pose.hand[0]+rig.dash*.10+flight*.40,pose.hand[1]+(chest-2.21)+travel*(.04+cycle.wristY*.55)-flight*.20+style.airTuck*.15,pose.hand[2]+armSwing*.95-travel*.30-flight*.85];
      elbow=[.91+(hand[0]-.91)*.50+.12,chest+.03+(hand[1]-chest)*.41,hand[2]*.48-.14];
    } else {
      const cast=clamp((p.fireCast||0)/.39,0,1),lift=Math.sin(Math.PI*(1-cast));
-     hand=[-.96+cast*.42,chest-.61+cast*1.0,.18+armSwing*.85+attackBlend*.25+lift*.6];
+     hand=[-.96+cast*.42,chest-.61+cast*1.0+cycle.wristY*motionWeight*.88+style.airTuck*.20,.18+armSwing*1.18+attackBlend*.25+lift*.6];
      elbow=[-1.10+cast*.24,chest-.14+cast*.50,armSwing*.4+attackBlend*.18+cast*.22];
    }
-   hand[1]+=rig.air*.25+rig.flight*.21;hand[0]+=side*rig.flight*.37;hand[2]-=rig.dash*.34+rig.hurt*.18;
+   hand[1]+=rig.air*.16+rig.flight*.21+style.airStretch*.22;hand[0]+=side*(rig.flight*.37+style.airStretch*.15+style.brake*.13);hand[2]-=rig.dash*.55+rig.hurt*.18;hand[2]+=style.brake*.42;
    const arm=LandlordHeroRig.solveTwoBone(shoulder,hand,[side*.7,-.25,-.75],.86,.82);elbow=arm.joint;hand=arm.tip;
-   LandlordHeroArmor.pauldron(m,side,chest,m.detail);
+   const torsoPt=m.pt,shoulderTilt=cycle.shoulder*motionWeight*.9+(hand[1]-chest+.6)*.14;
+   m.pt=v=>torsoPt(LandlordHeroRig.rotatePitch([v[0],v[1]-shoulder[1],v[2]-shoulder[2]],shoulderTilt,0).map((n,i)=>n+(i===1?shoulder[1]:i===2?shoulder[2]:0)));
+   LandlordHeroArmor.pauldron(m,side,chest,m.detail);m.pt=torsoPt;
    limb(m,shoulder,elbow,.25,.20,steel,0,9);
    m.ellipsoid(...elbow,.23,.23,.23,gold,0,5,8);
    limb(m,elbow,hand,.21,.15,iron,0,9);
@@ -1876,7 +1878,7 @@ function playerModel(m){
    }
  }
  // Cloth physics-like follow-through: sway, inertia and twist propagate to the hem.
- const flutter=Math.sin(clock*4.7+phase*.6)*(.08+.15*activity)+(airborne?.26:0)+(game.flying?.34:0);
+ const flutter=Math.sin(clock*4.7+phase*.6)*(.08+.15*activity+.18*style.sprint)+(airborne?.26:0)+(game.flying?.34:0);
  for(let strip=0;strip<11;strip++){
    let x0=-.69+strip*1.38/11,x1=-.69+(strip+1)*1.38/11;
    for(let j=0;j<7;j++){
@@ -2026,7 +2028,7 @@ function buildDynamic(){let mesh=new Mesh();const planes=gl&&viewProj?LandlordGe
  if(player.swordTrail.length>1){
    let fx=new Mesh();const trail=player.swordTrail;
    for(let i=1;i<trail.length;i++){
-      let a=trail[i-1],b=trail[i],alpha=Math.min(a.life,b.life)/.23;
+      let a=trail[i-1],b=trail[i];if(a.combo!==b.combo)continue;let alpha=Math.min(a.life,b.life)/.23;
       const blend=clamp(alpha*(.30+.7*i/trail.length),0,1);
       const blade=(k)=>add(k.base,scale(sub(k.tip,k.base),.84));
       const nearTip=(k)=>add(k.base,scale(sub(k.tip,k.base),.34));

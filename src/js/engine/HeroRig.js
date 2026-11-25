@@ -19,14 +19,29 @@ function slerpDirection(a,b,t){
  if(d<-.9995){const axis=Math.abs(a[0])<.8?[1,0,0]:[0,1,0],perp=norm(sub(axis,mul(a,dot(axis,a))));return add(mul(a,Math.cos(Math.PI*t)),mul(perp,Math.sin(Math.PI*t)));}
  const theta=Math.acos(d),s=Math.sin(theta);return add(mul(a,Math.sin((1-t)*theta)/s),mul(b,Math.sin(t*theta)/s));
 }
+const locomotionKeys=[
+ [0, .15,-.78,.13, .66, .05, -.18],
+ [.16,.50,-.36,.27, .36,-.08, -.08],
+ [.32,.87,.10,.57,-.10,-.17, .10],
+ [.50,.24,.73,.18,-.65,.04, .18],
+ [.68,.05,.43,.03,-.38,.14, .08],
+ [.84,.08,-.35,.04,.36,.12,-.10],
+ [1,.15,-.78,.13,.66,.05,-.18]
+];
+function cyclePose(phase){
+ const u=((phase/(2*Math.PI))%1+1)%1;
+ let i=0;while(i<locomotionKeys.length-2&&u>locomotionKeys[i+1][0])i++;
+ const a=locomotionKeys[i],b=locomotionKeys[i+1],t=clamp((u-a[0])/(b[0]-a[0]),0,1),s=t*t*(3-2*t);
+ return {elbow:mix(a[1],b[1],s),wristZ:mix(a[2],b[2],s),wristY:mix(a[3],b[3],s),counter:mix(a[4],b[4],s),pelvis:mix(a[5],b[5],s),shoulder:mix(a[6],b[6],s)};
+}
 function rotatePitch(v,angle,pivot=1.15){const y=v[1]-pivot,z=v[2],c=Math.cos(angle),s=Math.sin(angle);return [v[0],pivot+y*c-z*s,y*s+z*c];}
 function blendPose(from,to,t){const u=clamp(t,0,1),s=u*u*(3-2*u),out={...to};out.hand=from.hand.map((v,i)=>mix(v,to.hand[i],s));out.blade=slerpDirection(from.blade,to.blade,s);for(const k of ['twist','crouch','lunge'])out[k]=mix(from[k],to[k],s);return out;}
 function world(p,x,z){const c=Math.cos(p.angle),s=Math.sin(p.angle);return [p.x+x*c+z*s,p.z-x*s+z*c];}
 function local(p,x,z){const dx=x-p.x,dz=z-p.z,c=Math.cos(p.angle),s=Math.sin(p.angle);return [dx*c-dz*s,dx*s+dz*c];}
 function approach(value,target,dt,rate){return mix(value,target,1-Math.exp(-dt*rate));}
 class HeroMotion{
- constructor(){this.phase=0;this.feet=[null,null];this.mode='idle';this.weights={run:0,air:0,dash:0,flight:0,hurt:0};this.cape=Array.from({length:8},()=>({z:0,vz:0,x:0,vx:0}));this.last=null;this.steps=0;this.hurtTime=0;this.frames=0;this.lastVelocity=[0,0];this.legDiagnostics=[];this.body={pitch:0,roll:0,yaw:0,compression:0,reach:0,flightLean:0};this.events=[];this.lastAngle=0;this.previousGrounded=true;this.previousDash=false;this.dashTrail=[];this.simTime=0;this.strideDirection=[0,1];this.speed=0;}
- reset(p){this.phase=0;this.feet=[null,null];this.last=p?[p.x,p.y,p.z]:null;this.lastVelocity=[0,0];this.weights={run:0,air:0,dash:0,flight:0,hurt:0};this.hurtTime=0;this.body={pitch:0,roll:0,yaw:0,compression:0,reach:0,flightLean:0};this.events=[];this.dashTrail=[];this.lastAngle=p?.angle||0;this.previousGrounded=p?.grounded??true;this.previousDash=false;this.strideDirection=[0,1];this.speed=0;this.cape.forEach(n=>{n.x=n.z=n.vx=n.vz=0});}
+ constructor(){this.phase=0;this.feet=[null,null];this.mode='idle';this.weights={run:0,air:0,dash:0,flight:0,hurt:0};this.cape=Array.from({length:8},()=>({z:0,vz:0,x:0,vx:0}));this.last=null;this.steps=0;this.hurtTime=0;this.frames=0;this.lastVelocity=[0,0];this.legDiagnostics=[];this.body={pitch:0,roll:0,yaw:0,compression:0,reach:0,flightLean:0};this.events=[];this.lastAngle=0;this.previousGrounded=true;this.previousDash=false;this.dashTrail=[];this.simTime=0;this.strideDirection=[0,1];this.speed=0;this.style={sprint:0,brake:0,turn:0,anticipate:0,airTuck:0,airStretch:0,dashPose:0};this.priorSpeed=0;this.dashAge=0;}
+ reset(p){this.phase=0;this.feet=[null,null];this.last=p?[p.x,p.y,p.z]:null;this.lastVelocity=[0,0];this.weights={run:0,air:0,dash:0,flight:0,hurt:0};this.hurtTime=0;this.body={pitch:0,roll:0,yaw:0,compression:0,reach:0,flightLean:0};this.events=[];this.dashTrail=[];this.lastAngle=p?.angle||0;this.previousGrounded=p?.grounded??true;this.previousDash=false;this.strideDirection=[0,1];this.speed=0;this.style={sprint:0,brake:0,turn:0,anticipate:0,airTuck:0,airStretch:0,dashPose:0};this.priorSpeed=0;this.dashAge=0;this.cape.forEach(n=>{n.x=n.z=n.vx=n.vz=0});}
  hurt(){this.hurtTime=.33;}
  tick(p,flying,dt,terrain){
   dt=clamp(dt,0,.05);if(!this.last||Math.hypot(p.x-this.last[0],p.z-this.last[2])>5||Math.abs(p.y-this.last[1])>8)this.reset(p);
@@ -41,6 +56,10 @@ class HeroMotion{
   this.strideDirection=this.strideDirection.map((v,i)=>approach(v,direction[i],dt,19));
   const yawRate=Math.atan2(Math.sin(p.angle-this.lastAngle),Math.cos(p.angle-this.lastAngle))/Math.max(.01,dt);this.lastAngle=p.angle;
   const vertical=p.vy||0,landed=p.grounded&&!this.previousGrounded;
+  const braking=clamp((this.priorSpeed-speed)/Math.max(dt,.01)/75,0,1);this.priorSpeed=speed;
+  this.dashAge=dash?(this.previousDash?this.dashAge+dt:0):0;
+  const styleTargets={sprint:run?clamp((speed-6)/7,0,1):0,brake:p.grounded&&!dash?braking:0,turn:run?clamp(yawRate/9,-1,1):0,anticipate:air&&!flying?clamp(vertical/10,0,1):0,airTuck:air&&!flying?clamp(1-Math.abs(vertical-2)/10,0,1):0,airStretch:air&&!flying?clamp(-vertical/9,0,1):0,dashPose:dash?1:0};
+  for(const k of Object.keys(styleTargets))this.style[k]=approach(this.style[k],styleTargets[k],dt,k==='brake'?11:24);
   if(landed)this.events.push({kind:'land',x:p.x,z:p.z,y:terrain(p.x,p.z),strength:1});
   if(dash&&!this.previousDash)this.events.push({kind:'dash',x:p.x,y:p.y,z:p.z,strength:1});
   this.previousGrounded=p.grounded;this.previousDash=dash;
@@ -92,16 +111,18 @@ class HeroMotion{
   z=mix(z,side===1?-.90:.51,dash*.92);
   x+=side*.13*attack;z+=side===1?-.20*attack:.16*attack;
   const q=world(p,x,z),offset=p.grounded?clamp(terrain(q[0],q[1])-p.y,-.34,.40):0;
-  const ankle=[x,.18+offset+lift+air*.36+flight*.10+dash*.11,z];
+  const styl=this.style;z+=styl.airTuck*(side===1?-.34:.30);z-=styl.airStretch*.16;
+  const ankle=[x,.18+offset+lift+air*.19+flight*.10+dash*.11+styl.airTuck*(side===1?.44:.23)-styl.airStretch*.16,z];
   const solved=solveTwoBone(hip,ankle,[side*.12,0,1],.69,.64);
   this.legDiagnostics[i]={upper:len(sub(solved.joint,hip)),lower:len(sub(solved.tip,solved.joint)),planted:!!(f?.stance&&p.grounded&&!p.dashTime),clamped:solved.clamped};
   const cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stanceFraction=.48-.18*w.run,roll=f?.stance?clamp((cycle-stanceFraction*.65)/(stanceFraction*.35),0,1)*.35:-Math.sin(Math.PI*clamp((cycle-stanceFraction)/(1-stanceFraction),0,1))*.60;
   solved.footPitch=clamp(roll*w.run-air*.30-flight*.32-dash*.36,-.85,.65);return solved;
  }
+ locomotion(side){return cyclePose(this.phase+(side===1?Math.PI:0));}
  drainEvents(){const out=this.events;this.events=[];return out;}
  cloth(t){const u=clamp(t,0,1)*(this.cape.length-1),i=Math.floor(u),j=Math.min(i+1,this.cape.length-1);return {x:mix(this.cape[i].x,this.cape[j].x,u-i),z:mix(this.cape[i].z,this.cape[j].z,u-i)};}
- status(){return {mode:this.mode,weights:{...this.weights},steps:this.steps,frames:this.frames,legs:this.legDiagnostics.map(x=>({...x})),cape:this.cape.map(n=>[n.x,n.z]),body:{...this.body},speed:this.speed,dashTrail:this.dashTrail.length};}
+ status(){return {mode:this.mode,weights:{...this.weights},steps:this.steps,frames:this.frames,legs:this.legDiagnostics.map(x=>({...x})),cape:this.cape.map(n=>[n.x,n.z]),body:{...this.body},speed:this.speed,style:{...this.style},dashTrail:this.dashTrail.length};}
 }
-const api={HeroMotion,solveTwoBone,blendPose,slerpDirection,rotatePitch,world,local};
+const api={HeroMotion,solveTwoBone,blendPose,slerpDirection,rotatePitch,cyclePose,world,local};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LandlordHeroRig=api;
 })(globalThis);

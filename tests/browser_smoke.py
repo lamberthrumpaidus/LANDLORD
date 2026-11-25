@@ -66,7 +66,7 @@ def run(mobile):
         assert len(spectacle['entryArt'])==7 and all(x['triangles']>100 for x in spectacle['entryArt']),spectacle
         assert spectacle['portalShader']
         out=ROOT/'test-results';out.mkdir(exist_ok=True)
-        wait(lambda:js('return Landlord3D.getStatus().visibleChunks>0'))
+        wait(lambda:js("if(window.__landlordErrors.length)throw Error(window.__landlordErrors.join('; '));return Landlord3D.getStatus().visibleChunks>0"))
         (out/('title-mobile.png' if mobile else 'title-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         # Actual click dispatch through WebDriver so WebAudio receives a user gesture.
         el=request('POST',sid+'/element',{'using':'css selector','value':'#play'})

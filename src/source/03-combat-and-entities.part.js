@@ -105,25 +105,26 @@ function update(dt){
  const flightWasActive=game.flying,hitObstacle=moveWithCollision(player,wantX,wantZ,.72,player.y,2.65);
  if(flightWasActive&&hitObstacle)endFlight('collision');
  player.x=clamp(player.x,-79,79);player.z=clamp(player.z,3,END-6);
- const gate=portalPoint(previousZone),crossed=previousZone<6&&previousZ<gate.z&&player.z>=gate.z;
- if(crossed&&!game.flying&&!flightWasActive){
-  const clearance=player.y-height(gate.x,gate.z);
-  if(Math.abs(player.x-gate.x)<9&&clearance<9.3){
-   const destination=previousZone+1;portalFlash();player.z=destination*LEN+10;player.x=roadCenter(player.z);
-   player.vx=player.vz=player.vy=0;player.y=height(player.x,player.z);cameraReady=false;player.invuln=2;burst(player.x,height(player.x,player.z)+3,player.z,regions[destination].accent,38,1.3);
-  }else{player.z=gate.z-2.2;if(warnTimer<=0){showToast(language==='id'?'CARI GERBANG':'FIND GATE',1.1);warnTimer=3;}}
+ const gate=portalPoint(previousZone);
+ // A gate is a spatial trigger, not a positive-Z finish line.
+ if(!game.flying&&!flightWasActive){
+  const next=LandlordRealmRoutes.next(previousZone);
+  if(next!==null&&sidePortalCooldown<=0&&LandlordRealmRoutes.canEnter(player,gate,height(gate.x,gate.z))){
+   enterRealm(next,false);
+  }else if(zoneOf(player.z)!==previousZone){
+   player.z=clamp(player.z,previousZone*LEN+3,(previousZone+1)*LEN-3);player.vz=0;
+   if(warnTimer<=0){showToast(language==='id'?'CARI GERBANG':'FIND GATE',1.1);warnTimer=3;}
+  }
  }
  warnTimer=Math.max(0,warnTimer-dt);
  sidePortalCooldown=Math.max(0,sidePortalCooldown-dt);
- if(!game.flying&&player.grounded&&!flightWasActive&&sidePortalCooldown<=0){const side=sidePortalPoint(previousZone),sep=Math.hypot(player.x-side.x,player.z-side.z);
+ if(!game.flying&&player.grounded&&!flightWasActive&&sidePortalCooldown<=0){const side=sidePortalPoint(zoneOf(player.z)),sep=Math.hypot(player.x-side.x,player.z-side.z);
   if(sep<3.4){
    sidePortalHold+=dt;
-   if(sidePortalHold>=1.15){portalFlash();const destination=side.destination;
-     player.z=destination*LEN+13;player.x=roadCenter(player.z);
-     player.vx=player.vz=player.vy=0;player.y=height(player.x,player.z);cameraReady=false;sidePortalHold=0;sidePortalCooldown=2;player.invuln=2;
-     showToast('✦ PORTAL '+String(destination+1).padStart(2,'0'),1.4);save();}
+   if(sidePortalHold>=1.15){const destination=side.destination;enterRealm(destination,false);
+     showToast('✦ PORTAL '+String(destination+1).padStart(2,'0'),1.4);}
   }else sidePortalHold=0;
- }
+ }else sidePortalHold=0;
  const ground=height(player.x,player.z),wasGrounded=player.grounded;
  const verticalBlocked=y=>!!blocking(player.x,player.z,.72,y,2.65);
  if(game.flying){
@@ -305,10 +306,30 @@ function markExplored(){const j=zoneOf(player.z),cells=game.explored[j];game.vis
  const x=Math.round(player.x/11)*11,z=Math.round(player.z/11)*11;
  if(!cells.some(p=>p[0]===x&&p[1]===z)){cells.push([x,z]);if(cells.length>320)cells.shift();}
 }
-function travelRealm(index){if(!game.flying||game.state!=='map'||index<0||index>6)return;releaseGameplayInput();portalFlash();
- resetFlightIntent();player.z=index*LEN+15;player.x=roadCenter(player.z);sidePortalCooldown=2;sidePortalHold=0;player.y=height(player.x,player.z)+16;player.vx=player.vz=player.vy=0;cameraReady=false;
- game.visited[index]=true;markExplored();game.prevZone=-1;game.state='playing';ui.map.classList.remove('visible');
- if(isTouchDevice())revealTouchControls();zoneChanged(true);refreshSkills();lastFrame=0;save();}
+function safeRealmEntry(index,airborne=false){
+ const p=realmEntryPoint(index);
+ for(const dz of [0,-3,3,-6,6,-10,10,-15,15,-21,21]){
+  const z=clamp(p.z+dz,index*LEN+8,(index+1)*LEN-8),cx=roadCenter(z);
+  for(const dx of [0,-2,2,-4,4,-6,6]){
+   const x=cx+dx,y=height(x,z)+(airborne?35:0);
+   if(!blocking(x,z,.95,y,3.1))return {x,y,z};
+  }
+ }
+ return null;
+}
+function enterRealm(index,airborne=false){
+ if(!LandlordRealmRoutes.valid(index))return false;
+ const p=safeRealmEntry(index,airborne);if(!p)return false;
+ releaseGameplayInput();portalFlash();resetFlightIntent();
+ player.x=p.x;player.y=p.y;player.z=p.z;player.vx=player.vz=player.vy=0;
+ player.dashTime=player.dashVY=player.jumpBuffer=player.coyote=0;player.grounded=!airborne;
+ game.flying=airborne;player.invuln=2;sidePortalCooldown=2;sidePortalHold=0;
+ const goal=portalPoint(index);orbit=player.angle=Math.atan2(goal.x-p.x,goal.z-p.z);
+ heroRig.reset();cameraReady=false;game.visited[index]=true;markExplored();
+ game.prevZone=-1;game.state='playing';ui.map.classList.remove('visible');
+ if(isTouchDevice())revealTouchControls();zoneChanged(true);refreshSkills();lastFrame=0;save();return true;
+}
+function travelRealm(index){if(!game.flying||game.state!=='map')return false;return enterRealm(index,true);}
 let warnTimer=0,sidePortalHold=0,sidePortalCooldown=0;
 function powerLevel(){return 1+Math.min(5,Math.floor(game.essence/190))}
 // Skinned-style procedural limbs: every knee, heel, shoulder and sword joint is animated in 3D.

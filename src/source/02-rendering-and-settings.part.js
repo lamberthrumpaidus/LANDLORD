@@ -585,7 +585,7 @@ function checkVictory(){
  if(game.state!=='playing'||game.missionEnd||game.postWin)return false;
  const exit=portalPoint(6);
  const within=Math.hypot(player.x-exit.x,player.z-exit.z)<7.0;
- if(zoneOf(player.z)===6&&within&&player.z>=exit.z-5.2){finishGame(false);return true;}
+ if(zoneOf(player.z)===6&&within&&Math.abs(player.y-height(exit.x,exit.z))<10){finishGame(false);return true;}
  return false;
 }
 function finishGame(fromSave=false){
@@ -604,7 +604,7 @@ function endFlight(reason,grounded=false){if(!game.flying)return;game.flying=fal
  if(reason==='landing')flightLandings++;
  if(reason==='collision'){flightCollisions++;player.vx=player.vz=0;heroRig.hurt();shake=Math.max(shake,.15);player.cameraKick=Math.max(player.cameraKick,.16);burst(player.x,player.y+1.3,player.z,regions[game.zone].accent,12,.35);pulseSfx(120,.18,'triangle',.05);}
  refreshSkills();}
-function requestFlightLanding(){if(game.state!=='playing'||!game.flying)return false;player.flightLanding=true;player.flightLaunch=0;player.flightRisePulse=0;jumpTimes=[];return true;}
+function requestFlightLanding(){if(game.state!=='playing'||!game.flying)return false;player.flightLanding=true;player.flightLaunch=0;player.flightRisePulse=0;jumpTimes=[];refreshSkills();return true;}
 function activateFlight(){if(game.flying){endFlight('manual');return;}game.flying=true;game.secretFlight=true;resetFlightIntent();player.flightLaunch=.65;player.vy=0;player.grounded=false;flightExitReason='none';showToast(language==='id'?'MODE TERBANG':'FLIGHT MODE',1.6);refreshSkills();}
 let jumpTimes=[];
 function doDash(){
@@ -634,7 +634,7 @@ function doDash(){
 }
 function doJump(){if(game.state!=='playing')return;
  // Flight ascent never enters the ground triple-jump recognizer.
- if(game.flying){jumpTimes=[];player.flightLanding=false;player.flightRisePulse=.12;burst(player.x,player.y,player.z,[.36,.83,1],8,.5);return}
+ if(game.flying){jumpTimes=[];player.flightLanding=false;player.flightRisePulse=.12;refreshSkills();burst(player.x,player.y,player.z,[.36,.83,1],8,.5);return}
  const now=performance.now();jumpTimes=jumpTimes.filter(t=>now-t<1650);jumpTimes.push(now);
  if(jumpTimes.length>=3){jumpTimes=[];player.jumpBuffer=0;activateFlight();pulseSfx(840,.4,'sine',.08);return}
  if(player.grounded||player.coyote>0){

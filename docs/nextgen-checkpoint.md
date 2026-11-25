@@ -146,3 +146,12 @@ CP35 passed full CI 45538402582 and main was advanced without force. User reopen
 
 ## Checkpoint 37 — flight control state separation and roof landing regression
 Repeated jump while flying always climbs/cancels descent; the triple-jump recognizer only activates flight from non-flight states. The descend button and flight guide reflect landing, and ground-only side portals cannot trigger mid-fall. Regression uses hit-tested Chrome CDP mobile touch coordinates, tests cancel/restart landing with repeated climb taps, and verifies support on an actual gate-post top. Pending CI. CP35 is verified production baseline; do not claim CP36/37 released until full CI passes.
+
+## Checkpoint 38 — regression diagnosis
+CP37 workflow 45541074279 passed 39 unit tests but failed browser realm travel. The travel regression now explicitly establishes flight, asserts the travel result, and keeps the existing real keyboard/touch collision tests. Pending full CI.
+
+## Checkpoint 39 — multidirectional gate routes
+Seven realms now use distinct entrance and exit coordinates; some routes turn laterally and two reverse along the existing local terrain. Gates activate by spatial proximity instead of crossing a positive-Z finish line, with normal walking constrained to the current realm until portal use. Optional side portals remain. The atlas includes a fog-aware schematic portal network. The underlying renderer still stores biome geometry in legacy local strips; this is a portal-based topology, not a seamless two-dimensional global terrain conversion. Pending CI.
+
+## Checkpoint 40 — transition and control hygiene
+Shared portal transfer finds collision-free entry candidates, preserves flight during map travel, resets dash/vertical/input state, aligns the camera to the destination gate, and refreshes the ascent/descent UI immediately. Added realm-route unit tests, browser assertions, offline cache version and matching runtime build metadata. Pending CI; do not release to main until full verification. Checkpoint 41–50 remain open.

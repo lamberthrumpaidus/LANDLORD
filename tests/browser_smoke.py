@@ -60,7 +60,7 @@ def run(mobile):
         wait(lambda:js('return !!window.Landlord3D'))
         title=js('return Landlord3D.getStatus()')
         assert title['renderer']=='gpu',title
-        assert js('return Landlord3D.getBuildInfo().checkpoint')==37
+        assert js('return Landlord3D.getBuildInfo().checkpoint')==40
         assert len(title['seals'])==7,title
         assert len(title['landmarks'])==7 and all(p['triangles']>100 for p in title['landmarks']),title['landmarks']
         spectacle=js('return Landlord3D.getSpectacleReport()')
@@ -222,6 +222,12 @@ def run(mobile):
         assert js('return Landlord3D.getStatus().gameTime')==paused
         (out/('atlas-mobile.png' if mobile else 'atlas-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         js('Landlord3D.openMap()')
+        # Independently establish travel precondition; flight may legitimately end after earlier collisions.
+        js('Landlord3D.visualCapture.begin();const p=Landlord3D.getStatus().player;Landlord3D.visualCapture.placeFlight(p.x,p.z,Landlord3D.getFlightReport().ground+35);Landlord3D.visualCapture.end()')
+        assert js('return Landlord3D.getFlightReport().flying')
+        routes=js('return Landlord3D.getRealmRoutes()')
+        assert len(routes)==7 and len(set(tuple(r['grid']) for r in routes))==7,routes
+        assert any(r['direction']=="back" for r in routes) and any(r['direction'] in ("left","right") for r in routes),routes
         # Exercise the rendered world transitions in the actual game.
         visited=[0]
         if not mobile:
@@ -229,7 +235,8 @@ def run(mobile):
                 js('Landlord3D.openMap()')
                 wait(lambda:js("return Landlord3D.getStatus().state==='map'"))
                 before=js('return Landlord3D.getStatus().postFX.frames')
-                js('Landlord3D.travelRealm(arguments[0])',realm)
+                assert js('return Landlord3D.getFlightReport().flying'),js('return Landlord3D.getFlightReport()')
+                assert js('return Landlord3D.travelRealm(arguments[0])',realm),realm
                 wait(lambda:js('return Landlord3D.getStatus().zone')==realm)
                 wait(lambda:js('return Landlord3D.getStatus().postFX.frames')>before)
                 assert js('return Landlord3D.getStatus().visited[arguments[0]]',realm)
@@ -239,7 +246,8 @@ def run(mobile):
                 wait(lambda:js('return Landlord3D.getStatus().splashTime<=0'),60)
                 (out/f'realm-{realm+1:02d}.png').write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
             # Return to the first realm; ensure travel remains reversible.
-            js('Landlord3D.openMap();Landlord3D.travelRealm(0)')
+            js('Landlord3D.openMap()')
+            assert js('return Landlord3D.travelRealm(0)')
             wait(lambda:js('return Landlord3D.getStatus().zone===0'))
         # Test real keyboard/touch landing input and a collision with a real gate post.
         js('Landlord3D.visualCapture.begin()')

@@ -1,5 +1,5 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-motion-20261125-cp37';
+const CACHE='landlord-motion-20261125-cp40';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
@@ -13,6 +13,7 @@ const CORE=[
   "src/js/engine/MeshBudget.js",
   "src/js/engine/HeroRig.js",
   "src/js/engine/FlightPhysics.js",
+  "src/js/engine/RealmRoutes.js",
   "src/js/engine/HeroSurface.js",
   "src/js/engine/Choreography.js",
   "src/js/engine/HeroArmor.js",

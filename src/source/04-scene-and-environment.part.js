@@ -60,7 +60,25 @@ function drawAtlas(target){
  c.save();c.translate(posX,posY);c.rotate(LandlordMapProjection.heading(player.angle,yaw));c.fillStyle='#ffe3ad';c.shadowColor='#fff0a6';c.shadowBlur=19;
  c.beginPath();c.moveTo(0,-14);c.lineTo(-10,9);c.lineTo(0,4);c.lineTo(10,9);c.fill();c.restore();
  c.fillStyle='#e8d7b8';c.font='600 19px system-ui';c.textAlign='center';c.fillText(view.cameraUp===false||!worldAtlas?.cameraUp?'N · UTARA':'↑ '+(language==='id'?'KAMERA':'CAMERA'),W*.5,28);
- // The realm jump panel is available only in the discovered secret flight mode.
+ // The overview depicts portal connections, not continuous terrain distances.
+ drawRealmNetwork(c,W,H);
+}
+function drawRealmNetwork(c,W,H){
+ const size=Math.min(W*.32,320),h=size*.53,x=W-size-18,y=42;
+ c.save();c.fillStyle='#07111de8';c.strokeStyle='#839b9b65';c.lineWidth=1.5;
+ c.beginPath();c.roundRect(x,y,size,h,12);c.fill();c.stroke();
+ c.font='600 '+Math.max(12,size*.047)+'px system-ui';c.textAlign='left';c.fillStyle='#c6d8dc';
+ c.fillText(language==='id'?'JARINGAN GERBANG':'PORTAL NETWORK',x+14,y+20);
+ const positions=LandlordRealmRoutes.routes.map(r=>({x:x+size*(.13+r.grid[0]*.245),y:y+h*(.38+r.grid[1]*.40)}));
+ c.lineCap='round';c.lineWidth=2.5;
+ for(let i=0;i<6;i++){
+  if(!game.visited[i]||!game.visited[i+1])continue;
+  c.strokeStyle='#79c5b1';c.beginPath();c.moveTo(positions[i].x,positions[i].y);c.lineTo(positions[i+1].x,positions[i+1].y);c.stroke();
+ }
+ for(let i=0;i<7;i++){if(!game.visited[i])continue;const p=positions[i],r=Math.max(8,size*.041);
+  c.beginPath();c.arc(p.x,p.y,r,0,TAU);c.fillStyle=i===game.zone?'#f4d892':'#203c4c';c.fill();c.strokeStyle='#9cb7b4';c.stroke();
+  c.font='bold '+Math.max(10,size*.042)+'px system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=i===game.zone?'#172332':'#d4e7e5';c.fillText(String(i+1),p.x,p.y);
+ }c.restore();
 }
 /* Local tactical minimap: trails, biome, live enemy markers and current player heading. */
 let minimapDrawState=null;

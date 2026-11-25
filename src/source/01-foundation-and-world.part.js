@@ -30,11 +30,12 @@ function roadCenter(z){
  const a=spline[Math.max(0,seg-1)],b=spline[seg],c=spline[seg+1],d=spline[Math.min(4,seg+2)];
  return .5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
 }
-const ALTAR_LOCAL=.54, BOSS_LOCAL=.83, GATE_LOCAL=.955;
+const ALTAR_LOCAL=.54, BOSS_LOCAL=.83;
 function shrinePoint(j){let z=j*LEN+LEN*ALTAR_LOCAL;return {x:roadCenter(z),z}}
 function guardianPoint(j){let z=j*LEN+LEN*BOSS_LOCAL;return {x:roadCenter(z),z}}
-function portalPoint(j){let z=j*LEN+LEN*GATE_LOCAL;return {x:roadCenter(z),z}}
-const SIDE_LINKS=[2,3,5,1,6,4,0];
+function portalPoint(j){return LandlordRealmRoutes.exit(j,LEN,roadCenter)}
+function realmEntryPoint(j){return LandlordRealmRoutes.entry(j,LEN,roadCenter)}
+const SIDE_LINKS=LandlordRealmRoutes.sideLinks;
 function sidePortalPoint(j){let z=j*LEN+LEN*.69,offset=Math.sin((.69-.34)/.54*Math.PI)*(j%2?-21:21);return {x:roadCenter(z)+offset,z,destination:SIDE_LINKS[j]}}
 
 const height=(x,z)=>{

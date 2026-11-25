@@ -109,3 +109,6 @@
 #overlay:has(#menuScene:not([hidden])){align-items:center!important;justify-content:center!important}
 #overlay:has(#menuScene:not([hidden])) #menuScene{margin-left:auto!important;margin-right:auto!important}
 @media(max-width:660px){#overlay:has(#menuScene:not([hidden])) #menuScene{margin-left:auto!important;margin-right:auto!important}}
+
+/* Active landing is visibly distinct from hover, without adding controls. */
+#mobileControls .btn-descend.landing-active{opacity:1!important;border-color:#8cebd7!important;background:rgba(25,108,103,.56)!important;box-shadow:0 0 10px #55d9c77a!important}

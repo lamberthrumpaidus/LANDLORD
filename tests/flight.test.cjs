@@ -1,0 +1,4 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {verticalSweep,verticalIntent}=require('../src/js/engine/FlightPhysics.js');
+test('descent reaches actual ground without minimum hover',()=>{const p=verticalSweep(8,-2,0,()=>false);assert.deepEqual(p,{y:0,contact:'ground'});});
+test('fast descent stops on top of roof and ascent stops below underside',()=>{const blocked=y=>y<8&&y+2.65>6;const d=verticalSweep(15,0,0,blocked),u=verticalSweep(0,20,0,blocked);assert.equal(d.contact,'surface');assert.ok(Math.abs(d.y-8)<.001);assert.equal(u.contact,'ceiling');assert.ok(Math.abs(u.y-3.35)<.001);});
+test('landing overrides launch, rise and upward dash',()=>{const d=verticalIntent({launch:.6,rise:.12,landing:true,ascend:true,dash:26},.016);assert.deepEqual(d,{launch:0,rise:0,velocity:-24});assert.equal(verticalIntent({launch:.6},.016).velocity,20);});

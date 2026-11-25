@@ -1,0 +1,5 @@
+/* ALL Create by LamberthRumpaidus */
+const test=require('node:test'),assert=require('node:assert/strict'),R=require('../src/js/engine/RealmRoutes.js');
+test('seven unique nodes and optional side routes preserve progression to VII',()=>{assert.equal(R.routes.length,7);assert.equal(new Set(R.routes.map(r=>r.grid.join(','))).size,7);for(let i=0;i<6;i++)assert.equal(R.next(i),i+1);assert.equal(R.next(6),null);for(const x of R.sideLinks)assert.ok(R.valid(x));});
+test('realm entrances and gates permit backtracking and stay within realm bounds',()=>{for(let i=0;i<7;i++){let a=R.entry(i,250,()=>0),b=R.exit(i,250,()=>0);assert.ok(a.z>i*250&&a.z<(i+1)*250);assert.ok(b.z>i*250&&b.z<(i+1)*250);assert.notEqual(a.z,b.z);}assert.equal(R.direction(2,250,()=>0),'back');assert.equal(R.direction(5,250,()=>0),'back');assert.throws(()=>R.entry(-1,250,()=>0));});
+test('gate contact works from every direction and rejects distant or elevated player',()=>{let gate={x:5,z:10};for(const [x,z] of [[5,5],[5,15],[0,10],[10,10]])assert.ok(R.canEnter({x,y:0,z},gate,0));assert.ok(!R.canEnter({x:5,y:20,z:10},gate,0));assert.ok(!R.canEnter({x:30,y:0,z:10},gate,0));});

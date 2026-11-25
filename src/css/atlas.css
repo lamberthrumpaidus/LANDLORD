@@ -11,3 +11,5 @@
 #atlasCenter{display:grid;place-items:center}#atlasCenter svg{display:block;pointer-events:none}
 
 #atlasOrientation{font-size:11px!important;font-weight:800!important}#atlasOrientation[aria-pressed=true]{color:#a9f1dc;border-color:#81cbb9}
+
+#atlasWorld{font-size:10px!important;font-weight:800!important;width:58px!important}#atlasWorld[aria-pressed=true]{color:#a9f1dc;border-color:#81cbb9}#atlasTools[data-overview=true]>:not(#atlasWorld){display:none}#atlasTools[data-overview=true]{bottom:26px}#realmJump:not([hidden])~#atlasTools[data-overview=true]{bottom:92px}@media(max-width:600px){#realmJump:not([hidden])~#atlasTools[data-overview=true]{bottom:116px}}

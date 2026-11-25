@@ -140,3 +140,48 @@ Visual review of checkpoint 30 browser attack frame showed opaque ribbons and br
 
 ## Checkpoint 35 — Motion final candidate
 User's final checkpoint limit reached. Settings has an explicit CP35 build identifier without changing the LANDLORD game name. Controlled replay now captures 120 real frames at 24 fps simulation timing, asserts limb lengths, nonempty translucent effects and whole-body attack displacement, and retains graphics preset comparisons. Preview ZIP includes exact revision information. CP30 fully passed and was fast-forwarded to main. Subsequent revisions must pass browser and replay verification before release; if bugs arise repair within CP35, not an additional checkpoint. No commercial-game equivalence claim or physical device FPS guarantee.
+
+## Checkpoint 36 — flight landing and crash physics
+CP35 passed full CI 45538402582 and main was advanced without force. User reopened checkpoint limit after identifying flight bugs. Removed eight-unit hover floor and dash altitude teleport. Descend keyboard or touch press latches landing; jump cancels descent; launch does not bypass collision. Horizontal obstacle contact exits flight and initiates gravity; vertical sweep detects ceilings and landable surfaces for air and ground motion. No new HP penalty. Added three physics unit tests and deterministic real-world gate collision and keyboard/mobile button landing checks in Chrome. Flight activation, dash and map travel preserved. Pending CI.
+
+## Checkpoint 37 — flight control state separation and roof landing regression
+Repeated jump while flying always climbs/cancels descent; the triple-jump recognizer only activates flight from non-flight states. The descend button and flight guide reflect landing, and ground-only side portals cannot trigger mid-fall. Regression uses hit-tested Chrome CDP mobile touch coordinates, tests cancel/restart landing with repeated climb taps, and verifies support on an actual gate-post top. Pending CI. CP35 is verified production baseline; do not claim CP36/37 released until full CI passes.
+
+## Checkpoint 38 — regression diagnosis
+CP37 workflow 45541074279 passed 39 unit tests but failed browser realm travel. The travel regression now explicitly establishes flight, asserts the travel result, and keeps the existing real keyboard/touch collision tests. Pending full CI.
+
+## Checkpoint 39 — multidirectional gate routes
+Seven realms now use distinct entrance and exit coordinates; some routes turn laterally and two reverse along the existing local terrain. Gates activate by spatial proximity instead of crossing a positive-Z finish line, with normal walking constrained to the current realm until portal use. Optional side portals remain. The atlas includes a fog-aware schematic portal network. The underlying renderer still stores biome geometry in legacy local strips; this is a portal-based topology, not a seamless two-dimensional global terrain conversion. Pending CI.
+
+## Checkpoint 40 — transition and control hygiene
+Shared portal transfer finds collision-free entry candidates, preserves flight during map travel, resets dash/vertical/input state, aligns the camera to the destination gate, and refreshes the ascent/descent UI immediately. Added realm-route unit tests, browser assertions, offline cache version and matching runtime build metadata. Pending CI; do not release to main until full verification. Checkpoint 41–50 remain open.
+
+## Checkpoint 41 — flight dash and input cleanup
+Flight dash is horizontal regardless of camera pitch. Explicit climb and descent remain independent. Flight termination clears touch flags; hiding touch controls releases captured pointers, and duplicate presses on the same action are ignored.
+
+## Checkpoint 42 — safe journey state
+Reset transient motion and animation at starts, loads, portal transfers and respawn. Search radial collision-free ground positions for saved locations and respawn, with entry fallback where possible.
+
+## Checkpoint 43 — combat transition cleanup
+Clear pending projectiles, transient hit/combo state and fire lock during journey resets to prevent effects from leaking between worlds.
+
+## Checkpoint 44 — realm-local AI
+Update enemies and wildlife in their active realm and clamp their local movement to prevent migration across realm boundaries.
+
+## Checkpoint 45 — vertical interactions
+Relic collection, healing and hazard interactions now respect altitude; show the shrine interaction prompt when eligible.
+
+## Checkpoint 46 — multidirectional world atlas
+Add DUNIA/LOKAL atlas views with seven terrain tiles arranged in a nonlinear network. Explored terrain and actual local route splines are shown with fog, primary and side links, current realm indication, and click-to-inspect discovered realms. The overview does not teleport players. Underlying terrain remains organized into local strips rather than a seamless global plane.
+
+## Checkpoint 47 — flight guide alignment
+Use the same world-to-screen projection for flight guide direction and map orientation, removing mirrored directional signs.
+
+## Checkpoint 48 — gate presentation
+Add a restrained animated gate ring on medium/high/ultra graphics presets; retain low preset budget and collision geometry.
+
+## Checkpoint 49 — redundant update reduction
+Skip unchanged HUD text, widths and attributes; cache the latest explored grid cell. No physical-device performance benchmark claimed.
+
+## Checkpoint 50 — integrated release candidate
+Build identification and cache version updated to CP50. Browser regression covers atlas overview, all seven realms, horizontal dash altitude, gate proximity from the rear and existing landing, collision, roof, graphics and offline tests. CP40 browser verification passed on run 45545517656; its replay packaging was still in progress when checked. CP50 code is a candidate, not a verified production release until its own CI completes. Checkpoints 41–50 are grouped in one commit.

@@ -1,5 +1,5 @@
 /* ALL Create by LamberthRumpaidus */
-const CACHE='landlord-motion-20261125-cp35';
+const CACHE='landlord-motion-20261125-cp50';
 const CORE=[
   "index.html",
   "manifest.webmanifest",
@@ -12,6 +12,8 @@ const CORE=[
   "src/js/engine/FrameProfiler.js",
   "src/js/engine/MeshBudget.js",
   "src/js/engine/HeroRig.js",
+  "src/js/engine/FlightPhysics.js",
+  "src/js/engine/RealmRoutes.js",
   "src/js/engine/HeroSurface.js",
   "src/js/engine/Choreography.js",
   "src/js/engine/HeroArmor.js",
@@ -60,7 +62,7 @@ self.addEventListener('install',event=>{
  })());
 });
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
- for(const key of await caches.keys())if(key.startsWith('landlord-nextgen-')&&key!==CACHE)await caches.delete(key);
+ for(const key of await caches.keys())if((key.startsWith('landlord-nextgen-')||key.startsWith('landlord-motion-'))&&key!==CACHE)await caches.delete(key);
  await self.clients.claim();
 })()));
 self.addEventListener('fetch',event=>{

@@ -34,7 +34,7 @@ function takeHit(hp,src){if(src&&ldx.tryParry(src))return;if(player.invuln>0){if
   dodgeRewardTimer=1.15;player.counterReady=2.8;gameplayStats.perfectDodges++;
   player.mp=Math.min(100,player.mp+18);burst(player.x,player.y+1.2,player.z,[.48,1,.85],23,.65);
   showToast(language==='id'?'DODGE SEMPURNA':'PERFECT DODGE',.65);}
-  return;}player.hp=Math.max(0,player.hp-hp);heroRig.hurt();window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hurt',x:src?.x??player.x,y:(src?.y??player.y)+1.5,z:src?.z??player.z,boss:!!src?.boss}}));player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
+  return;}player.hp=Math.max(0,player.hp-hp);heroRig.hurt();window.dispatchEvent(new CustomEvent('landlord:impact',{detail:{kind:'hurt',x:src?.x??player.x,y:(src?.y??player.y)+1.5,z:src?.z??player.z,boss:!!src?.boss}}));player.invuln=.85;ui.damage.style.opacity=.6;setTimeout(()=>ui.damage.style.opacity=0,180);shake=.26;pulseSfx(90,.26,'sawtooth',.05);if(player.hp<=0){player.x=game.checkpointX;player.z=game.checkpoint;player.y=height(player.x,player.z);player.vy=0;player.vx=player.vz=0;game.flying=false;resetFlightIntent();player.grounded=true;player.hp=player.maxHp;player.mp=100;player.invuln=3;cameraReady=false;refreshSkills();showToast('✦ CHECKPOINT',1.1);save()}}
 let shake=0,impactDirection=[0,0];
 function update(dt){
  updateFireLockState(dt);spectacleFX.tick(dt);
@@ -102,10 +102,11 @@ function update(dt){
  // Dash impacts can shatter crates while permanent architecture stays solid.
  if(player.dashTime>0&&Math.abs(player.y-height(player.x,player.z))<4)damageNearbyBreakables(player.x,player.z,2.3,90);
  // Flying and dashing do NOT disable structural collision.
- moveWithCollision(player,wantX,wantZ,.72,player.y,2.65);
+ const flightWasActive=game.flying,hitObstacle=moveWithCollision(player,wantX,wantZ,.72,player.y,2.65);
+ if(flightWasActive&&hitObstacle)endFlight('collision');
  player.x=clamp(player.x,-79,79);player.z=clamp(player.z,3,END-6);
  const gate=portalPoint(previousZone),crossed=previousZone<6&&previousZ<gate.z&&player.z>=gate.z;
- if(crossed&&!game.flying){
+ if(crossed&&!game.flying&&!flightWasActive){
   const clearance=player.y-height(gate.x,gate.z);
   if(Math.abs(player.x-gate.x)<9&&clearance<9.3){
    const destination=previousZone+1;portalFlash();player.z=destination*LEN+10;player.x=roadCenter(player.z);
@@ -124,16 +125,24 @@ function update(dt){
   }else sidePortalHold=0;
  }
  const ground=height(player.x,player.z),wasGrounded=player.grounded;
+ const verticalBlocked=y=>!!blocking(player.x,player.z,.72,y,2.65);
  if(game.flying){
-  let lift=keySet.has(keybinds.jump)?24:0,drop=keySet.has(keybinds.descend)?24:0;
-  if(typeof flightTouchRise!=='undefined'&&flightTouchRise)lift=24;
-  if(typeof flightTouchDrop!=='undefined'&&flightTouchDrop)drop=24;
-  const launch=player.flightLaunch>0;
-  if(launch){player.flightLaunch=Math.max(0,player.flightLaunch-dt);lift=Math.max(lift,20);if(Math.random()<.7)burst(player.x,player.y-.6,player.z,[.35,.92,1],2,.16);}
-  player.y=clamp(player.y+(lift-drop+(player.dashTime>0?player.dashVY:0))*dt,ground+(launch?2.6:8),ground+70);player.vy=0;player.grounded=false;
- }else{player.vy-=24*dt;player.y+=player.vy*dt;if(player.y<=ground){player.y=ground;player.vy=0;player.grounded=true;if(!wasGrounded){player.landPulse=.42;shake=Math.max(shake,.09);burst(player.x,ground+.12,player.z,regions[game.zone].ground,11,.23);}
-   if(player.jumpBuffer>0){player.jumpBuffer=0;player.coyote=0;player.vy=10.4;player.grounded=false;gameplayStats.bufferedJumps++;}}
- else player.grounded=false;}
+  const intent=LandlordFlightPhysics.verticalIntent({launch:player.flightLaunch,rise:player.flightRisePulse,landing:player.flightLanding,drop:keySet.has(keybinds.descend)||flightTouchDrop,ascend:keySet.has(keybinds.jump)||flightTouchRise,dash:player.dashTime>0?player.dashVY:0},dt);
+  player.flightLaunch=intent.launch;player.flightRisePulse=intent.rise;
+  if(intent.launch>0&&Math.random()<.7)burst(player.x,player.y-.6,player.z,[.35,.92,1],2,.16);
+  const swept=LandlordFlightPhysics.verticalSweep(player.y,Math.min(ground+70,player.y+intent.velocity*dt),ground,verticalBlocked);
+  player.y=swept.y;player.vy=0;player.grounded=false;
+  if(swept.contact==='ceiling'){endFlight('collision');}
+  else if(swept.contact==='surface'||swept.contact==='ground'){endFlight(intent.velocity<0?'landing':'collision',true);}
+ }else{
+  player.vy-=24*dt;const swept=LandlordFlightPhysics.verticalSweep(player.y,player.y+player.vy*dt,ground,verticalBlocked);player.y=swept.y;
+  if(swept.contact==='ceiling'){player.vy=0;player.grounded=false;}
+  else if(swept.contact==='surface'||swept.contact==='ground'){player.vy=0;player.grounded=true;}
+  else player.grounded=false;
+ }
+ if(player.grounded&&!wasGrounded){player.landPulse=.42;shake=Math.max(shake,.09);burst(player.x,player.y+.12,player.z,regions[game.zone].ground,11,.23);}
+ if(player.grounded&&player.jumpBuffer>0){player.jumpBuffer=0;player.coyote=0;player.vy=10.4;player.grounded=false;gameplayStats.bufferedJumps++;}
+
  player.landPulse=Math.max(0,(player.landPulse||0)-dt);
  heroRig.tick(player,game.flying,dt,height);
  for(const event of heroRig.drainEvents()){if(event.kind==='step'){burst(event.x,event.y+.08,event.z,tint(regions[game.zone].ground,1.65),quality==='low'?2:5,.10);}else if(event.kind==='land'){spectacleFX.spawn('dash',event.x,event.y+.15,event.z,tint(regions[game.zone].accent,.45));}}
@@ -297,7 +306,7 @@ function markExplored(){const j=zoneOf(player.z),cells=game.explored[j];game.vis
  if(!cells.some(p=>p[0]===x&&p[1]===z)){cells.push([x,z]);if(cells.length>320)cells.shift();}
 }
 function travelRealm(index){if(!game.flying||game.state!=='map'||index<0||index>6)return;releaseGameplayInput();portalFlash();
- player.z=index*LEN+15;player.x=roadCenter(player.z);sidePortalCooldown=2;sidePortalHold=0;player.y=height(player.x,player.z)+16;player.vx=player.vz=player.vy=0;cameraReady=false;
+ resetFlightIntent();player.z=index*LEN+15;player.x=roadCenter(player.z);sidePortalCooldown=2;sidePortalHold=0;player.y=height(player.x,player.z)+16;player.vx=player.vz=player.vy=0;cameraReady=false;
  game.visited[index]=true;markExplored();game.prevZone=-1;game.state='playing';ui.map.classList.remove('visible');
  if(isTouchDevice())revealTouchControls();zoneChanged(true);refreshSkills();lastFrame=0;save();}
 let warnTimer=0,sidePortalHold=0,sidePortalCooldown=0;

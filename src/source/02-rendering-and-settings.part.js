@@ -355,8 +355,8 @@ function load(){let x;try{x=JSON.parse((window.LandlordSaveStore?LandlordSaveSto
  game.checkpoint=clamp(game.checkpoint*lengthRatio,3,END-5);
  game.checkpointX=roadCenter(game.checkpoint);
 game.visited[zoneOf(player.z)]=true;return true}
-function newGame(){heroRig.reset();currentFireLock=null;fireLockWindow=0;attacks=[];resetBreakables();debris.length=0;game.postWin=false;chestTaken.fill(false);shardTaken.fill(false);healCooldown=riftCooldown=0;altarHold=0;altarZone=-1;game.seals.fill(false);game.bosses.fill(false);game.essence=0;game.kills=0;game.checkpoint=18;game.checkpointX=roadCenter(18);game.missionEnd=false;game.relics.fill(false);finalVictory=false;player.z=18;player.x=roadCenter(player.z);player.maxHp=100;player.hp=100;player.mp=100;game.visited=[true,false,false,false,false,false,false];game.explored=Array.from({length:7},()=>[]);game.flying=false;game.secretFlight=false;jumpTimes=[];sidePortalHold=0;sidePortalCooldown=0;player.vy=0;player.vx=player.vz=0;player.gait=player.motion=player.lean=player.landPulse=player.flightLaunch=0;player.grounded=true;player.coyote=0;player.jumpBuffer=0;player.counterReady=0;damagePopups.length=0;player.angle=0;player.attackTime=0;player.attackBlendFrom=null;player.attackClock=0;player.comboTime=0;player.combo=0;player.attackQueued=false;player.swordTrail=[];player.hitPause=0;cameraReady=false;orbit=0;viewMode='tpp';document.body.dataset.view='tpp';const vb=document.querySelector('.btn-view');if(vb)vb.querySelector('span').textContent='F';save();spawnEnemies();spawnWildlife();start()}
-function fromSave(){heroRig.reset();currentFireLock=null;fireLockWindow=0;attacks=[];if(!load())return newGame();finalVictory=game.missionEnd;player.maxHp=100+(powerLevel()-1)*14;player.hp=player.maxHp;player.mp=100;player.vx=player.vz=0;player.attackTime=0;player.attackBlendFrom=null;player.attackQueued=false;player.coyote=0;player.jumpBuffer=0;player.counterReady=0;damagePopups.length=0;player.swordTrail=[];player.landPulse=0;cameraReady=false;game.flying=false;spawnEnemies();spawnWildlife();start()}
+function newGame(){heroRig.reset();currentFireLock=null;fireLockWindow=0;attacks=[];resetBreakables();debris.length=0;game.postWin=false;chestTaken.fill(false);shardTaken.fill(false);healCooldown=riftCooldown=0;altarHold=0;altarZone=-1;game.seals.fill(false);game.bosses.fill(false);game.essence=0;game.kills=0;game.checkpoint=18;game.checkpointX=roadCenter(18);game.missionEnd=false;game.relics.fill(false);finalVictory=false;player.z=18;player.x=roadCenter(player.z);player.maxHp=100;player.hp=100;player.mp=100;game.visited=[true,false,false,false,false,false,false];game.explored=Array.from({length:7},()=>[]);game.flying=false;game.secretFlight=false;resetFlightIntent();flightExitReason='none';sidePortalHold=0;sidePortalCooldown=0;player.vy=0;player.vx=player.vz=0;player.gait=player.motion=player.lean=player.landPulse=player.flightLaunch=0;player.grounded=true;player.coyote=0;player.jumpBuffer=0;player.counterReady=0;damagePopups.length=0;player.angle=0;player.attackTime=0;player.attackBlendFrom=null;player.attackClock=0;player.comboTime=0;player.combo=0;player.attackQueued=false;player.swordTrail=[];player.hitPause=0;cameraReady=false;orbit=0;viewMode='tpp';document.body.dataset.view='tpp';const vb=document.querySelector('.btn-view');if(vb)vb.querySelector('span').textContent='F';save();spawnEnemies();spawnWildlife();start()}
+function fromSave(){heroRig.reset();currentFireLock=null;fireLockWindow=0;attacks=[];if(!load())return newGame();finalVictory=game.missionEnd;player.maxHp=100+(powerLevel()-1)*14;player.hp=player.maxHp;player.mp=100;player.vx=player.vz=0;player.attackTime=0;player.attackBlendFrom=null;player.attackQueued=false;player.coyote=0;player.jumpBuffer=0;player.counterReady=0;damagePopups.length=0;player.swordTrail=[];player.landPulse=0;cameraReady=false;game.flying=false;resetFlightIntent();player.y=height(player.x,player.z);player.vy=0;player.grounded=true;spawnEnemies();spawnWildlife();start()}
 function openMenu(title=false){releaseGameplayInput();$('victoryOverlay').hidden=true;player.attackQueued=false;game.state=title?'title':'pause';menuContext=title?'title':'pause';ui.overlay.classList.remove('off');ui.hud.classList.add('hidden');$('target').classList.add('hide');$('play').hidden=!title;ui.resume.hidden=!!title;ui.restart.hidden=true;showMenuPanel();hideTouchControls();if(document.pointerLockElement)document.exitPointerLock?.();}
 function start(){releaseGameplayInput();if(game.missionEnd){finishGame(true);return;}game.state='playing';settingsOpen=false;ui.overlay.classList.add('off');ui.hud.classList.remove('hidden');$('target').classList.remove('hide');ui.map.classList.remove('visible');lastFrame=0;zoneChanged(true);if(isTouchDevice())revealTouchControls(2700);else hideTouchControls();markExplored();refreshSkills();}
 function resume(){start()}
@@ -578,7 +578,7 @@ function skillUnlocked(name){return true} // Checkpoints are respawn points, nev
 function refreshSkills(){for(const name of ['dash','fire']){let b=document.querySelector('.btn-'+name);if(b)b.hidden=!skillUnlocked(name);}
 
  document.body.classList.toggle('is-flying',game.flying);
- const descendButton=document.querySelector('.btn-descend');if(descendButton)descendButton.hidden=!game.flying;
+ const descendButton=document.querySelector('.btn-descend');if(descendButton){descendButton.hidden=!game.flying;descendButton.classList.toggle('landing-active',!!player.flightLanding&&game.flying);descendButton.setAttribute('aria-pressed',String(!!player.flightLanding&&game.flying));}
  const arrow=$('flightGuide');if(arrow){arrow.hidden=!game.flying;if(game.flying){const goal=portalPoint(6),angle=Math.atan2(goal.x-player.x,goal.z-player.z)-orbit;arrow.querySelector('.flight-arrow').style.transform='rotate('+angle+'rad)';arrow.querySelector('.flight-distance').textContent=Math.round(Math.hypot(goal.x-player.x,goal.z-player.z))+'m';}}}
 function checkVictory(){
  // Only touching the terminal gateway in world VII ends the game. Bosses and checkpoints are optional.
@@ -598,10 +598,14 @@ function finishGame(fromSave=false){
  if(document.pointerLockElement===canvas)document.exitPointerLock?.();
  if(!fromSave){const gate=portalPoint(6);burst(gate.x,height(gate.x,gate.z)+5,gate.z,[.65,1,.85],120,2.8);shake=.7;pulseSfx(920,.8,'triangle',.09);save()}
 }
-function activateFlight(){game.flying=!game.flying;game.secretFlight=true;
- if(game.flying){player.y=Math.max(player.y,height(player.x,player.z)+2.6);player.flightLaunch=.65;player.vy=0;player.grounded=false;showToast(language==='id'?'MODE TERBANG':'FLIGHT MODE',1.6)}
- else {player.flightLaunch=0;}
+let flightExitReason='none',flightLandings=0,flightCollisions=0;
+function resetFlightIntent(){player.flightLaunch=0;player.flightRisePulse=0;player.flightLanding=false;jumpTimes=[];}
+function endFlight(reason,grounded=false){if(!game.flying)return;game.flying=false;resetFlightIntent();player.dashTime=0;player.dashVY=0;player.jumpBuffer=0;player.coyote=0;player.grounded=grounded;player.vy=grounded?0:-4;flightExitReason=reason;
+ if(reason==='landing')flightLandings++;
+ if(reason==='collision'){flightCollisions++;player.vx=player.vz=0;heroRig.hurt();shake=Math.max(shake,.15);player.cameraKick=Math.max(player.cameraKick,.16);burst(player.x,player.y+1.3,player.z,regions[game.zone].accent,12,.35);pulseSfx(120,.18,'triangle',.05);}
  refreshSkills();}
+function requestFlightLanding(){if(game.state!=='playing'||!game.flying)return false;player.flightLanding=true;player.flightLaunch=0;player.flightRisePulse=0;jumpTimes=[];return true;}
+function activateFlight(){if(game.flying){endFlight('manual');return;}game.flying=true;game.secretFlight=true;resetFlightIntent();player.flightLaunch=.65;player.vy=0;player.grounded=false;flightExitReason='none';showToast(language==='id'?'MODE TERBANG':'FLIGHT MODE',1.6);refreshSkills();}
 let jumpTimes=[];
 function doDash(){
  if(game.state!=='playing')return false;
@@ -618,7 +622,7 @@ function doDash(){
  player.dashSerial=(player.dashSerial||0)+1;
  player.vx=player.dashVX*(game.flying?96:60);
  player.vz=player.dashVZ*(game.flying?96:60);
- if(game.flying){player.y=Math.max(player.y,height(player.x,player.z)+6.8);player.vy=0;player.grounded=false;}
+ if(game.flying){player.vy=0;player.grounded=false;if(player.flightLanding)player.dashVY=Math.min(0,player.dashVY);}
  player.invuln=Math.max(player.invuln,game.flying?.17:.22);
  player.cameraKick=Math.max(player.cameraKick,game.flying?.15:.10);
  const accent=game.flying?[.41,.97,1]:regions[game.zone].accent;
@@ -631,7 +635,7 @@ function doDash(){
 function doJump(){if(game.state!=='playing')return;
  const now=performance.now();jumpTimes=jumpTimes.filter(t=>now-t<1650);jumpTimes.push(now);
  if(jumpTimes.length>=3){jumpTimes=[];player.jumpBuffer=0;activateFlight();pulseSfx(840,.4,'sine',.08);return}
- if(game.flying){player.y=Math.min(height(player.x,player.z)+70,player.y+2.7);burst(player.x,player.y,player.z,[.36,.83,1],8,.5);return}
+ if(game.flying){player.flightLanding=false;player.flightRisePulse=.12;burst(player.x,player.y,player.z,[.36,.83,1],8,.5);return}
  if(player.grounded||player.coyote>0){
   player.vy=10.4;player.grounded=false;player.coyote=0;player.jumpBuffer=0;
   pulseSfx(230,.12,'sine',.016);

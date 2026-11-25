@@ -227,6 +227,7 @@ function onGameKeyDown(e){
  if(isBound('map',e.code)){toggleMap();return}
  if(game.state!=='playing')return;
  if(isBound('jump',e.code))doJump();
+ if(isBound('descend',e.code))requestFlightLanding();
  if(isBound('dash',e.code))doDash();
  if(isBound('fire',e.code))doFire();
  if(isBound('attack',e.code))doAttack();
@@ -291,7 +292,7 @@ document.querySelectorAll('[data-mobile-action]').forEach(button=>{
   const action=button.dataset.mobileAction;
    if(game.flying&&action==='jump')flightTouchRise=true;
    if(game.flying&&action==='descend')flightTouchDrop=true;
-   ({attack:doAttack,jump:doJump,dash:doDash,descend:()=>{},fire:doFire,view:toggleView,pause:()=>openMenu()})[action]?.();
+   ({attack:doAttack,jump:doJump,dash:doDash,descend:requestFlightLanding,fire:doFire,view:toggleView,pause:()=>openMenu()})[action]?.();
  });
  for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>{if(actionPointers.get(e.pointerId)!==button)return;actionPointers.delete(e.pointerId);if([...actionPointers.values()].includes(button))return;button.classList.remove('pressed');if(button.dataset.mobileAction==='jump')flightTouchRise=false;if(button.dataset.mobileAction==='descend')flightTouchDrop=false;});
 });

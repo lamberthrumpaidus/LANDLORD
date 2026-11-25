@@ -56,11 +56,11 @@ def run(mobile):
         def cdp(cmd,params=None):
             return request('POST',sid+'/goog/cdp/execute',{'cmd':cmd,'params':params or {}})
         cdp('Page.addScriptToEvaluateOnNewDocument',{'source':"window.__landlordErrors=[];window.addEventListener('error',e=>{if(e.message)window.__landlordErrors.push(e.message)});window.addEventListener('unhandledrejection',e=>window.__landlordErrors.push(String(e.reason)));"})
-        request('POST',sid+'/url',{'url':SITE})
+        request('POST',sid+'/url',{'url':SITE+'?visual-test=1'})
         wait(lambda:js('return !!window.Landlord3D'))
         title=js('return Landlord3D.getStatus()')
         assert title['renderer']=='gpu',title
-        assert js('return Landlord3D.getBuildInfo().checkpoint')==35
+        assert js('return Landlord3D.getBuildInfo().checkpoint')==36
         assert len(title['seals'])==7,title
         assert len(title['landmarks'])==7 and all(p['triangles']>100 for p in title['landmarks']),title['landmarks']
         spectacle=js('return Landlord3D.getSpectacleReport()')
@@ -241,6 +241,32 @@ def run(mobile):
             # Return to the first realm; ensure travel remains reversible.
             js('Landlord3D.openMap();Landlord3D.travelRealm(0)')
             wait(lambda:js('return Landlord3D.getStatus().zone===0'))
+        # Test real keyboard/touch landing input and a collision with a real gate post.
+        js('Landlord3D.visualCapture.begin()')
+        start=js('return Landlord3D.getStatus().player')
+        js('Landlord3D.testSetPosition(arguments[0],arguments[1])',start['x'],start['z'])
+        ground=js('return Landlord3D.getFlightReport().ground')
+        js('Landlord3D.visualCapture.placeFlight(arguments[0],arguments[1],arguments[2])',start['x'],start['z'],ground+12)
+        if mobile:
+            js("document.querySelector('.btn-descend').dispatchEvent(new PointerEvent('pointerdown',{pointerId:901,pointerType:'touch',bubbles:true}));document.querySelector('.btn-descend').dispatchEvent(new PointerEvent('pointerup',{pointerId:901,pointerType:'touch',bubbles:true}))")
+        else:
+            js("const code=Landlord3D.controls.getBindings().descend;window.dispatchEvent(new KeyboardEvent('keydown',{code}));window.dispatchEvent(new KeyboardEvent('keyup',{code}))")
+        assert js('return Landlord3D.getFlightReport().landing')
+        landed=js('return Landlord3D.visualCapture.advance(2)')
+        assert not landed['flying'] and landed['grounded'] and landed['reason']=='landing',landed
+        gate=js('return Landlord3D.runRealmChecks()[0].gate')
+        # Select an actual unobstructed approach to the existing right gate column.
+        approach=js("""const g=arguments[0],x=g.x+12;Landlord3D.testSetPosition(x,g.z);const hit=Landlord3D.collisionAt(x,g.z,Landlord3D.getFlightReport().ground);
+        if(!hit)return null;const y=Math.max(hit.minY+.35,Landlord3D.getFlightReport().ground+1);
+        for(let d=3;d<=18;d+=.25){const z=g.z-d;if(!Landlord3D.collisionAt(x,z,y)&&Landlord3D.collisionAt(x,g.z,y))return {x,z,y};}return null;""",gate)
+        assert approach,gate
+        js('Landlord3D.visualCapture.placeFlight(arguments[0].x,arguments[0].z,arguments[0].y);Landlord3D.controls.setOrbit(0);Landlord3D.setCameraPitch(.32);Landlord3D.dash()',approach)
+        crash=js('return Landlord3D.visualCapture.advance(.35)')
+        assert not crash['flying'] and crash['reason']=='collision' and crash['collisions']>0,crash
+        settled=js('return Landlord3D.visualCapture.advance(3)')
+        assert settled['grounded'] and not settled['flying'],settled
+        js('Landlord3D.visualCapture.end()')
+        print(json.dumps({'flightRegression':'mobile' if mobile else 'desktop','landing':landed,'collision':crash,'settled':settled}),flush=True)
         wait(lambda:js('return LandlordAudio.ambientEmitter'),30)
         js('Landlord3D.openMap()')
         wait(lambda:js("return Landlord3D.getStatus().state==='map'"))

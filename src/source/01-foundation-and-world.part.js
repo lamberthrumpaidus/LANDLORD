@@ -80,11 +80,12 @@ function blocking(x,z,r=.72,feetY=height(x,z),bodyHeight=2.8){
  return null;
 }
 function moveWithCollision(o,dx,dz,r=.70,feetY=o.y??height(o.x,o.z),bodyHeight=2.75){
- const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.28)),sx=dx/steps,sz=dz/steps;
+ const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.28)),sx=dx/steps,sz=dz/steps;let hit=null;
  for(let i=0;i<steps;i++){
-  let nx=o.x+sx;if(!blocking(nx,o.z,r,feetY,bodyHeight))o.x=nx;else if('vx' in o)o.vx=0;
-  let nz=o.z+sz;if(!blocking(o.x,nz,r,feetY,bodyHeight))o.z=nz;else if('vz' in o)o.vz=0;
+  if(Math.abs(sx)>1e-8){const nx=o.x+sx,obstacle=blocking(nx,o.z,r,feetY,bodyHeight);if(!obstacle)o.x=nx;else{hit=obstacle;if('vx' in o)o.vx=0;}}
+  if(Math.abs(sz)>1e-8){const nz=o.z+sz,obstacle=blocking(o.x,nz,r,feetY,bodyHeight);if(!obstacle)o.z=nz;else{hit=obstacle;if('vz' in o)o.vz=0;}}
  }
+ return hit;
 }
 // Choose a reachable short steering step instead of blindly walking into pillars.
 function steerAround(e,goalX,goalZ,speed,dt,r=.7){

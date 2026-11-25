@@ -1,7 +1,8 @@
 // Create by LamberthRumpaidus
 function drawWorld(dt){const start=performance.now();resize();computeCamera(dt);let dynamic=buildDynamic();const mesh=performance.now();if(gl)paintWebGL(dynamic);else paintCPU(dynamic);const render=performance.now();drawAtmosphere();return {mesh:mesh-start,render:render-mesh,overlay:performance.now()-render};}
+let atlasOverview=false,overviewHitRegions=[];
 function drawAtlas(target){
- const c=target.getContext('2d');if(!c)return;
+ const c=target.getContext('2d');if(!c)return;if(atlasOverview){drawWorldOverview(c,target.width,target.height);return;}
  const W=target.width,H=target.height,view=worldAtlas?.view||{x:player.x,z:player.z,zoom:1},scale=H/330*view.zoom;
  const yaw=view.yaw||0,project=LandlordMapProjection.viewport(view.x,view.z,yaw,scale,W*.5,H*.55);
  c.clearRect(0,0,W,H);
@@ -62,6 +63,30 @@ function drawAtlas(target){
  c.fillStyle='#e8d7b8';c.font='600 19px system-ui';c.textAlign='center';c.fillText(view.cameraUp===false||!worldAtlas?.cameraUp?'N · UTARA':'↑ '+(language==='id'?'KAMERA':'CAMERA'),W*.5,28);
  // The overview depicts portal connections, not continuous terrain distances.
  drawRealmNetwork(c,W,H);
+}
+function drawWorldOverview(c,W,H){
+ c.clearRect(0,0,W,H);c.fillStyle='#08111e';c.fillRect(0,0,W,H);
+ const tileW=Math.min(W*.207,H*.41),tileH=tileW*.82,dx=tileW*1.15,dy=tileH*1.24,ox=(W-3*dx-tileW)*.5,oy=(H-dy-tileH)*.5;
+ const slots=LandlordRealmRoutes.routes.map(r=>({x:ox+r.grid[0]*dx,y:oy+r.grid[1]*dy,w:tileW,h:tileH}));
+ overviewHitRegions=[];
+ c.textAlign='center';c.textBaseline='middle';c.font='700 '+Math.max(20,Math.min(34,W*.026))+'px system-ui';c.fillStyle='#f1dec1';c.fillText(language==='id'?'PETA TUJUH DUNIA':'SEVEN REALMS',W*.5,Math.max(30,oy*.36));
+ const link=(a,b,side=false)=>{if(!game.visited[a]||!game.visited[b])return;const p=slots[a],q=slots[b];c.save();c.strokeStyle=side?'#718c9690':'#82dec6';c.lineWidth=side?2:3.5;c.setLineDash(side?[7,7]:[]);c.beginPath();c.moveTo(p.x+p.w*.5,p.y+p.h*.5);c.lineTo(q.x+q.w*.5,q.y+q.h*.5);c.stroke();c.restore();};
+ for(let i=0;i<7;i++){if(i<6)link(i,i+1);link(i,SIDE_LINKS[i],true);}
+ for(let j=0;j<7;j++){
+  if(!game.visited[j])continue;
+  const p=slots[j],reg=regions[j],base=j*LEN,known=(x,z)=>game.explored[j].some(v=>Math.hypot(v[0]-x,v[1]-z)<35);
+  overviewHitRegions.push({...p,index:j});
+  const project=(x,z)=>({x:p.x+p.w*(.5-x/168),y:p.y+p.h*(.91-(z-base)/LEN*.80)});
+  c.save();c.beginPath();c.roundRect(p.x,p.y,p.w,p.h,12);c.clip();c.fillStyle='#111d2a';c.fillRect(p.x,p.y,p.w,p.h);
+  for(const cell of game.explored[j]){const a=project(cell[0],cell[1]),r=p.w*.12,g=c.createRadialGradient(a.x,a.y,0,a.x,a.y,r);g.addColorStop(0,'rgba('+reg.ground.map(v=>Math.floor(v*225)).join(',')+',.78)');g.addColorStop(1,'transparent');c.fillStyle=g;c.fillRect(a.x-r,a.y-r,r*2,r*2);}
+  c.lineWidth=Math.max(2,p.w*.024);c.strokeStyle='#a5b7b1';c.lineCap='round';c.beginPath();
+  let pen=false;for(let k=0;k<=72;k++){const z=base+Math.min(LEN-.01,k*LEN/72),x=roadCenter(z),q=project(x,z);if(!known(x,z)){pen=false;continue;}if(pen)c.lineTo(q.x,q.y);else c.moveTo(q.x,q.y);pen=true;}c.stroke();
+  const gate=portalPoint(j);if(known(gate.x,gate.z)){const q=project(gate.x,gate.z);c.fillStyle='#8cf4d8';c.fillRect(q.x-4,q.y-4,8,8);}
+  if(j===game.zone){const q=project(player.x,player.z);c.fillStyle='#ffdf91';c.beginPath();c.arc(q.x,q.y,5,0,TAU);c.fill();}
+  c.restore();c.strokeStyle=j===game.zone?'#f4d893':'#668a8e';c.lineWidth=j===game.zone?3:1.5;c.beginPath();c.roundRect(p.x,p.y,p.w,p.h,12);c.stroke();
+  c.textAlign='center';c.textBaseline='middle';c.fillStyle='#eef0dd';c.font='700 '+Math.max(12,Math.min(18,p.w*.075))+'px system-ui';c.fillText(String(j+1).padStart(2,'0')+' · '+reg.name,p.x+p.w*.5,p.y+p.h+Math.max(11,p.w*.055),p.w*1.08);
+ }
+ c.textAlign='center';c.textBaseline='middle';c.fillStyle='#8faaa8';c.font='500 '+Math.max(12,Math.min(20,W*.015))+'px system-ui';c.fillText(language==='id'?'Pilih dunia yang sudah dijelajahi untuk melihat detail':'Select an explored realm to inspect its map',W*.5,Math.min(H-40,oy+dy+tileH+Math.max(36,oy*.55)));
 }
 function drawRealmNetwork(c,W,H){
  const size=Math.min(W*.32,320),h=size*.53,x=W-size-18,y=42;
@@ -196,8 +221,21 @@ function configureAtlas(){
  mapCanvas.width=portrait?960:1600;
  mapCanvas.height=Math.round(mapCanvas.width*usableH/usableW);
 }
+function setAtlasOverview(active,redraw=true){
+ atlasOverview=!!active;if(worldAtlas)worldAtlas.overview=atlasOverview;
+ const b=$('atlasWorld');b.setAttribute('aria-pressed',String(atlasOverview));b.textContent=atlasOverview?(language==='id'?'LOKAL':'LOCAL'):(language==='id'?'DUNIA':'WORLD');
+ $('atlasTools').dataset.overview=String(atlasOverview);
+ if(redraw&&game.state==='map')mapDraw(mapCanvas,true);
+}
+$('atlasWorld').addEventListener('click',()=>setAtlasOverview(!atlasOverview));
+mapCanvas.addEventListener('click',e=>{
+ if(!atlasOverview||game.state!=='map')return;
+ const r=mapCanvas.getBoundingClientRect(),x=(e.clientX-r.left)*mapCanvas.width/Math.max(1,r.width),y=(e.clientY-r.top)*mapCanvas.height/Math.max(1,r.height);
+ const hit=overviewHitRegions.find(p=>x>=p.x&&x<=p.x+p.w&&y>=p.y&&y<=p.y+p.h);if(!hit)return;
+ const point=hit.index===game.zone?player:realmEntryPoint(hit.index);worldAtlas?.view.reset(point.x,point.z,worldAtlas.view.yaw);setAtlasOverview(false);worldAtlas?.changed();
+});
 function toggleMap(){if(game.state==='playing'){
- game.state='map';ui.map.classList.add('visible');hideTouchControls();releaseGameplayInput();configureAtlas();worldAtlas?.reset();mapDraw(mapCanvas,true);
+ game.state='map';ui.map.classList.add('visible');releaseGameplayInput();hideTouchControls();setAtlasOverview(false,false);configureAtlas();worldAtlas?.reset();mapDraw(mapCanvas,true);
  $('mapTitle').textContent=regions[game.zone].name;buildRealmSelector();if(document.pointerLockElement)document.exitPointerLock?.();
  }else if(game.state==='map'){releaseGameplayInput();game.state='playing';ui.map.classList.remove('visible');if(isTouchDevice())revealTouchControls();lastFrame=0;}}
 function buildRealmSelector(){const bar=$('realmJump');if(!bar)return;bar.replaceChildren();bar.hidden=!game.flying;
@@ -222,7 +260,7 @@ function placeJoystick(){
  return joystickCenter;
 }
 function revealTouchControls(){if(game.state!=='playing')return;document.body.classList.add('touch-device');touchLayer.classList.add('running','revealed');placeJoystick()}
-function hideTouchControls(){touchLayer.classList.remove('running','revealed');joyVisual.classList.remove('active');lookVisual.classList.remove('visible');clearTimeout(peekTimer);contacts.clear();actionPointers.clear();flightTouchRise=false;flightTouchDrop=false;for(const b of document.querySelectorAll('.ghost-btn.pressed'))b.classList.remove('pressed');touchMove.active=false;touchMove.x=touchMove.y=0;joyKnob.style.transform='translate(0px,0px)'}
+function hideTouchControls(){releaseGameplayInput();touchLayer.classList.remove('running','revealed');joyVisual.classList.remove('active');lookVisual.classList.remove('visible');clearTimeout(peekTimer);contacts.clear();actionPointers.clear();flightTouchRise=false;flightTouchDrop=false;for(const b of document.querySelectorAll('.ghost-btn.pressed'))b.classList.remove('pressed');touchMove.active=false;touchMove.x=touchMove.y=0;joyKnob.style.transform='translate(0px,0px)'}
 function setJoy(dx=0,dy=0){const lim=(joyVisual.getBoundingClientRect().width||124)*.30;const mag=Math.hypot(dx,dy),scale=mag>lim?lim/mag:1;joyKnob.style.transform=`translate(${dx*scale}px,${dy*scale}px)`}
 function readJoystick(x,y){const c=joystickCenter,r=(joyVisual.getBoundingClientRect().width||124)*.37;const dx=x-c.x,dy=y-c.y;const raw=Math.min(1,Math.hypot(dx,dy)/r),amount=raw<.11?0:Math.pow((raw-.11)/.89,1.05),ang=Math.atan2(dy,dx);
  touchMove.x=Math.cos(ang)*amount;touchMove.y=-Math.sin(ang)*amount;setJoy(dx,dy)}
@@ -306,7 +344,8 @@ canvas.addEventListener('pointerup',pointerEnd);canvas.addEventListener('pointer
 document.querySelectorAll('[data-mobile-action]').forEach(button=>{
  button.addEventListener('pointerdown',e=>{
   if(game.state!=='playing')return;e.preventDefault();e.stopPropagation();revealTouchControls(1800);button.classList.add('pressed');
-  actionPointers.set(e.pointerId,button);try{button.setPointerCapture(e.pointerId);}catch{}
+  const alreadyPressed=[...actionPointers.values()].includes(button);actionPointers.set(e.pointerId,button);try{button.setPointerCapture(e.pointerId);}catch{}
+  if(alreadyPressed)return;
   const action=button.dataset.mobileAction;
    if(game.flying&&action==='jump')flightTouchRise=true;
    if(game.flying&&action==='descend')flightTouchDrop=true;

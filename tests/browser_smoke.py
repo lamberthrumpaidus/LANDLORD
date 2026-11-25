@@ -60,7 +60,7 @@ def run(mobile):
         wait(lambda:js('return !!window.Landlord3D'))
         title=js('return Landlord3D.getStatus()')
         assert title['renderer']=='gpu',title
-        assert js('return Landlord3D.getBuildInfo().checkpoint')==40
+        assert js('return Landlord3D.getBuildInfo().checkpoint')==50
         assert len(title['seals'])==7,title
         assert len(title['landmarks'])==7 and all(p['triangles']>100 for p in title['landmarks']),title['landmarks']
         spectacle=js('return Landlord3D.getSpectacleReport()')
@@ -220,6 +220,12 @@ def run(mobile):
             cdp('Input.dispatchMouseEvent',{'type':'mouseReleased','x':rect['x']+35,'y':rect['y'],'button':'left','buttons':0,'clickCount':1})
             wait(lambda:js('return Landlord3D.getMapOrientation().viewport.x')!=before)
         assert js('return Landlord3D.getStatus().gameTime')==paused
+        js("document.getElementById('atlasWorld').click()")
+        assert js('return Landlord3D.getAtlasOverview().active')
+        assert 0 in js('return Landlord3D.getAtlasOverview().visibleRealms')
+        (out/('world-overview-mobile.png' if mobile else 'world-overview-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
+        js("document.getElementById('atlasWorld').click()")
+        assert not js('return Landlord3D.getAtlasOverview().active')
         (out/('atlas-mobile.png' if mobile else 'atlas-desktop.png')).write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         js('Landlord3D.openMap()')
         # Independently establish travel precondition; flight may legitimately end after earlier collisions.
@@ -249,11 +255,19 @@ def run(mobile):
             js('Landlord3D.openMap()')
             assert js('return Landlord3D.travelRealm(0)')
             wait(lambda:js('return Landlord3D.getStatus().zone===0'))
+        if not mobile:
+            js('Landlord3D.openMap();document.getElementById("atlasWorld").click()')
+            assert len(js('return Landlord3D.getAtlasOverview().visibleRealms'))==7
+            (out/'all-seven-worlds.png').write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
+            js('Landlord3D.openMap()')
         # Test real keyboard/touch landing input and a collision with a real gate post.
         js('Landlord3D.visualCapture.begin()')
         start=js('return Landlord3D.getStatus().player')
         js('Landlord3D.testSetPosition(arguments[0],arguments[1])',start['x'],start['z'])
         ground=js('return Landlord3D.getFlightReport().ground')
+        js('Landlord3D.visualCapture.placeFlight(arguments[0],arguments[1],arguments[2]);Landlord3D.controls.setOrbit(0);Landlord3D.setCameraPitch(-.55);Landlord3D.dash()',start['x'],start['z'],ground+40)
+        stable_dash=js('return Landlord3D.visualCapture.advance(.24)')
+        assert stable_dash['flying'] and abs(stable_dash['y']-(ground+40))<.05,stable_dash
         js('Landlord3D.visualCapture.placeFlight(arguments[0],arguments[1],arguments[2])',start['x'],start['z'],ground+12)
         if mobile:
             rect=js("const b=document.querySelector('.btn-descend'),r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2,visible:!b.hidden,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('.btn-descend')===b}")
@@ -285,6 +299,13 @@ def run(mobile):
         assert not crash['flying'] and crash['reason']=='collision' and crash['collisions']>0,crash
         settled=js('return Landlord3D.visualCapture.advance(3)')
         assert settled['grounded'] and not settled['flying'],settled
+        # Ground gates must work from the side or rear; no checkpoint is required.
+        for realm in range(3):
+            g=js('return Landlord3D.portalPoint(arguments[0])',realm)
+            js('Landlord3D.testSetPosition(arguments[0],arguments[1]);Landlord3D.visualCapture.advance(.15)',g['x'],g['z']+2)
+            assert js('return Landlord3D.getStatus().zone')==realm+1,realm
+            assert not js('return Landlord3D.getFlightReport().flying')
+            js('Landlord3D.visualCapture.advance(2.1)')
         js('Landlord3D.visualCapture.end()')
         print(json.dumps({'flightRegression':'mobile' if mobile else 'desktop','landing':landed,'collision':crash,'settled':settled,'roof':rooftop}),flush=True)
         wait(lambda:js('return LandlordAudio.ambientEmitter'),30)

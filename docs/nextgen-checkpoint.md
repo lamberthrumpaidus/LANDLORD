@@ -155,3 +155,33 @@ Seven realms now use distinct entrance and exit coordinates; some routes turn la
 
 ## Checkpoint 40 — transition and control hygiene
 Shared portal transfer finds collision-free entry candidates, preserves flight during map travel, resets dash/vertical/input state, aligns the camera to the destination gate, and refreshes the ascent/descent UI immediately. Added realm-route unit tests, browser assertions, offline cache version and matching runtime build metadata. Pending CI; do not release to main until full verification. Checkpoint 41–50 remain open.
+
+## Checkpoint 41 — flight dash and input cleanup
+Flight dash is horizontal regardless of camera pitch. Explicit climb and descent remain independent. Flight termination clears touch flags; hiding touch controls releases captured pointers, and duplicate presses on the same action are ignored.
+
+## Checkpoint 42 — safe journey state
+Reset transient motion and animation at starts, loads, portal transfers and respawn. Search radial collision-free ground positions for saved locations and respawn, with entry fallback where possible.
+
+## Checkpoint 43 — combat transition cleanup
+Clear pending projectiles, transient hit/combo state and fire lock during journey resets to prevent effects from leaking between worlds.
+
+## Checkpoint 44 — realm-local AI
+Update enemies and wildlife in their active realm and clamp their local movement to prevent migration across realm boundaries.
+
+## Checkpoint 45 — vertical interactions
+Relic collection, healing and hazard interactions now respect altitude; show the shrine interaction prompt when eligible.
+
+## Checkpoint 46 — multidirectional world atlas
+Add DUNIA/LOKAL atlas views with seven terrain tiles arranged in a nonlinear network. Explored terrain and actual local route splines are shown with fog, primary and side links, current realm indication, and click-to-inspect discovered realms. The overview does not teleport players. Underlying terrain remains organized into local strips rather than a seamless global plane.
+
+## Checkpoint 47 — flight guide alignment
+Use the same world-to-screen projection for flight guide direction and map orientation, removing mirrored directional signs.
+
+## Checkpoint 48 — gate presentation
+Add a restrained animated gate ring on medium/high/ultra graphics presets; retain low preset budget and collision geometry.
+
+## Checkpoint 49 — redundant update reduction
+Skip unchanged HUD text, widths and attributes; cache the latest explored grid cell. No physical-device performance benchmark claimed.
+
+## Checkpoint 50 — integrated release candidate
+Build identification and cache version updated to CP50. Browser regression covers atlas overview, all seven realms, horizontal dash altitude, gate proximity from the rear and existing landing, collision, roof, graphics and offline tests. CP40 browser verification passed on run 45545517656; its replay packaging was still in progress when checked. CP50 code is a candidate, not a verified production release until its own CI completes. Checkpoints 41–50 are grouped in one commit.

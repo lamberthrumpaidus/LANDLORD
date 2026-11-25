@@ -31,25 +31,27 @@ def capture():
         (out/'quality-report.json').write_text(json.dumps(quality_report,indent=2))
         js("Landlord3D.setGraphicsQuality('balanced')")
         # Each image is an actual rendered frame from the same game and same camera.
-        # Fixed 1/12 simulation second per frame avoids confusing slow headless software GL with animation timing.
-        for i in range(60):
+        # Fixed 1/24 simulation second per frame avoids confusing slow headless software GL with animation timing.
+        for i in range(120):
             if i==0:key('keydown','KeyW')
-            if i==9:key('keyup','KeyW')
-            if i==11:js('Landlord3D.attack()')
-            if i==14:js('Landlord3D.attack()')
-            if i==18:js('Landlord3D.attack()')
-            if i==24:js('Landlord3D.jump()')
-            if i==29:js('Landlord3D.dash()')
-            if i==35:key('keydown','KeyD')
-            if i==40:key('keyup','KeyD')
-            if i==41:js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
-            if i==43:key('keydown','KeyW')
-            if i==48:js('Landlord3D.dash()')
-            if i==56:key('keyup','KeyW')
-            state=js('return Landlord3D.visualCapture.step(1/12)')
+            if i==18:key('keyup','KeyW')
+            if i==22:js('Landlord3D.attack()')
+            if i==28:js('Landlord3D.attack()')
+            if i==36:js('Landlord3D.attack()')
+            if i==48:js('Landlord3D.jump()')
+            if i==58:js('Landlord3D.dash()')
+            if i==70:key('keydown','KeyD')
+            if i==80:key('keyup','KeyD')
+            if i==82:js('Landlord3D.jump();Landlord3D.jump();Landlord3D.jump()')
+            if i==86:key('keydown','KeyW')
+            if i==96:js('Landlord3D.dash()')
+            if i==112:key('keyup','KeyW')
+            state=js('return Landlord3D.visualCapture.step(1/24)')
             assert state and state['state']['frames']>0,state
             assert not js('return Landlord3D.gpuErrors()')
-            report.append({'frame':i,'simulationSeconds':round((i+1)/12,4),**state})
+            motion=js('return Landlord3D.getAnimationReport()')
+            assert all(abs(v['upper']-.85)<1e-5 and abs(v['lower']-.80)<1e-5 for v in motion['legs']),motion['legs']
+            report.append({'frame':i,'simulationSeconds':round((i+1)/24,4),'transparentFXTriangles':motion['transparentMotionFX'],'choreography':motion['choreography'],**state})
             (out/f'frame-{i:03d}.png').write_bytes(base64.b64decode(request('GET',sid+'/screenshot')))
         (out/'pose-report.json').write_text(json.dumps(report,indent=2))
         assert any(x['state']['mode']=='run' for x in report), 'No actual run pose captured'
@@ -58,6 +60,8 @@ def capture():
         assert any(x['state']['mode']=='flight' and x['state']['body']['flightLean']>.5 for x in report), 'No forward flight pose captured'
         assert any(x['state']['dashTrail']>1 for x in report), 'No temporal dash ribbon captured'
         assert any(x['state']['style']['sprint']>.5 for x in report), 'No expressive sprint pose captured'
+        assert any(x['transparentFXTriangles']>0 for x in report), 'No translucent effects captured'
+        assert any(abs(x['choreography']['shift'])>.06 for x in report), 'No full-body attack displacement captured'
         js('Landlord3D.visualCapture.end()')
     if shutil.which('ffmpeg'):
         def pixels(preset):
@@ -70,8 +74,8 @@ def capture():
         diffs={'LOW_vs_ULTRA':difference(images['low'],images['cinematic']),'HIGH_vs_ULTRA':difference(images['high'],images['cinematic'])}
         (out/'quality-pixel-difference.json').write_text(json.dumps(diffs,indent=2))
         assert diffs['LOW_vs_ULTRA']>1 and diffs['HIGH_vs_ULTRA']>.25,diffs
-        subprocess.run(['ffmpeg','-y','-loglevel','error','-framerate','12','-i',str(out/'frame-%03d.png'),'-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',str(out/'LANDLORD-animation-preview.mp4')],check=True)
-    (out/'README.txt').write_text('Actual Chrome-rendered frames, fixed simulation steps at 12 frames/s. This is a controlled animation replay, NOT a measured real-time performance recording.\n')
+        subprocess.run(['ffmpeg','-y','-loglevel','error','-framerate','24','-i',str(out/'frame-%03d.png'),'-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',str(out/'LANDLORD-animation-preview.mp4')],check=True)
+    (out/'README.txt').write_text('Actual Chrome-rendered frames, fixed simulation steps at 24 frames/s. This is a controlled animation replay, NOT a measured real-time performance recording.\n')
 
 if __name__=='__main__':
     driver=shutil.which('chromedriver') or str(pathlib.Path(os.environ['CHROMEWEBDRIVER'])/'chromedriver')

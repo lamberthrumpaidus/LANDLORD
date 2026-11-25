@@ -137,3 +137,6 @@ Replaced shear-based torso posing with true orthogonal rotation around the pelvi
 
 ## Checkpoint 34 — depth-tested translucent motion effects
 Visual review of checkpoint 30 browser attack frame showed opaque ribbons and bright rings obscuring the character. Isolated sword/dash/impact trails in a translucent depth-tested pass, excluded from shadow casting, reduced glow intensity and skipped discontinuous sword trail segments. Kept CPU fallback and gameplay telegraphs. Pending browser validation.
+
+## Checkpoint 35 — Motion final candidate
+User's final checkpoint limit reached. Settings has an explicit CP35 build identifier without changing the LANDLORD game name. Controlled replay now captures 120 real frames at 24 fps simulation timing, asserts limb lengths, nonempty translucent effects and whole-body attack displacement, and retains graphics preset comparisons. Preview ZIP includes exact revision information. CP30 fully passed and was fast-forwarded to main. Subsequent revisions must pass browser and replay verification before release; if bugs arise repair within CP35, not an additional checkpoint. No commercial-game equivalence claim or physical device FPS guarantee.

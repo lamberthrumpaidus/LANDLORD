@@ -106,7 +106,7 @@ jobs:
   preview:
     needs: verify
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
       - name: Capture actual game animation at controlled simulation intervals

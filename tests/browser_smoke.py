@@ -60,6 +60,7 @@ def run(mobile):
         wait(lambda:js('return !!window.Landlord3D'))
         title=js('return Landlord3D.getStatus()')
         assert title['renderer']=='gpu',title
+        assert js('return Landlord3D.getBuildInfo().checkpoint')==35
         assert len(title['seals'])==7,title
         assert len(title['landmarks'])==7 and all(p['triangles']>100 for p in title['landmarks']),title['landmarks']
         spectacle=js('return Landlord3D.getSpectacleReport()')
@@ -112,6 +113,7 @@ def run(mobile):
         assert 'flightLean' in rig['body'] and 'dashTrail' in rig
         assert rig['surface']=='continuous-limbs-split-mantle'
         assert len(rig['choreography'])==10,rig
+        assert rig['transparentMotionFX']>=0,rig
         # Quality changes must not reset destructible objects or the current journey.
         js('Landlord3D.damageCrate(0,100)')
         assert js('return Landlord3D.breakableSpots()[0].dead')

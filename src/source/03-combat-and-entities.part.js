@@ -348,12 +348,10 @@ function playerModel(m){
     m.box(ankle[0],ankle[1]+.15,ankle[2]+.28,.38,.21,.32,gold);m.pt=legRoot;
     m.ellipsoid(knee[0],knee[1],knee[2]+.14,.21,.22,.095,polish,0,5,8);
  }
- const oldPt=m.pt.bind(m),c=Math.cos(pose.twist+choreo.turn+body.yaw*(1-attackBlend)),s=Math.sin(pose.twist+choreo.turn+body.yaw*(1-attackBlend));
- const twistLocal=(v)=>{
-    let x=v[0],y=v[1]-hips,z=v[2];z+=(body.pitch+style.sprint*.17-style.brake*.23+choreo.pitch)*y;x+=(body.roll+stride.pelvis*rig.run*.18+choreo.roll)*y;
-    let xx=x*c+z*s,zz=-x*s+z*c;
-    return [xx+choreo.shift+(p.lean*.22)*(y+1.5),hips+y+.055*Math.sin(pose.progress*Math.PI),zz+pose.lunge*.28];
- };
+ const oldPt=m.pt.bind(m),torsoPitch=body.pitch+style.sprint*.17-style.brake*.23+choreo.pitch,
+ torsoRoll=body.roll+stride.pelvis*rig.run*.18+choreo.roll,
+ torsoYaw=pose.twist+choreo.turn+body.yaw*(1-attackBlend);
+ const twistLocal=v=>LandlordHeroRig.rigidPose(v,[0,hips,0],torsoPitch,torsoRoll,torsoYaw,[choreo.shift,.055*Math.sin(pose.progress*Math.PI),pose.lunge*.28]);
  m.pt=(v)=>oldPt(twistLocal(v));
  LandlordHeroArmor.breastplate(m,chest,hips,m.detail);
  m.box(0,hips-.07,.01,1.0,.27,.7,leather);
@@ -361,7 +359,9 @@ function playerModel(m){
  for(let j=-2;j<=2;j++)m.box(j*.25,hips-.26,.24-Math.abs(j)*.05,.22,.48,.29,tint(steel,.78+j*.025),0,j*.08);
  // Neck, visor, head, crest; subtly pitch into each attack for weight.
  m.ellipsoid(0,chest+.75,0,.32,.29,.30,iron,0,6,9);
- LandlordHeroArmor.helmet(m,chest,m.detail);
+ const neckTransform=m.pt.bind(m),headTurn=clamp(shortestTurn(p.angle,orbit),-.38,.38)*(1-attackBlend)*(.45+.25*rig.run);
+ m.pt=v=>neckTransform(LandlordHeroRig.rigidPose(v,[0,chest+.75,0],-.35*torsoPitch,-.45*torsoRoll,headTurn-.32*torsoYaw));
+ LandlordHeroArmor.helmet(m,chest,m.detail);m.pt=neckTransform;
  m.box(0,chest+.65,-.01,1.28,.21,.70,tint(steel,.9));
  // Joint chain: shoulders -> elbows -> wrists, with independently posed hands.
  for(const side of [-1,1]){

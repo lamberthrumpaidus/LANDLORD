@@ -131,3 +131,6 @@ Three authored procedural full-body attack tracks add hip shift, body drop, tors
 
 ## Checkpoint 32 — enemy and wildlife locomotion
 Distance-driven enemy and wildlife gait advances from actual collision-resolved movement, blends toward idle when stationary, adds two-bone foot placement to humanoids and guardians, diagonal quadruped stepping, articulated bat wing joints, spider alternating legs and attack lunge poses. Gameplay AI, enemy counts and attack timing unchanged. Added movement/idle gait unit test. Pending CI.
+
+## Checkpoint 33 — rigid body posing and sprint contact continuity
+Replaced shear-based torso posing with true orthogonal rotation around the pelvis; head counter-rotation responds to camera heading without stretching neck/armor. Shortened sprint stance duty cycle and retained swing endpoint on contact rather than snapping to a new location; overreach clamps continuously. Movement and attack mechanics unchanged. Added rotation-invariance test. Pending CI.

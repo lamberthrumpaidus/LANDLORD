@@ -35,6 +35,15 @@ function cyclePose(phase){
  return {elbow:mix(a[1],b[1],s),wristZ:mix(a[2],b[2],s),wristY:mix(a[3],b[3],s),counter:mix(a[4],b[4],s),pelvis:mix(a[5],b[5],s),shoulder:mix(a[6],b[6],s)};
 }
 function rotatePitch(v,angle,pivot=1.15){const y=v[1]-pivot,z=v[2],c=Math.cos(angle),s=Math.sin(angle);return [v[0],pivot+y*c-z*s,y*s+z*c];}
+// True orthogonal body rotation; never stretch bones or armor while leaning.
+function rigidPose(v,pivot,pitch,roll,yaw,shift=[0,0,0]){
+ let x=v[0]-pivot[0],y=v[1]-pivot[1],z=v[2]-pivot[2];
+ let c=Math.cos(pitch),s=Math.sin(pitch);[y,z]=[y*c-z*s,y*s+z*c];
+ c=Math.cos(roll);s=Math.sin(roll);[x,y]=[x*c+y*s,-x*s+y*c];
+ c=Math.cos(yaw);s=Math.sin(yaw);[x,z]=[x*c+z*s,-x*s+z*c];
+ return [x+pivot[0]+shift[0],y+pivot[1]+shift[1],z+pivot[2]+shift[2]];
+}
+function stancePortion(weight){return .48-.25*clamp(weight,0,1);}
 function blendPose(from,to,t){const u=clamp(t,0,1),s=u*u*(3-2*u),out={...to};out.hand=from.hand.map((v,i)=>mix(v,to.hand[i],s));out.blade=slerpDirection(from.blade,to.blade,s);for(const k of ['twist','crouch','lunge'])out[k]=mix(from[k],to[k],s);return out;}
 function world(p,x,z){const c=Math.cos(p.angle),s=Math.sin(p.angle);return [p.x+x*c+z*s,p.z-x*s+z*c];}
 function local(p,x,z){const dx=x-p.x,dz=z-p.z,c=Math.cos(p.angle),s=Math.sin(p.angle);return [dx*c-dz*s,dx*s+dz*c];}
@@ -51,7 +60,7 @@ class HeroMotion{
   this.mode=flying?'flight':dash?'dash':air?(p.vy>0?'rise':'fall'):this.hurtTime>0?'hurt':p.attackTime>0?'attack':run?'run':'idle';
   for(const [k,v] of Object.entries({run:run?clamp(speed/10,0,1):0,air:air?1:0,dash:dash?1:0,flight:flying?1:0,hurt:this.hurtTime>0?Math.sin(Math.PI*this.hurtTime/.33):0}))this.weights[k]=approach(this.weights[k],v,dt,k==='hurt'?25:15);
   if(run)this.phase+=Math.min(dist*2.45,dt*Math.PI*2*2.65);
-  const stanceFraction=.48-.18*this.weights.run;
+  const stanceFraction=stancePortion(this.weights.run);
   const actual=local({...p,x:0,z:0},dx,dz),direction=dist>.0001?actual.map(v=>v/dist):this.strideDirection;
   this.strideDirection=this.strideDirection.map((v,i)=>approach(v,direction[i],dt,19));
   const yawRate=Math.atan2(Math.sin(p.angle-this.lastAngle),Math.cos(p.angle-this.lastAngle))/Math.max(.01,dt);this.lastAngle=p.angle;
@@ -70,7 +79,7 @@ class HeroMotion{
   if((dash||flying&&speed>18)&&(!this.dashTrail.length||Math.hypot(p.x-this.dashTrail.at(-1).x,p.y-this.dashTrail.at(-1).y,p.z-this.dashTrail.at(-1).z)>.72)){this.dashTrail.push({x:p.x,y:p.y,z:p.z,angle:p.angle,life:.30,flight:flying});if(this.dashTrail.length>24)this.dashTrail.shift();}
   for(let i=0;i<2;i++){
    const side=i===0?-1:1,cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stance=cycle<stanceFraction;
-   const stride=.42+.58*this.weights.run,front=run?(1-cycle*2)*stride:0,dir=this.strideDirection;
+   const stride=.42+.64*this.weights.run,front=run?(1-cycle*2)*stride:0,dir=this.strideDirection;
    const desired=world(p,side*.36+dir[0]*front,dir[1]*front);
    let f=this.feet[i];
    if(!f||air||dash||flying){f={x:desired[0],z:desired[1],fromX:desired[0],fromZ:desired[1],toX:desired[0],toZ:desired[1],stance:false,initialized:false,lift:0};this.feet[i]=f;}
@@ -79,9 +88,9 @@ class HeroMotion{
     const offset=local(p,f.x,f.z);if(!f.initialized||Math.abs(offset[0]-side*.36)>.48||Math.abs(offset[1])>.60){f.x=desired[0];f.z=desired[1];}
     else{f.x=approach(f.x,desired[0],dt,8);f.z=approach(f.z,desired[1],dt,8);}f.stance=true;f.initialized=true;f.lift=0;continue;
    }
-   const offset=local(p,f.x,f.z),overreach=Math.hypot(offset[0]-side*.36,offset[1])>1.10;
+   const offset=local(p,f.x,f.z),overreach=Math.hypot(offset[0]-side*.36,offset[1])>1.23;
    if(stance){
-    if(!f.stance||!f.initialized||overreach){f.x=desired[0];f.z=desired[1];if(!f.stance){this.steps++;this.events.push({kind:'step',x:f.x,z:f.z,y:terrain(f.x,f.z),strength:clamp(speed/14,.15,1),side});}}f.lift=0;
+    if(!f.stance||!f.initialized||overreach){if(!f.initialized){f.x=desired[0];f.z=desired[1];}else if(overreach){const rel=local(p,f.x,f.z),r=Math.hypot(rel[0]-side*.36,rel[1])||1,limit=1.18;const q=world(p,side*.36+(rel[0]-side*.36)*limit/r,rel[1]*limit/r);f.x=q[0];f.z=q[1];}if(!f.stance){this.steps++;this.events.push({kind:'step',x:f.x,z:f.z,y:terrain(f.x,f.z),strength:clamp(speed/14,.15,1),side});}}f.lift=0;
    }else{
     if(f.stance||!f.initialized){f.fromX=f.x;f.fromZ=f.z;const next=world(p,side*.36+dir[0]*stride,dir[1]*stride);f.toX=next[0];f.toZ=next[1];}
     const u=clamp((cycle-stanceFraction)/(1-stanceFraction),0,1),s=u*u*(3-2*u),next=world(p,side*.36+dir[0]*stride,dir[1]*stride);
@@ -104,7 +113,7 @@ class HeroMotion{
  leg(p,side,hip,attack,terrain,choreo={front:0,rear:0}){
   const i=side<0?0:1,f=this.feet[i],w=this.weights;
   let x=side*.36,z=0,lift=0;
-  if(f&&p.grounded&&!p.dashTime){[x,z]=local(p,f.x,f.z);x=clamp(x,side*.36-.48,side*.36+.48);z=clamp(z,-.90,.90);lift=f.lift;}
+  if(f&&p.grounded&&!p.dashTime){[x,z]=local(p,f.x,f.z);x=clamp(x,side*.36-.48,side*.36+.48);z=clamp(z,-1.12,1.12);lift=f.lift;}
   const air=w.air,flight=w.flight,dash=w.dash;
   x=mix(x,side*(.34+.16*flight),air*.80);z=mix(z,side*.21+flight*.12,air*.85);
   if(flight>.01){z=mix(z,side===1?-.42:-.16,flight);x=mix(x,side*.28,flight);}
@@ -115,7 +124,7 @@ class HeroMotion{
   const ankle=[x,.19+offset+lift+air*.19+flight*.10+dash*.11+styl.airTuck*(side===1?.44:.23)-styl.airStretch*.16,z];
   const solved=solveTwoBone(hip,ankle,[side*.12,0,1],.85,.80);
   this.legDiagnostics[i]={upper:len(sub(solved.joint,hip)),lower:len(sub(solved.tip,solved.joint)),planted:!!(f?.stance&&p.grounded&&!p.dashTime),clamped:solved.clamped};
-  const cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stanceFraction=.48-.18*w.run,roll=f?.stance?clamp((cycle-stanceFraction*.65)/(stanceFraction*.35),0,1)*.35:-Math.sin(Math.PI*clamp((cycle-stanceFraction)/(1-stanceFraction),0,1))*.60;
+  const cycle=((this.phase/(2*Math.PI)+i*.5)%1+1)%1,stanceFraction=stancePortion(w.run),roll=f?.stance?clamp((cycle-stanceFraction*.65)/(stanceFraction*.35),0,1)*.35:-Math.sin(Math.PI*clamp((cycle-stanceFraction)/(1-stanceFraction),0,1))*.60;
   solved.footPitch=clamp(roll*w.run-air*.30-flight*.32-dash*.36,-.85,.65);return solved;
  }
  locomotion(side){return cyclePose(this.phase+(side===1?Math.PI:0));}
@@ -123,6 +132,6 @@ class HeroMotion{
  cloth(t){const u=clamp(t,0,1)*(this.cape.length-1),i=Math.floor(u),j=Math.min(i+1,this.cape.length-1);return {x:mix(this.cape[i].x,this.cape[j].x,u-i),z:mix(this.cape[i].z,this.cape[j].z,u-i)};}
  status(){return {mode:this.mode,weights:{...this.weights},steps:this.steps,frames:this.frames,legs:this.legDiagnostics.map(x=>({...x})),cape:this.cape.map(n=>[n.x,n.z]),body:{...this.body},speed:this.speed,style:{...this.style},dashTrail:this.dashTrail.length};}
 }
-const api={HeroMotion,solveTwoBone,blendPose,slerpDirection,rotatePitch,cyclePose,world,local};
+const api={HeroMotion,solveTwoBone,blendPose,slerpDirection,rotatePitch,rigidPose,stancePortion,cyclePose,world,local};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LandlordHeroRig=api;
 })(globalThis);

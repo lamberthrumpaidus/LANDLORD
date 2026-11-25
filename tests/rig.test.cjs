@@ -1,4 +1,4 @@
-const {test}=require('node:test');const assert=require('node:assert/strict');const {HeroMotion,solveTwoBone,blendPose,slerpDirection,rotatePitch,cyclePose,world,local}=require('../src/js/engine/HeroRig.js');
+const {test}=require('node:test');const assert=require('node:assert/strict');const {HeroMotion,solveTwoBone,blendPose,slerpDirection,rotatePitch,rigidPose,stancePortion,cyclePose,world,local}=require('../src/js/engine/HeroRig.js');
 const dist=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i])),near=(a,b)=>Math.abs(a-b)<1e-7;
 test('two-bone IK preserves segment lengths under reachable, extreme and coincident targets',()=>{for(const target of [[.4,.5,.2],[3,4,8],[0,0,0],[0,-1,0]]){const r=solveTwoBone([0,0,0],target,[0,0,1],.69,.64);assert.ok(near(dist(r.joint,[0,0,0]),.69));assert.ok(near(dist(r.joint,r.tip),.64));assert.ok(r.tip.every(Number.isFinite));}});
 test('local and world coordinates invert at multiple headings',()=>{for(const angle of [0,1.2,-3.0]){let p={x:8,z:12,angle},q=world(p,.35,-.7),r=local(p,...q);assert.ok(near(r[0],.35)&&near(r[1],-.7));}});
@@ -13,3 +13,5 @@ test('directional gait produces physical foot contact events and flight ribbons 
 test('sprint cadence remains bounded at gameplay speed',()=>{const r=new HeroMotion(),p={x:0,z:0,y:0,angle:0,grounded:true,vx:0,vz:14.2,vy:0,dashTime:0,attackTime:0};for(let i=0;i<120;i++){p.z+=14.2/60;r.tick(p,false,1/60,()=>0);}assert.ok(r.phase/(2*Math.PI)<=5.3);assert.ok(r.steps>=5&&r.steps<=12);});
 
 test('stylized locomotion clip is cyclic and changes wrist and pelvis across phases',()=>{const a=cyclePose(0),b=cyclePose(Math.PI*2);for(const k of Object.keys(a))assert.ok(near(a[k],b[k]));assert.ok(Math.abs(a.wristZ-cyclePose(Math.PI).wristZ)>1);for(let i=0;i<100;i++)assert.ok(Object.values(cyclePose(i/10)).every(Number.isFinite));});
+
+test('torso rotations preserve distances and running stance is shorter than walking',()=>{const a=[.4,1.4,.1],b=[-.6,2.8,.3],pivot=[0,1.48,0];for(let i=0;i<10;i++){const f=v=>rigidPose(v,pivot,i*.11,-i*.04,i*.2,[.3,.2,-.1]);assert.ok(near(dist(a,b),dist(f(a),f(b))));}assert.ok(stancePortion(1)<stancePortion(0));});
